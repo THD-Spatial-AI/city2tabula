@@ -35,14 +35,16 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 - **PostGIS**: 3.5+ (https://postgis.net/install/)
 
-- **Java**: 17+ for CityDB Tool
+- **Java**: 17+ for CityDB Tool (https://www.oracle.com/java/technologies/downloads/)
 
-- **Git**: 2.25+ for source management
+- **Git**: 2.25+ for source management (https://git-scm.com/downloads)
 
 ### CityDB Tool
 - **CityDB Importer/Exporter**: v1.0.0 Download from [here](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0)
 
 Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
+
+---
 
 ### Configuration
 
@@ -57,26 +59,37 @@ nano .env
 
 **Example `.env` Configuration:**
 ```bash
+# Global Configuration
+COUNTRY=germany # Specify the country you want to train from the list of available countries
+# Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
+# greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
+# spain, sweden, united_kingdom
+
 # Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_SSL_MODE=disable
+DB_USER=postgres
+DB_PASSWORD=<your_pg_password_here>
+DB_SSL_MODE=disable # enable it for production
 
-# Country/Region (affects database name: City2TABULA_{country})
-COUNTRY=germany
+# CityDB Configuration
+CITYDB_TOOL_PATH=path/to/citydb-tool-1.X.X # Replace with actual path to CityDB tool
+CITYDB_SRID=25832 # Coordinate Reference System for CityDB (UTM zone 32N for Germany)
+CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
 
-# CityDB Tool Path
-CITYDB_TOOL_PATH=/opt/citydb-tool
+# Parallel Processing Configuration
+THREAD_COUNT=4        # Number of threads for parallel processing (optional)
+DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
+DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
 
-# Processing Configuration
-BATCH_SIZE=1000        # Buildings per batch
-BATCH_THREADS=8        # Parallel worker threads
-
-# Logging
-LOG_LEVEL=INFO
+# Logging Configuration
+LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
+               # For development: DEBUG - shows all debug information
+               # For production: INFO - shows essential information only
+               # For monitoring: WARN - shows only warnings and errors
 ```
+
+> **Note**: The available countries are based on TABULA and EPISCOPE project data. Each country has specific SRID configurations. Refer to `.env.example` for complete SRID mappings for all supported countries.
 
 ## Quick Start
 
@@ -287,14 +300,14 @@ sphinx-autobuild source build/html
 
 This project is licensed under the MIT License - see the [LICENSE](/LICENSE) file for details.
 
-## Support
-
-- **Documentation**: Comprehensive guides in `docs/` directory
+> **Note**: This tool is under active development. Features and performance may evolve with future releases.
 
 ## Acknowledgments
 
-- **3D CityDB**: For providing the foundation for 3D spatial data management
+This project is being developed in the context of the research project RENvolveIT (https://projekte.ffg.at/projekt/5127011).
 
----
+This research was funded by CETPartnership, the Clean Energy Transition Partnership under the 2023 joint call for research proposals, co-funded by the European Commission (GA N°101069750) and with the funding organizations detailed on https://cetpartnership.eu/funding-agencies-and-call-mod-ules.​
 
-> **Note**: This tool is under active development. Features and performance may evolve with future releases.
+ <img src="docs/source/img/CETP-logo.svg" alt="CETPartnership" width="144" height="72">  <img src="docs/source/img/EN_Co-fundedbytheEU_RGB_POS.png" alt="EU" width="180" height="40">
+
+- **3DCityDB**: For providing the foundation for 3D spatial data management. (https://www.3dcitydb.org/)
