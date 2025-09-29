@@ -84,6 +84,7 @@ LOG_LEVEL=INFO
 ```bash
 # Test City2TABULA
 ./City2TABULA --help
+```
 
 ### 2. Prepare Data
 
