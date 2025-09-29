@@ -271,8 +271,6 @@ go build -o City2TABULA ./cmd
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **Installation Guide** - Complete setup instructions with all dependencies
-- **Quick Start Guide** - Get running quickly with sample data
 - **Module Documentation** - Detailed API and architecture documentation
 - **Configuration Reference** - All configuration options and tuning
 - **Troubleshooting Guide** - Common issues and solutions
