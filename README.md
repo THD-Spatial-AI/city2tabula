@@ -274,7 +274,6 @@ Comprehensive documentation is available at [City2TABULA ReadTheDocs](https://ci
 - **Module Documentation** - Detailed API and architecture documentation
 - **Configuration Reference** - All configuration options and tuning
 - **Troubleshooting Guide** - Common issues and solutions
-- **Performance Optimization** - Scaling and tuning recommendations
 
 **Build Documentation Locally:**
 
