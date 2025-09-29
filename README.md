@@ -269,7 +269,7 @@ go build -o City2TABULA ./cmd
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Comprehensive documentation is available at [City2TABULA ReadTheDocs](https://city2tabula.readthedocs.io/en/latest/)
 
 - **Module Documentation** - Detailed API and architecture documentation
 - **Configuration Reference** - All configuration options and tuning
