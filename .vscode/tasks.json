@@ -1,0 +1,79 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Go Binary",
+      "type": "shell",
+      "command": "go",
+      "args": ["build", "-o", "City2TABULA", "./cmd"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"],
+      "detail": "Compiles the Go program into an executable binary."
+    },
+    {
+      "label": "Create City2TABULA DB",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --create_db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Runs City2TABULA in feature extraction mode."
+    },
+    {
+      "label": "Reset 3D2TABULA DB",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Runs City2TABULA in feature extraction mode."
+    },
+    {
+      "label": "Extract Features",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --extract_features",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Runs City2TABULA in feature extraction mode."
+    },
+
+    {
+      "label": "Run rtd server",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/docs && sphinx-autobuild source build/html",
+      "problemMatcher": [],
+      "group": {
+          "kind": "build",
+          "isDefault": true
+      }
+    }
+  ]
+}
