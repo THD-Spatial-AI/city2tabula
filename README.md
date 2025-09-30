@@ -44,94 +44,6 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
 
----
-
-### Configuration
-
-**Create Environment File:**
-```bash
-# Copy example configuration
-cp .env.example .env
-
-# Edit configuration
-nano .env
-```
-
-**Example `.env` Configuration:**
-```bash
-# Global Configuration
-COUNTRY=germany # Specify the country you want to train from the list of available countries
-# Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
-# greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
-# spain, sweden, united_kingdom
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=<your_pg_password_here>
-DB_SSL_MODE=disable # enable it for production
-
-# CityDB Configuration
-CITYDB_TOOL_PATH=path/to/citydb-tool-1.X.X # Replace with actual path to CityDB tool
-CITYDB_SRID=25832 # Coordinate Reference System for CityDB (UTM zone 32N for Germany)
-CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
-
-# Parallel Processing Configuration
-THREAD_COUNT=4        # Number of threads for parallel processing (optional)
-DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
-DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
-
-# Logging Configuration
-LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
-               # For development: DEBUG - shows all debug information
-               # For production: INFO - shows essential information only
-               # For monitoring: WARN - shows only warnings and errors
-```
-
-> **Note**: The available countries are based on TABULA and EPISCOPE project data. Each country has specific SRID configurations. Refer to `.env.example` for complete SRID mappings for all supported countries.
-
-## Quick Start
-
-### 1. Verify Installation
-```bash
-# Test City2TABULA
-./City2TABULA --help
-```
-
-### 2. Prepare Data
-
-- Download or obtain 3D city model data in CityGML or CityJSON format.
-- Ensure data is organized in the following directory structure:
-
-**Data Directory Structure:**
-```
-data/
-├── lod2/
-│   └── germany/
-│       └── your-lod2-city.gml or your-lod2-city.json
-├── lod3/
-│   └── germany/
-│       └── your-lod3-city.gml or your-lod3-city.json
-└── tabula/
-    └── germany.csv # Already included
-```
-
-### 3. Initialize Database
-```bash
-# Create complete database setup:
-# - CityDB schemas (lod2, lod3)
-# - Training and tabula schemas
-# - Import supplementary data
-./City2TABULA --create_db
-```
-
-
-### 4. Extract Features
-```bash
-# Run feature extraction pipeline
-./City2TABULA --extract_features
-```
 
 ## Pipeline Overview
 
@@ -260,22 +172,112 @@ git clone https://mygit.th-deg.de/thd-spatial-ai/data_pipelines/city2tabula.git
 cd City2TABULA
 ```
 
-### 2. Initialise the Go Module (if not already)
+---
+
+### 2. Configuration
+
+**Create Environment File:**
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+
+**Example `.env` Configuration:**
+```bash
+# Global Configuration
+COUNTRY=germany # Specify the country you want to train from the list of available countries
+# Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
+# greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
+# spain, sweden, united_kingdom
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=<your_pg_password_here>
+DB_SSL_MODE=disable # enable it for production
+
+# CityDB Configuration
+CITYDB_TOOL_PATH=path/to/citydb-tool-1.X.X # Replace with actual path to CityDB tool
+CITYDB_SRID=25832 # Coordinate Reference System for CityDB (UTM zone 32N for Germany)
+CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
+
+# Parallel Processing Configuration
+THREAD_COUNT=4        # Number of threads for parallel processing (optional)
+DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
+DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
+
+# Logging Configuration
+LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
+               # For development: DEBUG - shows all debug information
+               # For production: INFO - shows essential information only
+               # For monitoring: WARN - shows only warnings and errors
+```
+
+> **Note**: The available countries are based on TABULA and EPISCOPE project data. Each country has specific SRID configurations. Refer to `.env.example` for complete SRID mappings for all supported countries.
+
+
+### 3. Initialise the Go Module (if not already)
 
 ```bash
 go mod tidy
 ```
 
-### 3. Build the Binary
+### 4. Build the Binary
 
 ```bash
 go build -o City2TABULA ./cmd
 ```
 
-### 4. Run
+### 5. Run
 
 ```bash
 ./City2TABULA
+```
+
+## Quick Start
+
+### 1. Verify Installation
+```bash
+# Test City2TABULA
+./City2TABULA --help
+```
+
+### 2. Prepare Data
+
+- Download or obtain 3D city model data in CityGML or CityJSON format.
+- Ensure data is organized in the following directory structure:
+
+**Data Directory Structure:**
+```
+data/
+├── lod2/
+│   └── germany/
+│       └── your-lod2-city.gml or your-lod2-city.json
+├── lod3/
+│   └── germany/
+│       └── your-lod3-city.gml or your-lod3-city.json
+└── tabula/
+    └── germany.csv # Already included
+```
+
+### 3. Initialize Database
+```bash
+# Create complete database setup:
+# - CityDB schemas (lod2, lod3)
+# - Training and tabula schemas
+# - Import supplementary data
+./City2TABULA --create_db
+```
+
+
+### 4. Extract Features
+```bash
+# Run feature extraction pipeline
+./City2TABULA --extract_features
 ```
 
 ---
