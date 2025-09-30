@@ -25,6 +25,11 @@ type SetupOperation struct {
 func CreateCity2TABULADB(config *config.Config, conn *pgxpool.Pool) error {
 	utils.Info.Println("Creating 3D to Tabula database tables...")
 
+	// First, create the 3DCityDB infrastructure
+	if err := CreateCityDB(config); err != nil {
+		return fmt.Errorf("failed to setup CityDB infrastructure: %w", err)
+	}
+
 	// Create schemas
 	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
 	if err := CreateSchemas(conn, schemas); err != nil {
