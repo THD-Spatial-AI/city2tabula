@@ -1,0 +1,38 @@
+name: Release Binaries
+
+on:
+  release:
+    types: [created]   # run when a new GitHub Release is created
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64   # skip Windows ARM unless you need it
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'   # match your local Go version
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          OUTPUT="city2tabula-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            OUTPUT="$OUTPUT.exe"
+          fi
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/$OUTPUT ./cmd
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
