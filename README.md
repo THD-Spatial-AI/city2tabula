@@ -19,7 +19,6 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 - **TABULA Integration**: Building type classification using TABULA methodology
 
 ### **Performance & Scalability**
-- **High Throughput**: 64,400+ buildings per second processing capability
 - **Memory Efficient**: Batch-based processing preventing memory exhaustion
 - **Parallel Architecture**: Goroutine-based workers achieving 2.5-4x performance improvements
 - **Database Optimization**: Query plan caching and connection pooling
