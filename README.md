@@ -19,7 +19,6 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 - **TABULA Integration**: Building type classification using TABULA methodology
 
 ### **Performance & Scalability**
-- **High Throughput**: 64,400+ buildings per second processing capability
 - **Memory Efficient**: Batch-based processing preventing memory exhaustion
 - **Parallel Architecture**: Goroutine-based workers achieving 2.5-4x performance improvements
 - **Database Optimization**: Query plan caching and connection pooling
@@ -79,19 +78,9 @@ graph LR
 │   └── test_file_grouping.go
 ├── data
 │   ├── lod2
-│   │   ├── austria
-│   │   │   ├── 105082_fixed.gml
-│   │   │   └── vienna
 │   │   ├── czech
 │   │   ├── germany
-│   │   │   ├── deggendorf
-│   │   │   │   ├── 784_5412.gml
-│   │   │   │   └── 786_5412.gml
-│   │   │   └── lks_deggendorf
-│   │   │       └── lks_deggendorf.meta4
 │   │   └── netherlands
-│   │       ├── 7-736-608.city.json
-│   │       └── 8-736-600.city.json
 │   ├── lod3
 │   │   ├── austria
 │   │   ├── czech
