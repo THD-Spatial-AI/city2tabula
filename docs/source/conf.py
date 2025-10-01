@@ -3,8 +3,8 @@
 # -- Project information
 
 project = 'City2TABULA Documentation'
-copyright = '2025, Jaykumar R. Ravani'
-author = 'Jaykumar R. Ravani'
+copyright = '2025, THD_Spatial'
+author = 'THD_Spatial'
 release = '1.0.0'
 version = '1.0.0'
 
