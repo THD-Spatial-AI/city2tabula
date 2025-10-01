@@ -78,19 +78,9 @@ graph LR
 │   └── test_file_grouping.go
 ├── data
 │   ├── lod2
-│   │   ├── austria
-│   │   │   ├── 105082_fixed.gml
-│   │   │   └── vienna
 │   │   ├── czech
 │   │   ├── germany
-│   │   │   ├── deggendorf
-│   │   │   │   ├── 784_5412.gml
-│   │   │   │   └── 786_5412.gml
-│   │   │   └── lks_deggendorf
-│   │   │       └── lks_deggendorf.meta4
 │   │   └── netherlands
-│   │       ├── 7-736-608.city.json
-│   │       └── 8-736-600.city.json
 │   ├── lod3
 │   │   ├── austria
 │   │   ├── czech
