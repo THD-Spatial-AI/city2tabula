@@ -8,7 +8,7 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 ### **Core Processing Capabilities**
 - **Building-Centric Parallel Processing**: Advanced parallel architecture processing 100K+ buildings efficiently
-- **CityDB Integration**: Native support for 3D building data (LOD2/LOD3) from CityDB schemas
+- **CityDB Integration**: Native support for 3D building data (LOD2/LOD3) in CityGML and CityJSON format from CityDB schemas
 - **Parameterized SQL Templates**: Dynamic SQL scripts supporting multiple LOD levels with single templates
 - **Batch Processing**: Optimized batch processing with configurable batch sizes for large datasets
 

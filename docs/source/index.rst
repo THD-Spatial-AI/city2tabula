@@ -16,7 +16,7 @@ Key Features
 
 **Core Processing Capabilities**
   - Building-Centric Parallel Processing: Advanced parallel architecture processing 100K+ buildings efficiently
-  - CityDB Integration: Native support for 3D building data (LOD2/LOD3) from CityDB schemas
+  - CityDB Integration: Native support for 3D building data (LOD2/LOD3) in CityGML and CityJSON format from CityDB schemas
   - Parameterized SQL Templates: Dynamic SQL scripts supporting multiple LOD levels
   - Batch Processing: Optimized batch processing with configurable batch sizes
 
@@ -27,7 +27,6 @@ Key Features
   - TABULA Integration: Building type classification using TABULA methodology
 
 **Performance & Scalability**
-  - High Throughput: 64,400+ buildings per second processing capability
   - Memory Efficient: Batch-based processing preventing memory exhaustion
   - Parallel Architecture: Goroutine-based workers achieving 2.5-4x performance improvements
   - Database Optimization: Query plan caching and connection pooling
