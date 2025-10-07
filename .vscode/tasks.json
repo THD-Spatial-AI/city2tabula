@@ -14,7 +14,7 @@
       "detail": "Compiles the Go program into an executable binary."
     },
     {
-      "label": "Create City2TABULA DB",
+      "label": "Create Complete Database",
       "type": "shell",
       "command": "go build -o City2TABULA ./cmd && ./City2TABULA --create_db",
       "group": "test",
@@ -28,12 +28,12 @@
         "showReuseMessage": true,
         "clear": false
       },
-      "detail": "Runs City2TABULA in feature extraction mode."
+      "detail": "Creates the complete City2TABULA database (CityDB infrastructure + schemas + data import)."
     },
     {
-      "label": "Reset 3D2TABULA DB",
+      "label": "Reset Complete Database",
       "type": "shell",
-      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_db",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_all",
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -45,7 +45,41 @@
         "showReuseMessage": true,
         "clear": false
       },
-      "detail": "Runs City2TABULA in feature extraction mode."
+      "detail": "Reset everything: drop all schemas and recreate the complete database."
+    },
+    {
+      "label": "Reset CityDB Only",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_citydb",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)."
+    },
+    {
+      "label": "Reset City2TABULA Schemas Only",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_city2tabula",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Reset only City2TABULA schemas (preserve CityDB infrastructure)."
     },
     {
       "label": "Extract Features",
@@ -62,9 +96,25 @@
         "showReuseMessage": true,
         "clear": false
       },
-      "detail": "Runs City2TABULA in feature extraction mode."
+      "detail": "Run the feature extraction pipeline."
     },
-
+    {
+      "label": "Legacy: Reset City2TABULA DB",
+      "type": "shell",
+      "command": "go build -o City2TABULA ./cmd && ./City2TABULA --reset_db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Legacy command: same as 'Reset Complete Database'."
+    },
     {
       "label": "Run rtd server",
       "type": "shell",
@@ -73,7 +123,8 @@
       "group": {
           "kind": "build",
           "isDefault": true
-      }
+      },
+      "detail": "Start the Read the Docs development server with auto-rebuild."
     }
   ]
 }
