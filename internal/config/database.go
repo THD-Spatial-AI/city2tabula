@@ -59,7 +59,7 @@ func loadDBConfig() *DBConfig {
 	return &DBConfig{
 		Host:     GetEnv("DB_HOST", "localhost"),
 		Port:     GetEnv("DB_PORT", "5432"),
-		Name:     fmt.Sprintf("City2TABULA_%s", country),
+		Name:     fmt.Sprintf("city2tabula_%s", country),
 		User:     GetEnv("DB_USER", "postgres"),
 		Password: GetEnv("DB_PASSWORD", ""),
 		SSLMode:  GetEnv("DB_SSL_MODE", ""),
