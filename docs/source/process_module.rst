@@ -332,81 +332,6 @@ Performance Optimization
 Batch Processing
 ~~~~~~~~~~~~~~~~
 
-**Optimal Batch Sizing:**
-
-.. code-block:: go
-
-   // Calculate optimal batch size based on system resources
-   func CalculateOptimalBatchSize(availableRAM int64, numWorkers int) int {
-       // Memory per batch (estimated)
-       memoryPerBatch := 50 * 1024 * 1024  // 50MB
-
-       // Maximum batches in memory simultaneously
-       maxConcurrentBatches := int(availableRAM / memoryPerBatch)
-
-       // Ensure reasonable batch size
-       optimalSize := maxConcurrentBatches / numWorkers
-       return max(500, min(optimalSize, 5000))  // Clamp between 500-5000
-   }
-
-**Performance Guidelines:**
-
-+-------------------+------------------+------------------+------------------+
-| System RAM        | Batch Size       | Workers          | Expected Throughput |
-+===================+==================+==================+==================+
-| 8 GB              | 500-1000         | 2-4              | 10K-20K bldgs/min  |
-+-------------------+------------------+------------------+------------------+
-| 16 GB             | 1000-2000        | 4-8              | 20K-40K bldgs/min  |
-+-------------------+------------------+------------------+------------------+
-| 32 GB             | 2000-5000        | 8-16             | 40K-80K bldgs/min  |
-+-------------------+------------------+------------------+------------------+
-
-Memory Management
-~~~~~~~~~~~~~~~~~
-
-**Resource Cleanup:**
-
-.. code-block:: go
-
-   // Ensure proper cleanup after pipeline completion
-   func (w *Worker) cleanupResources() {
-       // Close database connections
-       // Release memory buffers
-       // Clear temporary data
-   }
-
-**Memory Monitoring:**
-
-.. code-block:: go
-
-   // Monitor memory usage during processing
-   func MonitorMemoryUsage() {
-       var m runtime.MemStats
-       runtime.ReadMemStats(&m)
-
-       log.Printf("Allocated: %d KB", m.Alloc/1024)
-       log.Printf("Total Allocations: %d KB", m.TotalAlloc/1024)
-       log.Printf("System Memory: %d KB", m.Sys/1024)
-   }
-
-Error Handling and Recovery
----------------------------
-
-Error Types
-~~~~~~~~~~~
-
-**Processing Errors:**
-
-.. code-block:: go
-
-   var (
-       ErrJobFailed        = errors.New("job execution failed")
-       ErrSQLError         = errors.New("SQL execution error")
-       ErrConnectionLost   = errors.New("database connection lost")
-       ErrTimeout          = errors.New("job execution timeout")
-       ErrInvalidTemplate  = errors.New("invalid SQL template")
-   )
-
 **Recovery Strategies:**
 
 1. **Job Retry**: Automatic retry with exponential backoff
@@ -414,35 +339,6 @@ Error Types
 3. **Graceful Degradation**: Continue processing other pipelines
 4. **Resource Recovery**: Reconnect to database, reallocate memory
 
-Monitoring and Metrics
-----------------------
-
-Real-time Metrics
-~~~~~~~~~~~~~~~~~
-
-**Processing Metrics:**
-
-.. code-block:: go
-
-   type ProcessingMetrics struct {
-       BuildingsProcessed    int64         // Total buildings processed
-       JobsCompleted         int64         // Total jobs completed
-       JobsFailed           int64         // Total jobs failed
-       AverageJobDuration   time.Duration // Average job execution time
-       ThroughputPerSecond  float64       // Buildings per second
-       ActiveWorkers        int           // Currently active workers
-   }
-
-**Performance Tracking:**
-
-.. code-block:: go
-
-   // Track processing performance
-   func (m *ProcessingMetrics) UpdateThroughput(buildingsProcessed int64,
-                                               duration time.Duration) {
-       m.BuildingsProcessed += buildingsProcessed
-       m.ThroughputPerSecond = float64(m.BuildingsProcessed) / duration.Seconds()
-   }
 
 Logging and Debugging
 ~~~~~~~~~~~~~~~~~~~~~
