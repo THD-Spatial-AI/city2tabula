@@ -1,11 +1,13 @@
 package config
 
+import "os"
+
 // Data directory constants
 const (
-	DataDir       = "data/"
-	Lod2DataDir   = DataDir + "lod2/"
-	Lod3DataDir   = DataDir + "lod3/"
-	TabulaDataDir = DataDir + "tabula/"
+	DataDir       = "data" + string(os.PathSeparator)
+	Lod2DataDir   = DataDir + "lod2" + string(os.PathSeparator)
+	Lod3DataDir   = DataDir + "lod3" + string(os.PathSeparator)
+	TabulaDataDir = DataDir + "tabula" + string(os.PathSeparator)
 )
 
 // Data paths

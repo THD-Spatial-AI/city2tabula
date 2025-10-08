@@ -2,24 +2,25 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 )
 
 // SQL directory constants
 const (
-	SQLDir = "sql/"
+	SQLDir = "sql" + string(os.PathSeparator)
 
 	// Script directories
-	SQLScriptDir              = SQLDir + "scripts/"
-	SQLMainScriptDir          = SQLScriptDir + "main/"          // Core feature extraction pipeline
-	SQLSupplementaryScriptDir = SQLScriptDir + "supplementary/" // Supporting/setup scripts
+	SQLScriptDir              = SQLDir + "scripts" + string(os.PathSeparator)
+	SQLMainScriptDir          = SQLScriptDir + "main" + string(os.PathSeparator)          // Core feature extraction pipeline
+	SQLSupplementaryScriptDir = SQLScriptDir + "supplementary" + string(os.PathSeparator) // Supporting/setup scripts
 
 	// Schema files
-	SQLSchemaFileDir = SQLDir + "schema/"
+	SQLSchemaFileDir = SQLDir + "schema" + string(os.PathSeparator)
 
 	// Function files
-	SQLTrainingFunctionsPath = SQLDir + "functions/"
+	SQLTrainingFunctionsPath = SQLDir + "functions" + string(os.PathSeparator)
 )
 
 // SQLScripts holds dynamically loaded SQL script paths
