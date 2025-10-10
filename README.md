@@ -221,21 +221,13 @@ go mod tidy
 go build -o City2TABULA ./cmd
 ```
 
-### 5. Run
-
-```bash
-./City2TABULA
-```
-
-## Quick Start
-
-### 1. Verify Installation
+### 5. Verify Installation
 ```bash
 # Test City2TABULA
 ./City2TABULA --help
 ```
 
-### 2. Prepare Data
+### 6. Prepare Data
 
 - Download or obtain 3D city model data in CityGML or CityJSON format.
 - Ensure data is organized in the following directory structure:
@@ -253,7 +245,7 @@ data/
     └── germany.csv # Already included
 ```
 
-### 3. Initialize Database
+### 7. Initialize Database
 ```bash
 # Create complete database setup:
 # - CityDB schemas (lod2, lod3)
@@ -263,7 +255,7 @@ data/
 ```
 
 
-### 4. Extract Features
+### 8. Extract Features
 ```bash
 # Run feature extraction pipeline
 ./City2TABULA --extract_features
