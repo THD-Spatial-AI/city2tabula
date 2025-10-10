@@ -16,7 +16,7 @@ SELECT
     id AS tabula_variant_code_id,
     "Code_BuildingVariant" AS tabula_variant_code,
     "V_C" AS max_volume,
-    "A_C_National" AS footprint_area,
+    "A_C_ExtDim" AS footprint_area,
     "n_Storey" AS number_of_storeys,
     CASE "Code_ComplexFootprint"
         WHEN 'Simple' THEN 0
