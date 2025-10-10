@@ -39,6 +39,7 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 - **Git**: 2.25+ for source management (https://git-scm.com/downloads)
 
 ### CityDB Tool
+
 - **CityDB Importer/Exporter**: v1.0.0 Download from [here](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0)
 
 Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
@@ -262,7 +263,8 @@ data/
 | `--extract_features` | Run feature extraction pipeline |
 | `--reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
-For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).
+*For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).*
+
 ---
 
 ## Documentation
