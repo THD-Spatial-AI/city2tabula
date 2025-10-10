@@ -34,7 +34,6 @@ go.work.sum
 .env
 
 *.pkl
-*.gml
 *.xsd
 *.gfs
 
