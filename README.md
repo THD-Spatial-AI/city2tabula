@@ -262,6 +262,7 @@ data/
 | `--extract_features` | Run feature extraction pipeline |
 | `--reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
+For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).
 ---
 
 ## Documentation

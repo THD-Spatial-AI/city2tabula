@@ -9,6 +9,11 @@ In `example_data` folder several CityGML and CityJSON files are provided for tes
     - Source: [https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) (Accessed: 2025-10-10)
     - License: **CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/deed.de)
 
+- example_data/example_lod2/austria:
+    - Region: test data from Austria
+    - Source: [https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip](https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip) (Accessed: 2025-10-10)
+    - License: **CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/deed.de)
+
 - example_data/example_lod3/germany:
     - Region: Hamburg, Germany
     - Source: [https://metaver.de/trefferanzeige?docuuid=B438AD57-223B-43A4-8E74-767CEC8A96D7#detail_links](https://metaver.de/trefferanzeige?docuuid=B438AD57-223B-43A4-8E74-767CEC8A96D7#detail_links) (Accessed: 2025-10-10)
