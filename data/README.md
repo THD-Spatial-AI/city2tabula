@@ -54,7 +54,7 @@ data/
 
 | Format | Extension | Description |
 |--------|-----------|-------------|
-| CityGML | `.gml`, `.xml` | OGC CityGML format |
+| CityGML | `.gml` | OGC CityGML format |
 | CityJSON | `.json` | JSON-based encoding of CityGML |
 
 ## Licensing & Attribution
