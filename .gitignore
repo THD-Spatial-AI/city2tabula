@@ -9,9 +9,9 @@
 *.dylib
 
 # Project binaries
-City2TABULA
-City2TABULA-*
-/cmd/City2TABULA
+city2tabula
+city2tabula-*
+/cmd/city2tabula
 build/
 
 # Test binary, built with `go test -c`

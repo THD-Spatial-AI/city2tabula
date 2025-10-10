@@ -55,17 +55,6 @@ graph LR
     C --> D[Building Data with Features]
 ```
 
-### Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `--help` | Show help information |
-| `--create_db` | Create the City2TABULA database and CityDB schemas required to store the 3D city models and import the data |
-| `--reset_db` | Reset the City2TABULA database and CityDB schemas (drops all tables and re-creates them) |
-| `--extract_features` | Run feature extraction pipeline |
-| `--reset_City2TABULA` | Reset only the City2TABULA database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
-
----
 
 ## Project Structure
 
@@ -218,13 +207,13 @@ go mod tidy
 ### 4. Build the Binary
 
 ```bash
-go build -o City2TABULA ./cmd
+go build -o city2tabula ./cmd
 ```
 
 ### 5. Verify Installation
 ```bash
-# Test City2TABULA
-./City2TABULA --help
+# Test city2tabula
+./city2tabula --help
 ```
 
 ### 6. Prepare Data
@@ -251,15 +240,27 @@ data/
 # - CityDB schemas (lod2, lod3)
 # - Training and tabula schemas
 # - Import supplementary data
-./City2TABULA --create_db
+./city2tabula --create_db
 ```
 
 
 ### 8. Extract Features
 ```bash
 # Run feature extraction pipeline
-./City2TABULA --extract_features
+./city2tabula --extract_features
 ```
+
+---
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `--help` | Show help information |
+| `--create_db` | Create the city2tabula database and CityDB schemas required to store the 3D city models and import the data |
+| `--reset_db` | Reset the city2tabula database and CityDB schemas (drops all tables and re-creates them) |
+| `--extract_features` | Run feature extraction pipeline |
+| `--reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
 ---
 
