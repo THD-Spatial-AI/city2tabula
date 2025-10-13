@@ -62,7 +62,7 @@ graph LR
 > This tool is under active development. Therefore it may be subject to changes and improvements over time.
 
 ```
-├── City2TABULA
+├── city2tabula                # Downloaded binary (renamed for convenience)
 ├── cmd
 │   ├── main.go
 │   └── test_file_grouping.go
@@ -141,17 +141,98 @@ graph LR
 ```
 
 ---
+## Example Usage
 
-## Installation
+### 1. Download executable and source code
+
+All the release tags are available at the [Releases](https://github.com/THD-Spatial/City2TABULA/releases) page.
+
+Via command line:
+```bash
+# Download the latest release
+wget https://github.com/THD-Spatial/City2TABULA/archive/refs/tags/v0.2.0-alpha.zip
+
+# Unzip and rename the directory
+unzip v0.2.0-alpha.zip
+mv City2TABULA-0.2.0-alpha City2TABULA
+cd City2TABULA
+
+# Download the appropriate binary for your system and rename for easy usage
+# For Linux AMD64:
+wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-linux-amd64
+mv city2tabula-linux-amd64 city2tabula
+chmod +x city2tabula
+
+# For Linux ARM64:
+# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-linux-arm64
+# mv city2tabula-linux-arm64 city2tabula
+# chmod +x city2tabula
+
+# For macOS Intel:
+# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-darwin-amd64
+# mv city2tabula-darwin-amd64 city2tabula
+# chmod +x city2tabula
+
+# For macOS Apple Silicon:
+# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-darwin-arm64
+# mv city2tabula-darwin-arm64 city2tabula
+# chmod +x city2tabula
+
+# For Windows AMD64:
+# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-windows-amd64.exe
+# mv city2tabula-windows-amd64.exe city2tabula.exe
+
+# For Windows ARM64:
+# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-windows-arm64.exe
+# mv city2tabula-windows-arm64.exe city2tabula.exe
+
+# Verify the binary works
+./city2tabula --help
+```
+
+### 2. Prepare Data
+Refer to the [data/README.md](data/README.md) for sample datasets and instructions on organizing your data.
+
+### 3. Create Configuration File
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+Update the `.env` file with your database credentials, CityDB tool path, and other settings as shown in [here](#configuration).
+
+### 4. Run the Pipeline
+```bash
+# Create the database and import data
+./city2tabula --create_db
+```
+
+### 5. Extract Features
+```bash
+./city2tabula --extract_features
+```
+
+
+## Setup Development Environment
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://mygit.th-deg.de/thd-spatial-ai/data_pipelines/city2tabula.git
+git clone https://github.com/THD-Spatial/City2TABULA.git
 cd City2TABULA
 ```
 
----
+### 3. Checkout the feature branch (if applicable)
+
+```bash
+git checkout <feature-branch-name>
+```
+
+**Warning:** Do not use the main branch for development.
+
+*If you are new to git, please refer to https://github.com/firstcontributions/first-contributions*
 
 ### 2. Configuration
 
@@ -213,7 +294,7 @@ go build -o city2tabula ./cmd
 
 ### 5. Verify Installation
 ```bash
-# Test city2tabula
+# Test city2tabula (works for both downloaded binary and locally built)
 ./city2tabula --help
 ```
 
@@ -233,6 +314,8 @@ data/
 │       └── your-lod3-city.gml or your-lod3-city.json
 └── tabula/
     └── germany.csv # Already included
+
+# Note: You can add data for other countries by creating respective folders under lod2/ and lod3/ directories. Make sure to update the COUNTRY variable in the .env file accordingly.
 ```
 
 ### 7. Initialize Database
@@ -264,6 +347,8 @@ data/
 | `--reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
 *For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).*
+
+> **Tip:** If you are using vs code, you can use the provided [tasks.json](.vscode/tasks.json) to run the commands directly from the editor. Press Ctrl+Shift+P and type "Run Task" to see available tasks for running the commands listed in [Available Commands](#available-commands).
 
 ---
 
