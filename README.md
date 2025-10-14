@@ -1,6 +1,6 @@
 ![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg) 
-
-![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)
+![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest) 
+![GitHub release](https://img.shields.io/github/v/release/THD-Spatial/City2TABULA.svg)
 
 # City2TABULA
 
