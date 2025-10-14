@@ -68,80 +68,106 @@ graph LR
 > This tool is under active development. Therefore it may be subject to changes and improvements over time.
 
 ```
-├── city2tabula                # Downloaded binary (renamed for convenience)
+City2TABULA/
 ├── cmd
-│   ├── main.go
-│   └── test_file_grouping.go
+│   └── main.go
 ├── data
-│   ├── lod2
-│   │   ├── czech
-│   │   ├── germany
-│   │   └── netherlands
-│   ├── lod3
-│   │   ├── austria
-│   │   ├── czech
-│   │   ├── germany
-│   │   └── netherlands
-│   ├── README.md
-│   └── tabula
-│       ├── austria.csv
-│       ├── belgium.csv
-│       ├── bulgaria.csv
-│       ├── ...
-│       ├── sweden.csv
-│       └── united_kingdom.csv
-├── docs
-├── examples
-├── format.
+│   ├── example_data # Example datasets for testing and demonstration
+│   │   ├── example_lod2
+│   │   │   ├── austria
+│   │   │   │   └── 109082
+│   │   │   │       └── 109082.gml
+│   │   │   ├── germany
+│   │   │   │   ├── 788_5416.gml
+│   │   │   │   └── 790_5416.gml
+│   │   │   └── netherlands
+│   │   │       ├── 7-736-608.city.json
+│   │   │       └── 8-736-600.city.json
+│   │   └── example_lod3
+│   │       └── germany
+│   │           ├── 6432
+│   │           │   ├── 6432.gml
+│   │           │   └── images
+│   │           └── 6433
+│   │               ├── 6433.gml
+│   │               └── images
+│   ├── lod2
+│   │   ├── austria
+│   │   ├── czech
+│   │   ├── germany
+│   │   └── netherlands
+│   ├── lod3
+│   │   ├── austria
+│   │   ├── czech
+│   │   ├── germany
+│   │   └── netherlands
+│   ├── README.md
+│   └── tabula # TABULA datasets for 20 European countries
+│       ├── austria.csv
+│       ├── belgium.csv
+│       ├── bulgaria.csv
+│       ├── ...
+│       └── united_kingdom.csv
+├── docs # ReadTheDocs documentation source files
 ├── go.mod
 ├── go.sum
 ├── internal
-│   ├── config
-│   │   ├── batch.go
-│   │   ├── citydb.go
-│   │   ├── config.go
-│   │   ├── database.go
-│   │   ├── data.go
-│   │   ├── env.go
-│   │   └── sql.go
-│   ├── db
-│   │   ├── connection.go
-│   │   └── setup.go
-│   ├── importer
-│   │   ├── citydb.go
-│   │   └── supplementary.go
-│   ├── process
-│   │   ├── job.go
-│   │   ├── orchestrator.go
-│   │   ├── pipeline.go
-│   │   ├── queue.go
-│   │   ├── runner.go
-│   │   └── worker.go
-│   └── utils
-│       ├── batch.go
-│       ├── citydb.go
-│       ├── exec.go
-│       ├── logger.go
-│       └── print.go
+│   ├── config
+│   │   ├── batch.go
+│   │   ├── citydb.go
+│   │   ├── config.go
+│   │   ├── database.go
+│   │   ├── data.go
+│   │   ├── env.go
+│   │   └── sql.go
+│   ├── db
+│   │   ├── connection.go
+│   │   └── setup.go
+│   ├── importer
+│   │   ├── citydb.go
+│   │   └── supplementary.go
+│   ├── process
+│   │   ├── job.go
+│   │   ├── orchestrator.go
+│   │   ├── pipeline.go
+│   │   ├── queue.go
+│   │   ├── runner.go
+│   │   └── worker.go
+│   ├── tests
+│   │   ├── batch_test.go
+│   │   ├── config_test.go
+│   │   ├── connection_test.go
+│   │   ├── job_test.go
+│   │   ├── logger_test.go
+│   │   └── pipeline_test.go
+│   └── utils
+│       ├── batch.go
+│       ├── citydb.go
+│       ├── exec.go
+│       ├── logger.go
+│       └── print.go
+├── LICENSE
 ├── logs
-│   ├── YYYY-MM-DD.log
+│   ├── 2025-10-10.log
+│   └── 2025-10-13.log
 ├── README.md
+├── scripts
 └── sql
     ├── functions
-    │   └── 01_surface_area_corrected_geom.sql
+    │   └── 01_surface_area_corrected_geom.sql
     ├── schema
-    │   ├── 01_create_tabula_tables.sql
-    │   └── 02_create_main_tables.sql
+    │   ├── 01_create_tabula_tables.sql
+    │   └── 02_create_main_tables.sql
     └── scripts
         ├── main
-        │   ├── 01_get_child_feat.sql
-        │   ├── 02_dump_child_feat_geom.sql
-        │   ├── 03_calc_child_feat_attr.sql
-        │   ├── 04_calc_bld_feat.sql
-        │   ├── 06_calc_volume.sql
-        │   ├── 07_calc_storeys.sql
-        │   ├── 08_calc_attached_neighbours.sql
-        │   └── 09_label_building_features.sql
+        │   ├── 01_get_child_feat.sql
+        │   ├── 02_dump_child_feat_geom.sql
+        │   ├── 03_calc_child_feat_attr.sql
+        │   ├── 04_calc_bld_feat.sql
+        │   ├── 06_calc_volume.sql
+        │   ├── 07_calc_storeys.sql
+        │   ├── 08_calc_attached_neighbours.sql
+        │   └── 09_label_building_features.sql
         └── supplementary
             └── 01_extract_tabula_attributes.sql
 ```
