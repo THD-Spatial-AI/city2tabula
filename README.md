@@ -1,3 +1,5 @@
+![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)
+
 # City2TABULA
 
 A high-performance Go-based tool for preparing 3D spatial data from CityDB and PostGIS-enabled PostgreSQL databases. The tool is part of a larger pipeline to classify OSM buildings into TABULA building types for heating demand estimation.
