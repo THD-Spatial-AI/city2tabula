@@ -20,13 +20,13 @@ data/
 
 | Country | Region | Format | Path | Source | License |
 |---------|--------|--------|------|--------|---------|
-| 🇩🇪 Germany | Deggendorf, Bavaria | CityGML | `example_data/example_lod2/germany/` | [Bavarian Open Geodata](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
+| 🇩🇪 Germany | Deggendorf, Bavaria | CityGML | `example_data/example_lod2/germany/` | [Bayerische Vermessungsverwaltung](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
 | 🇦🇹 Austria | Vienna | CityGML | `example_data/example_lod2/austria/` | [Vienna Open Government Data](https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
-| 🇳🇱 Netherlands | Loenen | CityJSON | `example_data/example_lod2/netherlands/` | [3D BAG](https://data.3dbag.nl/v20241216/tiles/) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| 🇳🇱 Netherlands | Loenen | CityJSON | `example_data/example_lod2/netherlands/` | [3DBAG](https://3dbag.nl/en/download) (Tiles: [7-736-608.city.json](https://data.3dbag.nl/v20241216/tiles/7/736/608/7-736-608.city.json), [8-736-600.city.json](https://data.3dbag.nl/v20241216/tiles/8/736/600/8-736-600.city.json)) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
 
 **Netherlands Dataset Details:**
-- [`7-736-608.city.json`](https://data.3dbag.nl/v20241216/tiles/7/736/608/7-736-608.city.json) (16MB)
-- [`8-736-600.city.json`](https://data.3dbag.nl/v20241216/tiles/8/736/600/8-736-600.city.json) (7.6MB)
+- `7-736-608.city.json`  (16MB)
+- `8-736-600.city.json` (7.6MB)
 
 ### LOD3 (Level of Detail 3)
 
