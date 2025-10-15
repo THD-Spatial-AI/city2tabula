@@ -175,51 +175,48 @@ City2TABULA/
 ---
 ## Example Usage
 
+The following examples guide users through downloading, configuring, and running City2TABULA for both new installations and development setups.
+
 ### 1. Download executable and source code
+
+> **Note:** Make sure to download the binary that matches your operating system and architecture (e.g., Linux AMD64, MacOS ARM64, Windows AMD64).
 
 All the release tags are available at the [Releases](https://github.com/THD-Spatial/City2TABULA/releases) page.
 
-Via command line:
+**Download source code:**
 ```bash
-# Download the latest release
-wget https://github.com/THD-Spatial/City2TABULA/archive/refs/tags/v0.2.0-alpha.zip
+# Download the latest release (e.g., v0.3.0-alpha)
+wget https://github.com/THD-Spatial/City2TABULA/archive/refs/tags/v0.3.0-alpha.zip
 
-# Unzip and rename the directory
-unzip v0.2.0-alpha.zip
-mv City2TABULA-0.2.0-alpha City2TABULA
+# Unzip and rename the directory for convenience
+unzip v0.3.0-alpha.zip
+mv City2TABULA-0.3.0-alpha City2TABULA
 cd City2TABULA
+```
 
-# Download the appropriate binary for your system and rename for easy usage
-# For Linux AMD64:
-wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-linux-amd64
-mv city2tabula-linux-amd64 city2tabula
+**Download the appropriate binary for your system:**
+
+| OS | Command |
+|---|---|
+| **Linux AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-linux-amd64` |
+| **MacOS ARM64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-arm64` |
+| **MacOS AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-amd64` |
+| **Windows AMD64** | `Invoke-WebRequest -Uri "https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-windows-amd64.exe" -OutFile "city2tabula.exe"` |
+
+**Make executable and verify (Unix-like systems):**
+```bash
+# Rename the downloaded binary
+mv city2tabula-* city2tabula  # Replace * with your platform
 chmod +x city2tabula
-
-# For Linux ARM64:
-# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-linux-arm64
-# mv city2tabula-linux-arm64 city2tabula
-# chmod +x city2tabula
-
-# For macOS Intel:
-# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-darwin-amd64
-# mv city2tabula-darwin-amd64 city2tabula
-# chmod +x city2tabula
-
-# For macOS Apple Silicon:
-# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-darwin-arm64
-# mv city2tabula-darwin-arm64 city2tabula
-# chmod +x city2tabula
-
-# For Windows AMD64:
-# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-windows-amd64.exe
-# mv city2tabula-windows-amd64.exe city2tabula.exe
-
-# For Windows ARM64:
-# wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.2.0-alpha/city2tabula-windows-arm64.exe
-# mv city2tabula-windows-arm64.exe city2tabula.exe
 
 # Verify the binary works
 ./city2tabula --help
+```
+
+**For Windows:**
+```powershell
+# Verify the binary works
+.\city2tabula.exe --help
 ```
 
 ### 2. Prepare Data
