@@ -63,9 +63,7 @@ Table of Contents
   :maxdepth: 2
   :caption: Pipeline Workflows
 
-  pipeline_workflow
   building_feature_labeling
-  area_calc_report
 
 .. toctree::
   :maxdepth: 2
