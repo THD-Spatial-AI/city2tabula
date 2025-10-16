@@ -16,7 +16,7 @@ func GetBuildingFeatureCount(dbConn *pgxpool.Pool, schemaName string) (int, erro
 
 // GetBuildingIDsFromCityDB fetches building feature IDs from specified LOD schema
 func GetBuildingIDsFromCityDB(dbConn *pgxpool.Pool, schemaName string) ([]int64, error) {
-	// Query to get building feature IDs (objectclass_id 901 and 905 are building types)
+	// Query to get building feature IDs (objectclass_id 901 for building feature and 905 for building part feature)
 	query := fmt.Sprintf(`
 		SELECT f.id
 		FROM %s.feature f
