@@ -166,8 +166,7 @@ City2TABULA/
         │   ├── 04_calc_bld_feat.sql
         │   ├── 06_calc_volume.sql
         │   ├── 07_calc_storeys.sql
-        │   ├── 08_calc_attached_neighbours.sql
-        │   └── 09_label_building_features.sql
+        │   └── 08_label_building_features.sql
         └── supplementary
             └── 01_extract_tabula_attributes.sql
 ```
