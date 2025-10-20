@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -38,8 +39,14 @@ func ExecuteCityDBScript(config *config.Config, sqlFilePath string, schemaName s
 // ExecuteCommand executes a shell command and returns an error if it fails
 func ExecuteCommand(command string) error {
 	Info.Printf("Executing command: %s", command)
-
-	cmd := exec.Command("sh", "-c", command)
+	unixCommand := "sh"
+	windowsCommand := "cmd"
+	var cmd *exec.Cmd
+	if isWindows() {
+		cmd = exec.Command(windowsCommand, "/C", command)
+	} else {
+		cmd = exec.Command(unixCommand, "-c", command)
+	}
 
 	// Capture both stdout and stderr
 	output, err := cmd.CombinedOutput()
@@ -51,6 +58,10 @@ func ExecuteCommand(command string) error {
 
 	Info.Printf("Command output: %s", string(output))
 	return nil
+}
+
+func isWindows() bool {
+	return strings.Contains(strings.ToLower(runtime.GOOS), "windows")
 }
 
 // parseSRID parses the CityDB CRS string and returns the SRID
