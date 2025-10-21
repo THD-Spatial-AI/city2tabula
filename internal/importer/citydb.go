@@ -23,7 +23,7 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config) error {
 		return err
 	}
 
-	// Test the citydb connection using the --help flag
+	// Test the citydb connection using the -help flag
 	if err := testCityDBExecutable(cityDBExecutable); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config) error {
 }
 
 func testCityDBExecutable(cityDBExecutable string) error {
-	cmd := exec.Command(cityDBExecutable, "--help")
+	cmd := exec.Command(cityDBExecutable, "-help")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		utils.Error.Printf("CityDB connection test failed: %s", string(output))

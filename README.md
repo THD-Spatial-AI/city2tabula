@@ -209,13 +209,13 @@ mv city2tabula-* city2tabula  # Replace * with your platform
 chmod +x city2tabula
 
 # Verify the binary works
-./city2tabula --help
+./city2tabula -help
 ```
 
 **For Windows:**
 ```powershell
 # Verify the binary works
-.\city2tabula.exe --help
+.\city2tabula.exe -help
 ```
 
 ### 2. Prepare Data
@@ -234,12 +234,12 @@ Update the `.env` file with your database credentials, CityDB tool path, and oth
 ### 4. Run the Pipeline
 ```bash
 # Create the database and import data
-./city2tabula --create_db
+./city2tabula -create_db
 ```
 
 ### 5. Extract Features
 ```bash
-./city2tabula --extract_features
+./city2tabula -extract_features
 ```
 
 
@@ -323,7 +323,7 @@ go build -o city2tabula ./cmd
 ### 5. Verify Installation
 ```bash
 # Test city2tabula (works for both downloaded binary and locally built)
-./city2tabula --help
+./city2tabula -help
 ```
 
 ### 6. Prepare Data
@@ -352,14 +352,14 @@ data/
 # - CityDB schemas (lod2, lod3)
 # - Training and tabula schemas
 # - Import supplementary data
-./city2tabula --create_db
+./city2tabula -create_db
 ```
 
 
 ### 8. Extract Features
 ```bash
 # Run feature extraction pipeline
-./city2tabula --extract_features
+./city2tabula -extract_features
 ```
 
 ---
@@ -368,11 +368,11 @@ data/
 
 | Command | Description |
 |---------|-------------|
-| `--help` | Show help information |
-| `--create_db` | Create the city2tabula database and CityDB schemas required to store the 3D city models and import the data |
-| `--reset_db` | Reset the city2tabula database and CityDB schemas (drops all tables and re-creates them) |
-| `--extract_features` | Run feature extraction pipeline |
-| `--reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
+| `-help` | Show help information |
+| `-create_db` | Create the city2tabula database and CityDB schemas required to store the 3D city models and import the data |
+| `-reset_db` | Reset the city2tabula database and CityDB schemas (drops all tables and re-creates them) |
+| `-extract_features` | Run feature extraction pipeline |
+| `-reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
 *For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).*
 
