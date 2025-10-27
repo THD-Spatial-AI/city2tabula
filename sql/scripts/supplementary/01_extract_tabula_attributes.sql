@@ -1,7 +1,10 @@
 INSERT INTO {city2tabula_schema}.{tabula_variant_table} (
     tabula_variant_code_id,
     tabula_variant_code,
+    construction_year_1,
+    construction_year_2,
     max_volume,
+    total_area,
     footprint_area,
     number_of_storeys,
     footprint_complexity,
@@ -15,8 +18,11 @@ INSERT INTO {city2tabula_schema}.{tabula_variant_table} (
 SELECT
     id AS tabula_variant_code_id,
     "Code_BuildingVariant" AS tabula_variant_code,
+    "Year1_Building" AS construction_year_1,
+    "Year2_Building" AS construction_year_2,
     "V_C" AS max_volume,
-    "A_C_ExtDim" AS footprint_area,
+    "A_C_National" AS total_area,
+    "A_C_National" / NULLIF("n_Storey", 0) AS footprint_area,  -- Use the actual column name instead of alias
     "n_Storey" AS number_of_storeys,
     CASE "Code_ComplexFootprint"
         WHEN 'Simple' THEN 0

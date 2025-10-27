@@ -227,6 +227,9 @@ CREATE TABLE IF NOT EXISTS {city2tabula_schema}.{tabula_variant_table} (
     tabula_variant_code_id INTEGER NOT NULL UNIQUE,
     tabula_variant_code TEXT NOT NULL,
     max_volume DOUBLE PRECISION,
+    total_area DOUBLE PRECISION,
+    construction_year_1 INTEGER, -- time range start year
+    construction_year_2 INTEGER, -- time range end year
     footprint_area DOUBLE PRECISION,
     number_of_storeys INTEGER,
     footprint_complexity INTEGER CHECK (footprint_complexity IN (-1, 0, 1, 2)),
