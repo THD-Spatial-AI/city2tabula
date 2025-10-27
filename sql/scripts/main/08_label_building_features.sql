@@ -6,14 +6,13 @@ WITH stats AS (
     MIN(max_volume) AS min_vol, MAX(max_volume) AS max_vol,
     MIN(footprint_area) AS min_area, MAX(footprint_area) AS max_area,
     MIN(number_of_storeys) AS min_storeys, MAX(number_of_storeys) AS max_storeys,
-    MIN(attached_neighbour_class) AS min_neigh, MAX(attached_neighbour_class) AS max_neigh,
     MIN(footprint_complexity) AS min_fc, MAX(footprint_complexity) AS max_fc,
     MIN(roof_complexity) AS min_rc, MAX(roof_complexity) AS max_rc,
     MIN(area_total_roof) AS min_roof, MAX(area_total_roof) AS max_roof,
     MIN(area_total_wall) AS min_wall, MAX(area_total_wall) AS max_wall,
     MIN(area_total_floor) AS min_floor, MAX(area_total_floor) AS max_floor
   FROM (
-    SELECT max_volume, footprint_area, number_of_storeys, attached_neighbour_class,
+    SELECT max_volume, footprint_area, number_of_storeys,
            footprint_complexity, roof_complexity, area_total_roof, area_total_wall, area_total_floor
     FROM {city2tabula_schema}.{lod_schema}_building_feature
     WHERE footprint_area IS NOT NULL
@@ -22,7 +21,7 @@ WITH stats AS (
       AND area_total_wall IS NOT NULL
       AND area_total_floor IS NOT NULL
     UNION ALL
-    SELECT max_volume, footprint_area, number_of_storeys, attached_neighbour_class,
+    SELECT max_volume, footprint_area, number_of_storeys,
            footprint_complexity, roof_complexity, area_total_roof, area_total_wall, area_total_floor
     FROM {city2tabula_schema}.tabula_variant
     WHERE max_volume IS NOT NULL
@@ -46,8 +45,6 @@ ranked AS (
                    COALESCE(((v.footprint_area - s.min_area) / NULLIF(s.max_area-s.min_area,0)), 0), 2) +
              power(COALESCE(((b.number_of_storeys - s.min_storeys) / NULLIF(s.max_storeys-s.min_storeys,0)), 0) -
                    COALESCE(((v.number_of_storeys - s.min_storeys) / NULLIF(s.max_storeys-s.min_storeys,0)), 0), 2) +
-             power(COALESCE(((b.attached_neighbour_class - s.min_neigh) / NULLIF(s.max_neigh-s.min_neigh,0)), 0) -
-                   COALESCE(((v.attached_neighbour_class - s.min_neigh) / NULLIF(s.max_neigh-s.min_neigh,0)), 0), 2) +
              power(COALESCE(((b.footprint_complexity - s.min_fc) / NULLIF(s.max_fc-s.min_fc,0)), 0) -
                    COALESCE(((v.footprint_complexity - s.min_fc) / NULLIF(s.max_fc-s.min_fc,0)), 0), 2) +
              power(COALESCE(((b.roof_complexity - s.min_rc) / NULLIF(s.max_rc-s.min_rc,0)), 0) -
