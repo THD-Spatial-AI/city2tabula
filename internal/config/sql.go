@@ -45,6 +45,7 @@ type SQLParameters struct {
 	Country            string  `param:"country"`
 	TabulaTable        string  `param:"tabula_table"`
 	TabulaVariantTable string  `param:"tabula_variant_table"`
+	RoomHeight         string  `param:"room_height"`
 }
 
 // GetSQLParameters returns SQL parameters for a specific LOD level
@@ -69,6 +70,7 @@ func (c *Config) GetSQLParameters(lod int, buildingIDs []int64) SQLParameters {
 		Country:            c.Country,
 		TabulaTable:        c.DB.Tables.Tabula,
 		TabulaVariantTable: c.DB.Tables.TabulaVariant,
+		RoomHeight:         c.City2Tabula.RoomHeight,
 	}
 }
 
