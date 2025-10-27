@@ -14,28 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ExecuteCityDBScript(config *config.Config, sqlFilePath string, schemaName string) error {
-	Info.Printf("Executing CityDB script: %s", sqlFilePath)
-	srid, err := parseSRID(config.CityDB.SRID)
-	if err != nil {
-		return err
-	}
-	var cmd string
-	if schemaName == "" {
-		cmd = fmt.Sprintf(
-			`PGPASSWORD=%s psql -h %s -U %s -d %s -p %s -v srid=%d -v srs_name='%s' -f "%s"`,
-			config.DB.Password, config.DB.Host, config.DB.User, config.DB.Name, config.DB.Port, srid, config.CityDB.SRSName, sqlFilePath,
-		)
-	} else {
-		cmd = fmt.Sprintf(
-			`PGPASSWORD=%s psql -h %s -U %s -d %s -p %s -v schema_name=%s -v srid=%d -v srs_name='%s' -f "%s"`,
-			config.DB.Password, config.DB.Host, config.DB.User, config.DB.Name, config.DB.Port,
-			schemaName, srid, config.CityDB.SRSName, sqlFilePath,
-		)
-	}
-	return ExecuteCommand(cmd)
-}
-
 // ExecuteCommand executes a shell command and returns an error if it fails
 func ExecuteCommand(command string) error {
 	Info.Printf("Executing command: %s", command)
@@ -77,6 +55,15 @@ func parseSRID(crs string) (int, error) {
 }
 
 func ExecuteSQLScript(sqlScript string, config *config.Config, conn *pgxpool.Pool, lod int, buildingIDs []int64) error {
+	// Add detailed error logging with stack trace info
+	if config == nil {
+		Error.Printf("ExecuteSQLScript called with nil config")
+		Error.Printf("sqlScript length: %d", len(sqlScript))
+		Error.Printf("conn is nil: %v", conn == nil)
+		Error.Printf("lod: %d", lod)
+		Error.Printf("buildingIDs: %v", buildingIDs)
+		return fmt.Errorf("config parameter cannot be nil - check the calling function")
+	}
 	// Get all available parameters
 	sqlParams := config.GetSQLParameters(lod, buildingIDs)
 	params := make(map[string]any)

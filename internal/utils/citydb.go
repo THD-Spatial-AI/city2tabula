@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"City2TABULA/internal/config"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -43,4 +46,37 @@ func GetBuildingIDsFromCityDB(dbConn *pgxpool.Pool, schemaName string) ([]int64,
 	}
 
 	return buildingIDs, nil
+}
+
+func ExecuteCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) error {
+	Info.Printf("Executing CityDB script: %s", sqlFilePath)
+
+	srid, err := parseSRID(cfg.CityDB.SRID)
+	if err != nil {
+		return err
+	}
+
+	// psql args
+	args := []string{
+		"-h", cfg.DB.Host,
+		"-U", cfg.DB.User,
+		"-d", cfg.DB.Name,
+		"-p", cfg.DB.Port,
+		"-v", fmt.Sprintf("srid=%d", srid),
+		"-v", fmt.Sprintf("srs_name=%s", cfg.CityDB.SRSName),
+		"-f", sqlFilePath,
+	}
+	if schemaName != "" {
+		args = append([]string{"-v", fmt.Sprintf("schema_name=%s", schemaName)}, args...)
+	}
+
+	cmd := exec.Command("psql", args...)
+	// Pass password via env; avoid in command line
+	cmd.Env = append(os.Environ(), "PGPASSWORD="+cfg.DB.Password)
+
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		Info.Printf("psql output:\n%s", string(out))
+	}
+	return err
 }
