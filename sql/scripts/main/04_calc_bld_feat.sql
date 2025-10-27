@@ -11,6 +11,9 @@ WITH new_buildings AS (
 building_data AS (
     SELECT
         cfs.building_feature_id,
+        0 as construction_year,
+        0.0 as heating_demand,
+        'kWh/m2a' AS heating_demand_unit,
         SUM(surface_area) FILTER (WHERE classname = 'GroundSurface') AS footprint_area,
         CASE
             WHEN ST_NPoints(ST_Boundary(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'))) <= 4 THEN 0 -- 'simple'
@@ -85,8 +88,33 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
     room_height_unit,
     number_of_storeys,
     building_centroid_geom,
-    building_footprint_geom)
+    building_footprint_geom
+    )
 SELECT
     gen_random_uuid() AS id,
-    *
+    building_feature_id,
+    footprint_area,
+    footprint_complexity,
+    roof_complexity,
+    has_attached_neighbour,
+    attached_neighbour_id,
+    total_attached_neighbour,
+    area_total_roof,
+    area_total_roof_unit,
+    area_total_wall,
+    area_total_wall_unit,
+    area_total_floor,
+    area_total_floor_unit,
+    surface_count_roof,
+    surface_count_wall,
+    surface_count_floor,
+    min_height,
+    min_height_unit,
+    max_height,
+    max_height_unit,
+    room_height,
+    room_height_unit,
+    number_of_storeys,
+    building_centroid_geom,
+    building_footprint_geom
 FROM building_data;

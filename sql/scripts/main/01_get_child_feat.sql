@@ -38,3 +38,5 @@ WHERE f.objectclass_id NOT IN (901, 905)
 --     THEN ST_3DIntersects(g.geometry, b.building_geom)
 --     ELSE ST_Intersects(ST_Force2D(g.geometry), ST_Force2D(b.building_geom))
 --   END
+
+-- JOIN buildings b ON ST_3DIntersects(g.geometry, b.building_geom)
