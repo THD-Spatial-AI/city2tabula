@@ -50,6 +50,143 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
 
+## 🐳 Quick Start with Docker (Recommended)
+
+The fastest way to get started with City2TABULA is using Docker. This approach automatically handles all dependencies and setup.
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
+
+### 30-Second Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/THD-Spatial/City2TABULA.git
+cd City2TABULA
+
+# Quick start with Docker (automatically configures environment)
+make setup
+```
+
+When you run `make setup`, it will:
+1. **Build** the Docker environment
+2. **Copy** `environment/docker.env` to `.env`
+3. **Prompt** for your PostgreSQL password (input hidden)
+4. **Start** the containers automatically
+
+### What the Docker setup includes:
+- **Go 1.23.3** runtime (automatically configured)
+- **Java 25** with CityDB Tool 1.1.0 (automatically downloaded)
+- **All system dependencies** (PostGIS tools, GDAL, etc.)
+- **Sample data** and **configuration**
+- **Development environment** ready to use
+
+### Why Docker? 🤔
+
+| Feature | Docker | Manual Install |
+|---------|--------|----------------|
+| **Setup Time** | ~30 seconds | 15-30 minutes |
+| **Configuration** | Automated prompting | Manual .env editing |
+| **Dependencies** | Auto-managed | Manual setup required |
+| **Environment Isolation** | | - |
+| **Cross-platform** | | OS-dependent |
+| **Version Consistency** | | Varies |
+| **Sample Data** | Included | Separate download |
+| **Password Security** | Hidden input | Manual editing |
+
+---
+
+### Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | **Complete setup**: Build environment, copy config, prompt for password, start containers |
+| `make configure` | Copy docker.env to .env and prompt for PostgreSQL password only |
+| `make dev` | Start development environment with interactive shell |
+| `make create-db` | Create database and import data |
+| `make extract-features` | Run feature extraction pipeline |
+| `make quick-start` | **Full pipeline**: setup + create-db + extract-features |
+| `make status` | Check container status |
+| `make logs` | View container logs |
+| `make clean` | Stop and remove containers |
+
+### Complete Docker Workflow
+
+```bash
+# 1. Automated setup (builds, configures, starts)
+make setup
+# You'll be prompted: "Please enter your PostgreSQL password:"
+# (Input is hidden for security)
+
+# 2. Access development shell
+make dev
+
+# Inside the container:
+./city2tabula -create_db           # Setup database
+./city2tabula -extract_features    # Extract features
+./city2tabula -help               # Show all options
+```
+
+**Alternative: One-command full pipeline**
+```bash
+make quick-start  # Does everything: setup + create-db + extract-features
+```
+
+### Docker Configuration
+
+The Docker environment automatically manages configuration:
+
+**Automatic Setup:**
+- When you run `make setup`, it automatically copies `environment/docker.env` to `.env`
+- Prompts you for your PostgreSQL password (input hidden for security)
+- Updates the `.env` file with your password
+
+**Manual Configuration (Optional):**
+If you need to customize settings, edit the generated `.env` file:
+
+```bash
+# Database settings (connects to host PostgreSQL)
+DB_HOST=172.17.0.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your_actual_password  # Automatically set during setup
+
+# Country for processing
+COUNTRY=germany
+
+# CityDB tool (automatically configured)
+CITYDB_TOOL_PATH=/usr/local/citydb-tool/citydb-tool-1.1.0/bin/citydb
+CITYDB_SRID=25832
+```
+
+**Environment File Management:**
+- `.env` file is created automatically during `make setup`
+- If `.env` already exists, setup skips the configuration step
+- To reconfigure: delete `.env` and run `make configure` or `make setup`
+
+### Data Management with Docker
+
+Place your 3D data files in the `data` directory before starting:
+
+```
+data/
+├── lod2/germany/your-city.gml
+├── lod3/germany/your-city.gml
+└── tabula/germany.csv (included)
+```
+
+The data directory is automatically mounted into the container.
+
+### Advantages of Docker Setup
+ **Zero Manual Configuration** - Automatic .env setup with password prompting **Consistent Environment** - Same setup across all operating systems **Secure Password Handling** - Hidden password input during setup **Easy Cleanup** - Remove everything with `make clean` **Development Ready** - Built-in development environment **Auto-dependency Management** - All tools automatically downloaded **One-Command Pipeline** - Full setup and processing with `make quick-start`
+
+---
+
+## 🔧 Manual Installation (Alternative)
+
+If you prefer to install dependencies manually or need a custom setup:
+
 
 ## Pipeline Overview
 
@@ -164,9 +301,9 @@ City2TABULA/
         │   ├── 02_dump_child_feat_geom.sql
         │   ├── 03_calc_child_feat_attr.sql
         │   ├── 04_calc_bld_feat.sql
-        │   ├── 06_calc_volume.sql
-        │   ├── 07_calc_storeys.sql
-        │   └── 08_label_building_features.sql
+        │   ├── 05_calc_volume.sql
+        │   ├── 06_calc_storeys.sql
+        │   └── 07_label_building_features.sql
         └── supplementary
             └── 01_extract_tabula_attributes.sql
 ```
@@ -174,7 +311,30 @@ City2TABULA/
 ---
 ## Example Usage
 
-The following examples guide users through downloading, configuring, and running City2TABULA for both new installations and development setups.
+The following examples guide users through downloading, configuring, and running City2TABULA. **Docker setup is recommended** for the easiest experience.
+
+### 🐳 Docker Method (Recommended)
+
+```bash
+# Clone and setup
+git clone https://github.com/THD-Spatial/City2TABULA.git
+cd City2TABULA
+
+# Place your data in data/lod2/[country]/ and data/lod3/[country]/
+
+# Complete automated setup
+make setup              # Builds environment, configures .env, prompts for password
+make dev                # Access development shell
+./city2tabula -create_db        # Setup database
+./city2tabula -extract_features # Extract features
+
+# Or use one-command pipeline:
+make quick-start        # Does everything: setup + create-db + extract-features
+```
+
+### Binary Download Method
+
+For users who prefer downloading pre-built binaries:
 
 ### 1. Download executable and source code
 

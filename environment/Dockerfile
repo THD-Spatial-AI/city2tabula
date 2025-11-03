@@ -70,9 +70,8 @@ USER appuser
 WORKDIR /app
 COPY . .
 
-# Replace .env with docker.env
+# Remove old .env file
 RUN rm -rf .env
-COPY environment/docker.env .env
 
 # Set up user environment
 RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
