@@ -38,25 +38,18 @@ reset-db: up ## Reset the entire database
 	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset_all
 
 ##@ Complete Workflows
-configure: ## Copy docker.env to .env and prompt for PostgreSQL password
-	@echo "🔧 Configuring City2TABULA environment..."
-	@if [ ! -f .env ]; then \
-		echo "Copying environment configuration..."; \
-		cp environment/docker.env .env; \
-		echo "Please enter your PostgreSQL password:"; \
-		stty -echo; \
-		read pg_password; \
-		stty echo; \
-		echo; \
-		sed -i "s/<your_pg_password>/$$pg_password/" .env; \
-		echo "Environment configuration updated!"; \
-	else \
-		echo ".env file already exists, skipping configuration"; \
-	fi
+configure: ## Copy docker.env to .env (edit .env file manually for your password)
+	@echo "=> Configuring City2TABULA environment..."
+	@echo "=> Copying environment configuration..."
+	@cp environment/docker.env .env
+	@echo "=> .env file created!"
+	@echo "=> Please edit .env and update DB_PASSWORD with your PostgreSQL password"
+	@echo "   Replace '<your_pg_password>' with your actual password"
 
-setup: build configure ## Build environment, configure .env, and start containers
+setup: build configure ## Build environment, copy .env, and start containers
 	@$(MAKE) up
-	@echo "Environment is ready! Run 'make dev' to access the shell"
+	@echo "✅ Environment is ready! Run 'make dev' to access the shell"
+	@echo "📝 Don't forget to edit .env with your PostgreSQL password if you haven't already"
 
 quick-start: setup create-db extract-features ## Complete setup and processing
 	@echo "Quick start complete!"

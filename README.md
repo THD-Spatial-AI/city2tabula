@@ -65,44 +65,32 @@ The fastest way to get started with City2TABULA is using Docker. This approach a
 git clone https://github.com/THD-Spatial/City2TABULA.git
 cd City2TABULA
 
-# Quick start with Docker (automatically configures environment)
+# Quick start with Docker
 make setup
+
+# Edit .env file with your PostgreSQL password
+nano .env  # Or use any text editor
+# Replace '<your_pg_password>' with your actual password
 ```
 
 When you run `make setup`, it will:
 1. **Build** the Docker environment
 2. **Copy** `environment/docker.env` to `.env`
-3. **Prompt** for your PostgreSQL password (input hidden)
-4. **Start** the containers automatically
-
-### What the Docker setup includes:
+3. **Start** the containers
+4. **Show** instructions to edit the `.env` file
 - **Go 1.23.3** runtime (automatically configured)
 - **Java 25** with CityDB Tool 1.1.0 (automatically downloaded)
 - **All system dependencies** (PostGIS tools, GDAL, etc.)
 - **Sample data** and **configuration**
 - **Development environment** ready to use
 
-### Why Docker? 🤔
-
-| Feature | Docker | Manual Install |
-|---------|--------|----------------|
-| **Setup Time** | ~30 seconds | 15-30 minutes |
-| **Configuration** | Automated prompting | Manual .env editing |
-| **Dependencies** | Auto-managed | Manual setup required |
-| **Environment Isolation** | | - |
-| **Cross-platform** | | OS-dependent |
-| **Version Consistency** | | Varies |
-| **Sample Data** | Included | Separate download |
-| **Password Security** | Hidden input | Manual editing |
-
----
 
 ### Docker Commands
 
 | Command | Description |
 |---------|-------------|
-| `make setup` | **Complete setup**: Build environment, copy config, prompt for password, start containers |
-| `make configure` | Copy docker.env to .env and prompt for PostgreSQL password only |
+| `make setup` | **Complete setup**: Build environment, copy config, start containers |
+| `make configure` | Copy docker.env to .env (edit manually for password) |
 | `make dev` | Start development environment with interactive shell |
 | `make create-db` | Create database and import data |
 | `make extract-features` | Run feature extraction pipeline |
@@ -114,12 +102,14 @@ When you run `make setup`, it will:
 ### Complete Docker Workflow
 
 ```bash
-# 1. Automated setup (builds, configures, starts)
+# 1. Complete setup (builds, configures, starts)
 make setup
-# You'll be prompted: "Please enter your PostgreSQL password:"
-# (Input is hidden for security)
 
-# 2. Access development shell
+# 2. Edit configuration file
+nano .env  # Or use your preferred text editor
+# Replace '<your_pg_password>' with your actual PostgreSQL password
+
+# 3. Access development shell
 make dev
 
 # Inside the container:
@@ -130,27 +120,33 @@ make dev
 
 **Alternative: One-command full pipeline**
 ```bash
+# After editing .env file:
 make quick-start  # Does everything: setup + create-db + extract-features
 ```
 
 ### Docker Configuration
 
-The Docker environment automatically manages configuration:
+The Docker environment provides simple configuration management:
 
 **Automatic Setup:**
 - When you run `make setup`, it automatically copies `environment/docker.env` to `.env`
-- Prompts you for your PostgreSQL password (input hidden for security)
-- Updates the `.env` file with your password
+- Provides clear instructions for editing the `.env` file
+- Cross-platform compatible (Windows, macOS, Linux)
 
-**Manual Configuration (Optional):**
-If you need to customize settings, edit the generated `.env` file:
+**Configuration Steps:**
+1. Run `make setup` to create the `.env` file
+2. Edit `.env` with any text editor:
+   - **Windows**: `notepad .env` or VS Code
+   - **macOS**: `nano .env` or TextEdit
+   - **Linux**: `nano .env` or vim
+3. Replace `<your_pg_password>` with your actual PostgreSQL password
 
 ```bash
 # Database settings (connects to host PostgreSQL)
 DB_HOST=172.17.0.1
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=your_actual_password  # Automatically set during setup
+DB_PASSWORD=<your_pg_password>  # ← Replace this with your actual password
 
 # Country for processing
 COUNTRY=germany
@@ -162,8 +158,8 @@ CITYDB_SRID=25832
 
 **Environment File Management:**
 - `.env` file is created automatically during `make setup`
-- If `.env` already exists, setup skips the configuration step
-- To reconfigure: delete `.env` and run `make configure` or `make setup`
+- The file will be overwritten each time you run `make setup` or `make configure`
+- Edit the file after running setup commands
 
 ### Data Management with Docker
 
@@ -179,11 +175,18 @@ data/
 The data directory is automatically mounted into the container.
 
 ### Advantages of Docker Setup
- **Zero Manual Configuration** - Automatic .env setup with password prompting **Consistent Environment** - Same setup across all operating systems **Secure Password Handling** - Hidden password input during setup **Easy Cleanup** - Remove everything with `make clean` **Development Ready** - Built-in development environment **Auto-dependency Management** - All tools automatically downloaded **One-Command Pipeline** - Full setup and processing with `make quick-start`
+
+**Cross-Platform Compatibility** - Works perfectly on Windows, macOS, and Linux
+**Simple Configuration** - Automatic .env creation with straightforward editing
+**Consistent Environment** - Same setup across all operating systems
+**Easy Cleanup** - Remove everything with `make clean`
+**Development Ready** - Built-in development environment
+**Auto-dependency Management** - All tools automatically downloaded
+**One-Command Pipeline** - Full setup and processing with `make quick-start`
 
 ---
 
-## 🔧 Manual Installation (Alternative)
+## Manual Installation (Alternative)
 
 If you prefer to install dependencies manually or need a custom setup:
 
@@ -313,7 +316,7 @@ City2TABULA/
 
 The following examples guide users through downloading, configuring, and running City2TABULA. **Docker setup is recommended** for the easiest experience.
 
-### 🐳 Docker Method (Recommended)
+### Docker Method (Recommended)
 
 ```bash
 # Clone and setup
@@ -322,13 +325,18 @@ cd City2TABULA
 
 # Place your data in data/lod2/[country]/ and data/lod3/[country]/
 
-# Complete automated setup
-make setup              # Builds environment, configures .env, prompts for password
+# Complete setup
+make setup              # Builds environment, copies .env, starts containers
+
+# Edit configuration
+nano .env               # Replace '<your_pg_password>' with your actual password
+
+# Access development shell and run pipeline
 make dev                # Access development shell
 ./city2tabula -create_db        # Setup database
 ./city2tabula -extract_features # Extract features
 
-# Or use one-command pipeline:
+# Or use one-command pipeline (after editing .env):
 make quick-start        # Does everything: setup + create-db + extract-features
 ```
 
