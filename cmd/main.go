@@ -22,9 +22,6 @@ func main() {
 	resetCity2Tabula := flag.Bool("reset_city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	extractFeatures := flag.Bool("extract_features", false, "Run the feature extraction pipeline")
 
-	// Legacy flags for backward compatibility
-	legacyResetDB := flag.Bool("reset_db", false, "Legacy: same as --reset_all")
-
 	flag.Parse()
 
 	// Start timing
@@ -59,7 +56,7 @@ func main() {
 		utils.Info.Println("Database creation completed successfully")
 	}
 
-	if *resetAll || *legacyResetDB {
+	if *resetAll {
 		utils.Info.Println("Resetting complete database (everything)...")
 		if err := db.ResetCompleteDatabase(&config, pool); err != nil {
 			utils.Error.Fatalf("Failed to reset complete database: %v", err)
