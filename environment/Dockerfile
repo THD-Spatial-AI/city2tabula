@@ -83,7 +83,7 @@ RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
 # Build the Go application
 # -----------------------------
 RUN rm -rf city2tabula
-RUN go build -o city2tabula ./cmd/main.go
+RUN go build -buildvcs=false -o city2tabula ./cmd/main.go
 
 # -----------------------------
 # Default command
