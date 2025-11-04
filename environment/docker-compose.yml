@@ -1,0 +1,17 @@
+services:
+  city2tabula:
+    container_name: city2tabula-environment
+    build:
+      context: ./..
+      dockerfile: environment/Dockerfile
+    env_file: ./../.env        # load environment variables into container
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    volumes:
+      - ./..:/app          # mount full project for development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Linux compatibility
+    ports:
+      - "8080:8080"        # map port 8080 for application access
+    command: bash         # start an interactive shell for development

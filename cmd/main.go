@@ -22,9 +22,6 @@ func main() {
 	resetCity2Tabula := flag.Bool("reset_city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	extractFeatures := flag.Bool("extract_features", false, "Run the feature extraction pipeline")
 
-	// Legacy flags for backward compatibility
-	legacyResetDB := flag.Bool("reset_db", false, "Legacy: same as --reset_all")
-
 	flag.Parse()
 
 	// Start timing
@@ -59,7 +56,7 @@ func main() {
 		utils.Info.Println("Database creation completed successfully")
 	}
 
-	if *resetAll || *legacyResetDB {
+	if *resetAll {
 		utils.Info.Println("Resetting complete database (everything)...")
 		if err := db.ResetCompleteDatabase(&config, pool); err != nil {
 			utils.Error.Fatalf("Failed to reset complete database: %v", err)
@@ -111,13 +108,25 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("failed to get LOD2 building IDs: %w", err)
 	}
-	utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BuildingIDs))
+
+	if len(lod2BuildingIDs) == 0 {
+		utils.Warn.Println("No LOD2 buildings found in CityDB. Skipping LOD2 feature extraction.")
+		return nil
+	} else {
+		utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BuildingIDs))
+	}
 
 	lod3BuildingIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod3)
 	if err != nil {
 		return fmt.Errorf("failed to get LOD3 building IDs: %w", err)
 	}
-	utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BuildingIDs))
+
+	if len(lod3BuildingIDs) == 0 {
+		utils.Warn.Println("No LOD3 buildings found in CityDB. Skipping LOD3 feature extraction.")
+		return nil
+	} else {
+		utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BuildingIDs))
+	}
 
 	// Create batches
 	batchesLOD2 := utils.CreateBatches(lod2BuildingIDs, config.Batch.Size)

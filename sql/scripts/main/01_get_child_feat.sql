@@ -27,10 +27,15 @@ SELECT
 FROM {lod_schema}.feature f
 JOIN {lod_schema}.objectclass oc ON f.objectclass_id = oc.id
 JOIN {lod_schema}.geometry_data g ON f.id = g.feature_id
-JOIN buildings b ON ST_3DIntersects(g.geometry, b.building_geom)
-WHERE f.objectclass_id NOT IN (901, 905)
+JOIN buildings b ON
+  CASE
+    WHEN ST_GeometryType(g.geometry) = 'ST_PolyhedralSurface' OR ST_GeometryType(b.building_geom) = 'ST_PolyhedralSurface'
+    THEN ST_3DIntersects(g.geometry, b.building_geom)
+    ELSE ST_Intersects(ST_Force2D(g.geometry), ST_Force2D(b.building_geom))
+  END
+WHERE f.objectclass_id NOT IN (901, 902, 905)
   AND f.id != b.building_feature_id
-  AND GeometryType(g.geometry) IN ('MULTIPOLYGON', 'POLYHEDRALSURFACE');
+  AND GeometryType(g.geometry) IN ('MULTIPOLYGON');
 
 -- JOIN buildings b ON
 --   CASE
