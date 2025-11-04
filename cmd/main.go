@@ -108,13 +108,25 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("failed to get LOD2 building IDs: %w", err)
 	}
-	utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BuildingIDs))
+
+	if len(lod2BuildingIDs) == 0 {
+		utils.Warn.Println("No LOD2 buildings found in CityDB. Skipping LOD2 feature extraction.")
+		return nil
+	} else {
+		utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BuildingIDs))
+	}
 
 	lod3BuildingIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod3)
 	if err != nil {
 		return fmt.Errorf("failed to get LOD3 building IDs: %w", err)
 	}
-	utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BuildingIDs))
+
+	if len(lod3BuildingIDs) == 0 {
+		utils.Warn.Println("No LOD3 buildings found in CityDB. Skipping LOD3 feature extraction.")
+		return nil
+	} else {
+		utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BuildingIDs))
+	}
 
 	// Create batches
 	batchesLOD2 := utils.CreateBatches(lod2BuildingIDs, config.Batch.Size)
