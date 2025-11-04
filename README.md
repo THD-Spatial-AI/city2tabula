@@ -12,19 +12,19 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 ## Key Features
 
-### **Core Processing Capabilities**
+### Core Processing Capabilities
 - **Building-Centric Parallel Processing**: Advanced parallel architecture processing 100K+ buildings efficiently
 - **CityDB Integration**: Native support for 3D building data (LOD2/LOD3) in CityGML and CityJSON format from CityDB schemas
 - **Parameterized SQL Templates**: Dynamic SQL scripts supporting multiple LOD levels with single templates
 - **Batch Processing**: Optimized batch processing with configurable batch sizes for large datasets
 
-### **Data Processing Pipeline**
+### Data Processing Pipeline
 - **Multi-LOD Support**: Process both LOD2 and LOD3 building data simultaneously
 - **Spatial Analysis**: Building geometry analysis, volume calculations, and neighbour detection
 - **Feature Extraction**: Child feature extraction (walls, roofs, windows) with geometric relationships
 - **TABULA Integration**: Building type classification using TABULA methodology
 
-### **Performance & Scalability**
+### Performance & Scalability
 - **Memory Efficient**: Batch-based processing preventing memory exhaustion
 - **Parallel Architecture**: Goroutine-based workers achieving 2.5-4x performance improvements
 - **Database Optimization**: Query plan caching and connection pooling
@@ -35,13 +35,9 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 **Required:**
 - **Go**: 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
-
 - **PostgreSQL**: 17+ with PostGIS 3.5+ (https://www.postgresql.org/download/)
-
 - **PostGIS**: 3.5+ (https://postgis.net/install/)
-
 - **Java**: 17+ for CityDB Tool (https://www.oracle.com/java/technologies/downloads/)
-
 - **Git**: 2.25+ for source management (https://git-scm.com/downloads)
 
 ### CityDB Tool
@@ -50,7 +46,7 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 
 Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
 
-## 🐳 Quick Start with Docker (Recommended)
+## Quick Start with Docker (Recommended)
 
 The fastest way to get started with City2TABULA is using Docker. This approach automatically handles all dependencies and setup.
 
@@ -58,108 +54,137 @@ The fastest way to get started with City2TABULA is using Docker. This approach a
 - [Docker](https://docs.docker.com/get-docker/) 20.10+
 - [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
 
-### 30-Second Setup
+**For Linux/macOS users:**
+- `make` (usually pre-installed)
 
+**For Windows users:**
+- Windows batch scripts are provided (`setup.bat`)
+- Or PowerShell scripts (`setup.ps1`)
+- No need to install `make`
+
+### Interactive Setup
+
+**Linux/macOS:**
 ```bash
 # Clone the repository
 git clone https://github.com/THD-Spatial/City2TABULA.git
 cd City2TABULA
 
-# Quick start with Docker
+# Interactive setup with Docker
 make setup
-
-# Edit .env file with your PostgreSQL password
-nano .env  # Or use any text editor
-# Replace '<your_pg_password>' with your actual password
 ```
 
-When you run `make setup`, it will:
-1. **Build** the Docker environment
-2. **Copy** `environment/docker.env` to `.env`
-3. **Start** the containers
-4. **Show** instructions to edit the `.env` file
-- **Go 1.23.3** runtime (automatically configured)
-- **Java 25** with CityDB Tool 1.1.0 (automatically downloaded)
-- **All system dependencies** (PostGIS tools, GDAL, etc.)
-- **Sample data** and **configuration**
-- **Development environment** ready to use
+**Windows (Command Prompt):**
+```cmd
+# Clone the repository
+git clone https://github.com/THD-Spatial/City2TABULA.git
+cd City2TABULA
 
+# Interactive setup with Docker
+setup.bat setup
+```
+
+**Windows (PowerShell):**
+```powershell
+# Clone the repository
+git clone https://github.com/THD-Spatial/City2TABULA.git
+cd City2TABULA
+
+# Interactive setup with Docker
+.\setup.ps1 setup
+```
+
+The setup command will:
+1. Build the Docker environment
+2. Show available countries with SRID information
+3. Prompt you to select your target country
+4. Ask for your PostgreSQL password (hidden input)
+5. Configure everything automatically based on your selections
+6. Start the containers
+
+The Docker environment includes:
+- Go 1.23.3 runtime (automatically configured)
+- Java 25 with CityDB Tool 1.1.0 (automatically downloaded)
+- All system dependencies (PostGIS tools, GDAL, etc.)
+- Sample data and configuration
+- Development environment ready to use
 
 ### Docker Commands
 
+**Linux/macOS (using make):**
+
 | Command | Description |
 |---------|-------------|
-| `make setup` | **Complete setup**: Build environment, copy config, start containers |
-| `make configure` | Copy docker.env to .env (edit manually for password) |
+| `make setup` | Complete setup: Build environment, interactive config, start containers |
+| `make configure` | Interactive configuration: select country and enter password |
 | `make dev` | Start development environment with interactive shell |
 | `make create-db` | Create database and import data |
 | `make extract-features` | Run feature extraction pipeline |
-| `make quick-start` | **Full pipeline**: setup + create-db + extract-features |
+| `make quick-start` | Full pipeline: setup + create-db + extract-features |
 | `make status` | Check container status |
 | `make logs` | View container logs |
 | `make clean` | Stop and remove containers |
 
+**Windows (using setup.bat or setup.ps1):**
+
+| Command | Description |
+|---------|-------------|
+| `setup.bat setup` / `.\setup.ps1 setup` | Complete setup: Build environment, interactive config, start containers |
+| `setup.bat configure` / `.\setup.ps1 configure` | Interactive configuration: select country and enter password |
+| `setup.bat dev` / `.\setup.ps1 dev` | Start development environment with interactive shell |
+| `setup.bat create-db` / `.\setup.ps1 create-db` | Create database and import data |
+| `setup.bat extract-features` / `.\setup.ps1 extract-features` | Run feature extraction pipeline |
+| `setup.bat quick-start` / `.\setup.ps1 quick-start` | Full pipeline: setup + create-db + extract-features |
+| `setup.bat status` / `.\setup.ps1 status` | Check container status |
+| `setup.bat logs` / `.\setup.ps1 logs` | View container logs |
+| `setup.bat clean` / `.\setup.ps1 clean` | Stop and remove containers |
+
 ### Complete Docker Workflow
 
+**Step 1: Complete interactive setup**
 ```bash
-# 1. Complete setup (builds, configures, starts)
+# Linux/macOS
 make setup
 
-# 2. Edit configuration file
-nano .env  # Or use your preferred text editor
-# Replace '<your_pg_password>' with your actual PostgreSQL password
+# Windows
+setup.bat setup
+# or
+.\setup.ps1 setup
+```
 
-# 3. Access development shell
+**Step 2: Access development shell**
+```bash
+# Linux/macOS
 make dev
 
-# Inside the container:
-./city2tabula -create_db           # Setup database
-./city2tabula -extract_features    # Extract features
-./city2tabula -help               # Show all options
+# Windows
+setup.bat dev
+# or
+.\setup.ps1 dev
+```
+
+**Step 3: Inside the container, run the pipeline**
+```bash
+# Setup database
+./city2tabula -create_db
+
+# Extract features
+./city2tabula -extract_features
+
+# Show all options
+./city2tabula -help
 ```
 
 **Alternative: One-command full pipeline**
 ```bash
-# After editing .env file:
-make quick-start  # Does everything: setup + create-db + extract-features
+# Linux/macOS
+make quick-start
+
+# Windows
+setup.bat quick-start
+# or
+.\setup.ps1 quick-start
 ```
-
-### Docker Configuration
-
-The Docker environment provides simple configuration management:
-
-**Automatic Setup:**
-- When you run `make setup`, it automatically copies `environment/docker.env` to `.env`
-- Provides clear instructions for editing the `.env` file
-- Cross-platform compatible (Windows, macOS, Linux)
-
-**Configuration Steps:**
-1. Run `make setup` to create the `.env` file
-2. Edit `.env` with any text editor:
-   - **Windows**: `notepad .env` or VS Code
-   - **macOS**: `nano .env` or TextEdit
-   - **Linux**: `nano .env` or vim
-3. Replace `<your_pg_password>` with your actual PostgreSQL password
-
-```bash
-# Database settings (connects to host PostgreSQL)
-DB_HOST=172.17.0.1
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=<your_pg_password>  # ← Replace this with your actual password
-
-# Country for processing
-COUNTRY=germany
-
-# CityDB tool (automatically configured)
-CITYDB_TOOL_PATH=/usr/local/citydb-tool/citydb-tool-1.1.0/bin/citydb
-CITYDB_SRID=25832
-```
-
-**Environment File Management:**
-- `.env` file is created automatically during `make setup`
-- The file will be overwritten each time you run `make setup` or `make configure`
-- Edit the file after running setup commands
 
 ### Data Management with Docker
 
@@ -174,21 +199,182 @@ data/
 
 The data directory is automatically mounted into the container.
 
-### Advantages of Docker Setup
+### Docker Configuration
 
-**Cross-Platform Compatibility** - Works perfectly on Windows, macOS, and Linux
-**Simple Configuration** - Automatic .env creation with straightforward editing
-**Consistent Environment** - Same setup across all operating systems
-**Easy Cleanup** - Remove everything with `make clean`
-**Development Ready** - Built-in development environment
-**Auto-dependency Management** - All tools automatically downloaded
-**One-Command Pipeline** - Full setup and processing with `make quick-start`
+The Docker environment provides intelligent configuration management through an interactive setup wizard that:
+
+- Shows all 19 supported countries with their SRID and SRS information
+- Automatically sets the correct SRID and SRS name based on your country selection
+- Provides secure password input (hidden typing)
+- Works across all platforms (Windows, macOS, Linux)
+
+Example configuration result:
+```bash
+# Automatically set based on your selections
+COUNTRY=netherlands
+CITYDB_SRID=28992
+CITYDB_SRS_NAME=Amersfoort / RD New
+DB_PASSWORD=your_actual_password
+
+# Other settings (automatically configured)
+DB_HOST=172.17.0.1
+DB_PORT=5432
+DB_USER=postgres
+CITYDB_TOOL_PATH=/usr/local/citydb-tool/citydb-tool-1.1.0/bin/citydb
+```
 
 ---
 
-## Manual Installation (Alternative)
+## Manual Installation
 
-If you prefer to install dependencies manually or need a custom setup:
+If you prefer to install dependencies manually or need a custom setup, follow these steps:
+
+### System Requirements
+
+**Required Software:**
+- Go 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
+- PostgreSQL 17+ with PostGIS 3.5+ (https://www.postgresql.org/download/)
+- PostGIS 3.5+ (https://postgis.net/install/)
+- Java 17+ for CityDB Tool (https://www.oracle.com/java/technologies/downloads/)
+- Git 2.25+ for source management (https://git-scm.com/downloads)
+
+**CityDB Tool:**
+- CityDB Importer/Exporter v1.0.0 Download from [here](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0)
+
+Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
+
+### Installation Steps
+
+**1. Clone the Repository**
+```bash
+git clone https://github.com/THD-Spatial/City2TABULA.git
+cd City2TABULA
+```
+
+**2. Create Configuration File**
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+
+**Example .env Configuration:**
+```bash
+# Global Configuration
+COUNTRY=germany # Specify the country you want to train from the list of available countries
+# Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
+# greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
+# spain, sweden, united_kingdom
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=<your_pg_password_here>
+DB_SSL_MODE=disable # enable it for production
+
+# CityDB Configuration
+CITYDB_TOOL_PATH=path/to/citydb-tool-1.X.X # Replace with actual path to CityDB tool
+CITYDB_SRID=25832 # Coordinate Reference System for CityDB (UTM zone 32N for Germany)
+CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
+
+# Parallel Processing Configuration
+THREAD_COUNT=4        # Number of threads for parallel processing (optional)
+DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
+DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
+
+# Logging Configuration
+LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
+               # For development: DEBUG - shows all debug information
+               # For production: INFO - shows essential information only
+               # For monitoring: WARN - shows only warnings and errors
+```
+
+**3. Initialize Go Module**
+```bash
+go mod tidy
+```
+
+**4. Build the Binary**
+```bash
+go build -o city2tabula ./cmd
+```
+
+**5. Verify Installation**
+```bash
+./city2tabula -help
+```
+
+**6. Prepare Data**
+Download or obtain 3D city model data in CityGML or CityJSON format and organize in this structure:
+
+```
+data/
+├── lod2/
+│   └── germany/
+│       └── your-lod2-city.gml or your-lod2-city.json
+├── lod3/
+│   └── germany/
+│       └── your-lod3-city.gml or your-lod3-city.json
+└── tabula/
+    └── germany.csv # Already included
+```
+
+**7. Initialize Database**
+```bash
+# Create complete database setup:
+# - CityDB schemas (lod2, lod3)
+# - Training and tabula schemas
+# - Import supplementary data
+./city2tabula -create_db
+```
+
+**8. Extract Features**
+```bash
+# Run feature extraction pipeline
+./city2tabula -extract_features
+```
+
+### Alternative: Binary Download Method
+
+For users who prefer downloading pre-built binaries:
+
+**1. Download Source Code and Binary**
+```bash
+# Download the latest release (e.g., v0.3.0-alpha)
+wget https://github.com/THD-Spatial/City2TABULA/archive/refs/tags/v0.3.0-alpha.zip
+
+# Unzip and rename the directory for convenience
+unzip v0.3.0-alpha.zip
+mv City2TABULA-0.3.0-alpha City2TABULA
+cd City2TABULA
+```
+
+**Download the appropriate binary for your system:**
+
+| OS | Command |
+|---|---|
+| **Linux AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-linux-amd64` |
+| **MacOS ARM64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-arm64` |
+| **MacOS AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-amd64` |
+| **Windows AMD64** | `Invoke-WebRequest -Uri "https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-windows-amd64.exe" -OutFile "city2tabula.exe"` |
+
+**2. Make Executable and Verify**
+```bash
+# Unix-like systems
+mv city2tabula-* city2tabula  # Replace * with your platform
+chmod +x city2tabula
+./city2tabula -help
+
+# Windows
+.\city2tabula.exe -help
+```
+
+**3. Follow steps 2-8 from the manual installation above**
+
+---
 
 
 ## Pipeline Overview
@@ -312,227 +498,9 @@ City2TABULA/
 ```
 
 ---
-## Example Usage
+## Project Structure
 
-The following examples guide users through downloading, configuring, and running City2TABULA. **Docker setup is recommended** for the easiest experience.
-
-### Docker Method (Recommended)
-
-```bash
-# Clone and setup
-git clone https://github.com/THD-Spatial/City2TABULA.git
-cd City2TABULA
-
-# Place your data in data/lod2/[country]/ and data/lod3/[country]/
-
-# Complete setup
-make setup              # Builds environment, copies .env, starts containers
-
-# Edit configuration
-nano .env               # Replace '<your_pg_password>' with your actual password
-
-# Access development shell and run pipeline
-make dev                # Access development shell
-./city2tabula -create_db        # Setup database
-./city2tabula -extract_features # Extract features
-
-# Or use one-command pipeline (after editing .env):
-make quick-start        # Does everything: setup + create-db + extract-features
-```
-
-### Binary Download Method
-
-For users who prefer downloading pre-built binaries:
-
-### 1. Download executable and source code
-
-> **Note:** Make sure to download the binary that matches your operating system and architecture (e.g., Linux AMD64, MacOS ARM64, Windows AMD64).
-
-All the release tags are available at the [Releases](https://github.com/THD-Spatial/City2TABULA/releases) page.
-
-**Download source code:**
-```bash
-# Download the latest release (e.g., v0.3.0-alpha)
-wget https://github.com/THD-Spatial/City2TABULA/archive/refs/tags/v0.3.0-alpha.zip
-
-# Unzip and rename the directory for convenience
-unzip v0.3.0-alpha.zip
-mv City2TABULA-0.3.0-alpha City2TABULA
-cd City2TABULA
-```
-
-**Download the appropriate binary for your system:**
-
-| OS | Command |
-|---|---|
-| **Linux AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-linux-amd64` |
-| **MacOS ARM64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-arm64` |
-| **MacOS AMD64** | `wget https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-macos-amd64` |
-| **Windows AMD64** | `Invoke-WebRequest -Uri "https://github.com/THD-Spatial/City2TABULA/releases/download/v0.3.0-alpha/city2tabula-windows-amd64.exe" -OutFile "city2tabula.exe"` |
-
-**Make executable and verify (Unix-like systems):**
-```bash
-# Rename the downloaded binary
-mv city2tabula-* city2tabula  # Replace * with your platform
-chmod +x city2tabula
-
-# Verify the binary works
-./city2tabula -help
-```
-
-**For Windows:**
-```powershell
-# Verify the binary works
-.\city2tabula.exe -help
-```
-
-### 2. Prepare Data
-Refer to the [data/README.md](data/README.md) for sample datasets and instructions on organizing your data.
-
-### 3. Create Configuration File
-```bash
-# Copy example configuration
-cp .env.example .env
-
-# Edit configuration
-nano .env
-```
-Update the `.env` file with your database credentials, CityDB tool path, and other settings as shown in [here](#configuration).
-
-### 4. Run the Pipeline
-```bash
-# Create the database and import data
-./city2tabula -create_db
-```
-
-### 5. Extract Features
-```bash
-./city2tabula -extract_features
-```
-
-
-## Setup Development Environment
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/THD-Spatial/City2TABULA.git
-cd City2TABULA
-```
-
-### 3. Checkout the feature branch (if applicable)
-
-```bash
-git checkout <feature-branch-name>
-```
-
-**Warning:** Do not use the main branch for development.
-
-*If you are new to git, please refer to https://github.com/firstcontributions/first-contributions*
-
-### 2. Configuration
-
-**Create Environment File:**
-```bash
-# Copy example configuration
-cp .env.example .env
-
-# Edit configuration
-nano .env
-```
-
-**Example `.env` Configuration:**
-```bash
-# Global Configuration
-COUNTRY=germany # Specify the country you want to train from the list of available countries
-# Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
-# greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
-# spain, sweden, united_kingdom
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=<your_pg_password_here>
-DB_SSL_MODE=disable # enable it for production
-
-# CityDB Configuration
-CITYDB_TOOL_PATH=path/to/citydb-tool-1.X.X # Replace with actual path to CityDB tool
-CITYDB_SRID=25832 # Coordinate Reference System for CityDB (UTM zone 32N for Germany)
-CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
-
-# Parallel Processing Configuration
-THREAD_COUNT=4        # Number of threads for parallel processing (optional)
-DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
-DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
-
-# Logging Configuration
-LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
-               # For development: DEBUG - shows all debug information
-               # For production: INFO - shows essential information only
-               # For monitoring: WARN - shows only warnings and errors
-```
-
-> **Note**: The available countries are based on TABULA and EPISCOPE project data. Each country has specific SRID configurations. Refer to `.env.example` for complete SRID mappings for all supported countries.
-
-
-### 3. Initialise the Go Module (if not already)
-
-```bash
-go mod tidy
-```
-
-### 4. Build the Binary
-
-```bash
-go build -o city2tabula ./cmd
-```
-
-### 5. Verify Installation
-```bash
-# Test city2tabula (works for both downloaded binary and locally built)
-./city2tabula -help
-```
-
-### 6. Prepare Data
-
-- Download or obtain 3D city model data in CityGML or CityJSON format.
-- Ensure data is organized in the following directory structure:
-
-**Data Directory Structure:**
-```
-data/
-├── lod2/
-│   └── germany/
-│       └── your-lod2-city.gml or your-lod2-city.json
-├── lod3/
-│   └── germany/
-│       └── your-lod3-city.gml or your-lod3-city.json
-└── tabula/
-    └── germany.csv # Already included
-
-# Note: You can add data for other countries by creating respective folders under lod2/ and lod3/ directories. Make sure to update the COUNTRY variable in the .env file accordingly.
-```
-
-### 7. Initialize Database
-```bash
-# Create complete database setup:
-# - CityDB schemas (lod2, lod3)
-# - Training and tabula schemas
-# - Import supplementary data
-./city2tabula -create_db
-```
-
-
-### 8. Extract Features
-```bash
-# Run feature extraction pipeline
-./city2tabula -extract_features
-```
-
----
-
-### Available Commands
+## Available Commands
 
 | Command | Description |
 |---------|-------------|
@@ -542,9 +510,7 @@ data/
 | `-extract_features` | Run feature extraction pipeline |
 | `-reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
 
-*For usage examples, refer to Database Commands documentation [here](/docs/source/DATABASE_COMMANDS.md).*
-
-> **Tip:** If you are using vs code, you can use the provided [tasks.json](.vscode/tasks.json) to run the commands directly from the editor. Press Ctrl+Shift+P and type "Run Task" to see available tasks for running the commands listed in [Available Commands](#available-commands).
+For usage examples, refer to Database Commands documentation.
 
 ---
 
