@@ -111,7 +111,6 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 
 	if len(lod2BuildingIDs) == 0 {
 		utils.Warn.Println("No LOD2 buildings found in CityDB. Skipping LOD2 feature extraction.")
-		return nil
 	} else {
 		utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BuildingIDs))
 	}
@@ -123,9 +122,15 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 
 	if len(lod3BuildingIDs) == 0 {
 		utils.Warn.Println("No LOD3 buildings found in CityDB. Skipping LOD3 feature extraction.")
-		return nil
 	} else {
 		utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BuildingIDs))
+	}
+
+	// Check if there are any buildings to process
+	totalBuildings := len(lod2BuildingIDs) + len(lod3BuildingIDs)
+	if totalBuildings == 0 {
+		utils.Warn.Println("No buildings found in either LOD2 or LOD3 schemas. Nothing to extract.")
+		return nil
 	}
 
 	// Create batches
@@ -145,7 +150,12 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to build feature extraction queue: %w", err)
 	}
 
-	utils.PrintPipelineQueueInfo(pipelineQueue.Len(), len(pipelineQueue.Peek().Jobs))
+	if pipelineQueue.Len() > 0 {
+		utils.PrintPipelineQueueInfo(pipelineQueue.Len(), len(pipelineQueue.Peek().Jobs))
+	} else {
+		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found. Check batch creation logic.")
+		// Continue anyway - workers will just have no work to do
+	}
 
 	// Create pipeline channel
 	pipelineChan := make(chan *process.Pipeline, pipelineQueue.Len())
