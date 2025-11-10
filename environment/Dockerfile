@@ -68,10 +68,10 @@ USER appuser
 
 # Copy application code
 WORKDIR /app
-COPY . .
+COPY --chown=appuser:appuser . .
 
-# Remove old .env file
-RUN rm -rf .env
+# Copy environment file
+RUN cp environment/docker.env .env
 
 # Set up user environment
 RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
@@ -82,7 +82,7 @@ RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
 # -----------------------------
 # Build the Go application
 # -----------------------------
-RUN rm -rf city2tabula
+RUN go mod download
 RUN go build -buildvcs=false -o city2tabula ./cmd/main.go
 
 # -----------------------------
