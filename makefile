@@ -106,11 +106,19 @@ configure: ## Interactive configuration: select country and enter password
 	echo ""; \
 	echo ""; \
 	echo "Updating configuration file..."; \
-	sed -i "s/COUNTRY=germany/COUNTRY=$$COUNTRY/" .env; \
-	sed -i "s/CITYDB_SRID=25832/CITYDB_SRID=$$SRID/" .env; \
-	sed -i "s|CITYDB_SRS_NAME=ETRS89 / UTM zone 32N|CITYDB_SRS_NAME=$$SRS_NAME|" .env; \
-	sed -i "s/DB_USER=postgres/DB_USER=$$pg_user/" .env; \
-	sed -i "s/<your_pg_password>/$$pg_password/" .env; \
+	if [ "$$(uname)" = "Darwin" ]; then \
+		sed -i '' "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" .env; \
+		sed -i '' "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" .env; \
+		sed -i '' "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" .env; \
+		sed -i '' "s/^DB_USER=.*/DB_USER=$$pg_user/" .env; \
+		sed -i '' "s/<your_pg_password>/$$pg_password/" .env; \
+	else \
+		sed -i "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" .env; \
+		sed -i "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" .env; \
+		sed -i "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" .env; \
+		sed -i "s/^DB_USER=.*/DB_USER=$$pg_user/" .env; \
+		sed -i "s/<your_pg_password>/$$pg_password/" .env; \
+	fi; \
 	echo "Configuration completed!"; \
 	echo ""; \
 	echo "Summary:"; \
