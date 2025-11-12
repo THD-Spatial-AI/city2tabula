@@ -10,7 +10,7 @@ help: ## Show this help message
 
 ##@ Docker Environment
 build: ## Build the Docker environment
-	cd environment && docker compose build
+	cd environment && docker compose build --no-cache
 
 up: ## Start the Docker environment
 	cd environment && docker compose up -d

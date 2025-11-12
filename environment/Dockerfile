@@ -4,22 +4,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV GO_VERSION=1.23.3
 ENV JAVA_VERSION=25
 
-# Install system dependencies (without Java)
+# -----------------------------
+# Install system dependencies
+# -----------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    wget \
-    unzip \
-    curl \
-    ca-certificates \
-    libboost-all-dev \
-    libeigen3-dev \
-    libtbb-dev \
-    libflann-dev \
-    libpcap-dev \
-    libgdal-dev \
-    libproj-dev \
-    libspatialindex-dev \
+    build-essential git wget unzip curl ca-certificates \
+    libboost-all-dev libeigen3-dev libtbb-dev libflann-dev \
+    libpcap-dev libgdal-dev libproj-dev libspatialindex-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,15 +21,18 @@ RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -O /tmp/go.tar.
     && rm -rf /usr/local/go \
     && tar -C /usr/local -xzf /tmp/go.tar.gz \
     && rm /tmp/go.tar.gz
+ENV GOROOT="/usr/local/go"
+ENV PATH="${GOROOT}/bin:${PATH}"
 
 # -----------------------------
-# Install Java 25 from official OpenJDK
+# Install Java (Oracle JDK 25)
 # -----------------------------
 RUN wget -q https://download.oracle.com/java/${JAVA_VERSION}/latest/jdk-${JAVA_VERSION}_linux-x64_bin.tar.gz -O /tmp/jdk.tar.gz \
-    && rm -rf /usr/local/java \
     && mkdir -p /usr/local/java \
-    && tar -C /usr/local/java -xzf /tmp/jdk.tar.gz --strip-components=1 \
+    && tar -xzf /tmp/jdk.tar.gz -C /usr/local/java --strip-components=1 \
     && rm /tmp/jdk.tar.gz
+ENV JAVA_HOME="/usr/local/java"
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # -----------------------------
 # Install citydb-tool
@@ -47,36 +41,27 @@ RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.1.0/cit
     && unzip /tmp/citydb-tool.zip -d /usr/local/citydb-tool \
     && rm /tmp/citydb-tool.zip
 
-# Set environment variables globally
-ENV JAVA_HOME="/usr/local/java"
-ENV GOROOT="/usr/local/go"
-ENV GOPATH="/home/appuser/go"
-ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${JAVA_HOME}/bin:${PATH}"
+# -----------------------------
+# Copy and build project (as root)
+# -----------------------------
+WORKDIR /app
+COPY . .
+RUN go mod tidy && go build -o /usr/local/bin/city2tabula ./cmd
 
 # -----------------------------
-# Create non-root user
+# Create non-root user and fix permissions
 # -----------------------------
 RUN useradd -m -u 10001 appuser \
     && mkdir -p /home/appuser/go/bin \
-    && chown -R appuser:appuser /home/appuser
+    && chown -R appuser:appuser /home/appuser /app
+ENV GOPATH="/home/appuser/go"
+ENV PATH="${GOPATH}/bin:${PATH}"
 
-# Create app directory and set ownership
-RUN mkdir -p /app && chown -R appuser:appuser /app
-
-# Switch to non-root user
 USER appuser
 
-# Copy application code
-WORKDIR /app
-COPY --chown=appuser:appuser . .
-
-# Build the Go application
-RUN go mod tidy && go build -o /usr/local/bin/city2tabula ./cmd
-
-# Copy environment file
-RUN cp environment/docker.env .env
-
-# Set up user environment
+# -----------------------------
+# Set up shell environment
+# -----------------------------
 RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
     && echo 'export GOPATH=/home/appuser/go' >> /home/appuser/.bashrc \
     && echo 'export JAVA_HOME=/usr/local/java' >> /home/appuser/.bashrc \
