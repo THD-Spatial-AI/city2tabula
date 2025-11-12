@@ -46,7 +46,7 @@ RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.1.0/cit
 # -----------------------------
 WORKDIR /app
 COPY . .
-RUN go mod tidy && go build -o /usr/local/bin/city2tabula ./cmd
+RUN go mod tidy && go build -o city2tabula ./cmd
 
 # -----------------------------
 # Create non-root user and fix permissions
