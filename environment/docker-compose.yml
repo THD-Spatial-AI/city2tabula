@@ -9,7 +9,7 @@ services:
     tty: true
     working_dir: /app
     volumes:
-      - ./..:/app          # mount full project for development
+      - ./../data:/app/data        # mount full project for development
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Linux compatibility
     ports:
