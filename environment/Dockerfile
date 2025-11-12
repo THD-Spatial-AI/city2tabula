@@ -70,6 +70,9 @@ USER appuser
 WORKDIR /app
 COPY --chown=appuser:appuser . .
 
+# Build the Go application
+RUN go mod tidy && go build -o /usr/local/bin/city2tabula ./cmd
+
 # Copy environment file
 RUN cp environment/docker.env .env
 
@@ -78,12 +81,6 @@ RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
     && echo 'export GOPATH=/home/appuser/go' >> /home/appuser/.bashrc \
     && echo 'export JAVA_HOME=/usr/local/java' >> /home/appuser/.bashrc \
     && echo 'export PATH=$GOROOT/bin:$GOPATH/bin:$JAVA_HOME/bin:$PATH' >> /home/appuser/.bashrc
-
-# -----------------------------
-# Build the Go application
-# -----------------------------
-RUN go mod download
-RUN go build -buildvcs=false -o city2tabula ./cmd/main.go
 
 # -----------------------------
 # Default command
