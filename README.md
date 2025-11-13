@@ -544,4 +544,5 @@ This research was funded by CETPartnership, the Clean Energy Transition Partners
 
  <img src="docs/source/img/CETP-logo.svg" alt="CETPartnership" width="144" height="72">  <img src="docs/source/img/EN_Co-fundedbytheEU_RGB_POS.png" alt="EU" width="180" height="40">
 
-- **3DCityDB**: For providing the foundation for 3D spatial data management. (https://www.3dcitydb.org/)
+- **3DCityDB**: For providing the foundation for 3D spatial data management. (accessed 13.11.2025, [https://www.3dcitydb.org/](https://github.com/3dcitydb)) 
+- TABULA & EPISCOPE (IEE Projects): building-characteristic data (accessed 13.11.2025, [https://episcope.eu/iee-project/tabula/](https://episcope.eu/iee-project/tabula/)
