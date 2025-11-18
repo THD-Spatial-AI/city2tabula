@@ -249,9 +249,9 @@ echo SRS Name: %SRS_NAME%
 echo Database: Configured
 echo.
 echo Next steps:
+echo - Place your data in data\lod2\%COUNTRY%\ and data\lod3\%COUNTRY%\
 echo - Run 'setup.bat up' to start containers
 echo - Run 'setup.bat dev' to access development shell
-echo - Place your data in data\lod2\%COUNTRY%\ and data\lod3\%COUNTRY%\
 goto end
 
 :configure-manual
@@ -272,7 +272,7 @@ goto end
 :build
 echo Building Docker environment...
 cd environment
-docker compose build
+docker compose build --no-cache
 cd ..
 goto end
 
@@ -328,7 +328,6 @@ call :build
 call :configure
 call :up
 echo Environment is ready! Run 'setup.bat dev' to access the shell
-echo Don't forget to edit .env with your PostgreSQL password if you haven't already
 goto end
 
 :quick-start

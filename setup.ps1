@@ -101,13 +101,13 @@ function Invoke-Configure {
     # Get database credentials
     Write-Host "Database Configuration:" -ForegroundColor Green
     Write-Host "======================" -ForegroundColor Green
-    
+
     # Get username with default
     $pgUser = Read-Host "Enter PostgreSQL username [default: postgres]"
     if ([string]::IsNullOrWhiteSpace($pgUser)) {
         $pgUser = "postgres"
     }
-    
+
     # Get password
     do {
         $pgPassword = Read-Host "Enter PostgreSQL password" -AsSecureString
@@ -142,9 +142,9 @@ function Invoke-Configure {
     Write-Host "Database: Configured" -ForegroundColor White
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
+    Write-Host "- Place your data in data\lod2\$($selectedCountry.Name)\ and data\lod3\$($selectedCountry.Name)\"
     Write-Host "- Run '.\setup.ps1 up' to start containers"
     Write-Host "- Run '.\setup.ps1 dev' to access development shell"
-    Write-Host "- Place your data in data\lod2\$($selectedCountry.Name)\ and data\lod3\$($selectedCountry.Name)\"
 }
 
 function Invoke-ConfigureManual {
@@ -166,7 +166,7 @@ function Invoke-ConfigureManual {
 function Invoke-Build {
     Write-Host "Building Docker environment..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose build
+    docker compose build --no-cache
     Set-Location ".."
 }
 
@@ -222,7 +222,6 @@ function Invoke-Setup {
     Invoke-Configure
     Invoke-Up
     Write-Host "Environment is ready! Run '.\setup.ps1 dev' to access the shell" -ForegroundColor Green
-    Write-Host "Don't forget to edit .env with your PostgreSQL password if you haven't already" -ForegroundColor Yellow
 }
 
 function Invoke-QuickStart {

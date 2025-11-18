@@ -8,7 +8,7 @@
 
 A high-performance Go-based tool for preparing 3D spatial data from CityDB and PostGIS-enabled PostgreSQL databases. The tool is part of a larger pipeline to classify OSM buildings into TABULA building types for heating demand estimation.
 
-The pipeline processes spatial features such as attached neighbours, grid-based geometry relationships, and building characteristics from LOD2 and LOD3 3D building data. The extracted data is then used to train Random Forest (RF) models for automated building classification.
+The pipeline processes spatial features such as attached neighbours, grid-based geometry relationships, and building characteristics from LOD2 and LOD3 3D building data.
 
 ## Key Features
 
@@ -23,11 +23,13 @@ The pipeline processes spatial features such as attached neighbours, grid-based 
 - **Spatial Analysis**: Building geometry analysis, volume calculations, and neighbour detection
 - **Feature Extraction**: Child feature extraction (walls, roofs, windows) with geometric relationships
 - **TABULA Integration**: Building type classification using TABULA methodology
+- **Sequence Processing**: Enumerated sql scripts allowing modify and extend functionality easily.
 
 ### Performance & Scalability
 - **Memory Efficient**: Batch-based processing preventing memory exhaustion
-- **Parallel Architecture**: Goroutine-based workers achieving 2.5-4x performance improvements
-- **Database Optimization**: Query plan caching and connection pooling
+- **Parallel Architecture**: Goroutine-based workers for concurrent processing
+- **Configurable Threading**: User-defined thread counts for optimal resource utilization
+- **Database Optimization**: Connection pooling and prepared statements with parameterized queries.
 
 ## System Requirements
 
@@ -111,33 +113,17 @@ The Docker environment includes:
 
 ### Docker Commands
 
-**Linux/macOS (using make):**
+Run the following command to see all available Docker commands:
 
-| Command | Description |
-|---------|-------------|
-| `make setup` | Complete setup: Build environment, interactive config, start containers |
-| `make configure` | Interactive configuration: select country and enter password |
-| `make dev` | Start development environment with interactive shell |
-| `make create-db` | Create database and import data |
-| `make extract-features` | Run feature extraction pipeline |
-| `make quick-start` | Full pipeline: setup + create-db + extract-features |
-| `make status` | Check container status |
-| `make logs` | View container logs |
-| `make clean` | Stop and remove containers |
+```bash
+# Linux/macOS
+make help
 
-**Windows (using setup.bat or setup.ps1):**
-
-| Command | Description |
-|---------|-------------|
-| `setup.bat setup` / `.\setup.ps1 setup` | Complete setup: Build environment, interactive config, start containers |
-| `setup.bat configure` / `.\setup.ps1 configure` | Interactive configuration: select country and enter password |
-| `setup.bat dev` / `.\setup.ps1 dev` | Start development environment with interactive shell |
-| `setup.bat create-db` / `.\setup.ps1 create-db` | Create database and import data |
-| `setup.bat extract-features` / `.\setup.ps1 extract-features` | Run feature extraction pipeline |
-| `setup.bat quick-start` / `.\setup.ps1 quick-start` | Full pipeline: setup + create-db + extract-features |
-| `setup.bat status` / `.\setup.ps1 status` | Check container status |
-| `setup.bat logs` / `.\setup.ps1 logs` | View container logs |
-| `setup.bat clean` / `.\setup.ps1 clean` | Stop and remove containers |
+# Windows (Command Prompt)
+setup.bat help
+# or (PowerShell)
+.\setup.ps1 help
+```
 
 ### Complete Docker Workflow
 
@@ -502,13 +488,11 @@ City2TABULA/
 
 ## Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `-help` | Show help information |
-| `-create_db` | Create the city2tabula database and CityDB schemas required to store the 3D city models and import the data |
-| `-reset_db` | Reset the city2tabula database and CityDB schemas (drops all tables and re-creates them) |
-| `-extract_features` | Run feature extraction pipeline |
-| `-reset_city2tabula` | Reset only the city2tabula database (drops all tables and re-creates them). This option is useful when you want to make changes to SQL scripts for extracting features without affecting the entire database |
+Run the following command to see all available options:
+
+```bash
+./city2tabula -help
+```
 
 For usage examples, refer to Database Commands documentation.
 
@@ -544,5 +528,5 @@ This research was funded by CETPartnership, the Clean Energy Transition Partners
 
  <img src="docs/source/img/CETP-logo.svg" alt="CETPartnership" width="144" height="72">  <img src="docs/source/img/EN_Co-fundedbytheEU_RGB_POS.png" alt="EU" width="180" height="40">
 
-- **3DCityDB**: For providing the foundation for 3D spatial data management. (accessed 13.11.2025, [https://www.3dcitydb.org/](https://github.com/3dcitydb)) 
+- **3DCityDB**: For providing the foundation for 3D spatial data management. (accessed 13.11.2025, [https://www.3dcitydb.org/](https://github.com/3dcitydb))
 - TABULA & EPISCOPE (IEE Projects): building-characteristic data (accessed 13.11.2025, [https://episcope.eu/iee-project/tabula/](https://episcope.eu/iee-project/tabula/)
