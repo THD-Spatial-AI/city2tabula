@@ -1,0 +1,210 @@
+version: "1.0.0"
+date: "2025-11-25"
+
+# =============================================================================
+# VALIDATION CONFIGURATION TEMPLATE
+# =============================================================================
+#
+# This is a template configuration file for validating City2TABULA calculations
+# against source CityGML/CityJSON thematic data.
+#
+# INSTRUCTIONS:
+# 1. Copy this file and rename it to: config_<country>.yaml (e.g., config_netherlands.yaml)
+# 2. Update the dataset section with your dataset information
+# 3. Update source_label values to match property names in your source data
+# 4. Leave source_label empty ("") if the attribute is not available in source data
+# 5. Adjust validation tolerances based on your dataset characteristics
+#
+# FINDING SOURCE PROPERTY NAMES:
+# Run this SQL query to discover available property names in your source data:
+#
+#   SELECT DISTINCT name, COUNT(*) as count
+#   FROM lod2.property
+#   GROUP BY name
+#   ORDER BY count DESC;
+#
+# =============================================================================
+
+dataset:
+  name: "Example Dataset"                # Descriptive name of your dataset
+  country: "XX"                          # Country code (lowercase, e.g., "netherlands", "austria")
+  lod: 2                                 # Level of Detail (2 or 3)
+  description: "Description of dataset origin, LoD, format, etc."
+  source_url: ""                         # Optional: URL where dataset was obtained
+  accessed_date: ""                      # Optional: Date when dataset was accessed
+
+# =============================================================================
+# DATABASE SCHEMA MAPPING
+# =============================================================================
+# Typically these values don't need to change unless you have a custom setup
+# =============================================================================
+db:
+  city2tabula_schema: "city2tabula"              # City2TABULA calculated data schema
+  citydb_schema: "lod2"                          # Source CityGML data schema (lod2 or lod3)
+
+  tables:
+    citydb_property: "property"                  # Source thematic properties table
+    building_feature: "lod2_building_feature"    # City2TABULA building table
+    child_feature_surface: "lod2_child_feature_surface"  # City2TABULA surface table
+
+# =============================================================================
+# ID FIELD MAPPING (for linking City2TABULA ↔ Source CityGML)
+# =============================================================================
+# These field names are standard and typically don't need to change
+# =============================================================================
+id_fields:
+  city2tabula_parent_id: "building_feature_id"       # Links to source Building features
+  city2tabula_child_surface_id: "surface_feature_id" # Links to source Surface features
+  citydb_property_feature_id: "feature_id"           # Source property table feature ID
+
+# =============================================================================
+# ATTRIBUTE MAPPING: Source Labels → City2TABULA Columns
+# =============================================================================
+#
+# IMPORTANT: Update source_label values to match YOUR source dataset!
+#
+# Structure for each attribute:
+#   computed_column: Column name in City2TABULA table (DO NOT CHANGE)
+#   source_label:    Property name in lod2.property table (UPDATE THIS!)
+#   unit:            Measurement unit (for reference)
+#   description:     Human-readable description
+#
+# Common property name examples by language:
+#   German:      Flaeche (area), Dachneigung (tilt), Dachorientierung (azimuth), Hoehe (height)
+#   English:     area, tilt/slope, azimuth/orientation, height
+#   Dutch:       oppervlakte (area), helling (tilt), orientatie (azimuth), hoogte (height)
+#
+# If an attribute is not available in your source data, set source_label to ""
+# =============================================================================
+
+attributes:
+
+  # ---------------------------------------------------------------------------
+  # PARENT-LEVEL ATTRIBUTES (Building)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_building_feature
+  # Linked via: building_feature_id → lod2.feature.id (Building features)
+  # ---------------------------------------------------------------------------
+  parent:
+
+    min_height:
+      computed_column: "min_height"
+      source_label: "value"              # UPDATE: Property name for building height in YOUR data
+      unit: "m"
+      description: "Wall height only (excluding roof)"
+      note: "Often stored as property name='value' where parent property indicates 'height'"
+
+    max_height:
+      computed_column: "max_height"
+      source_label: "value"              # UPDATE: Same source as min_height typically
+      unit: "m"
+      description: "Total building height (wall + roof)"
+      note: "City2TABULA calculates both min/max from geometry"
+
+    footprint_area:
+      computed_column: "footprint_area"
+      source_label: "area"               # UPDATE: Property name for footprint area
+      unit: "m²"
+      description: "Building footprint area (ground surface)"
+
+  # ---------------------------------------------------------------------------
+  # CHILD-LEVEL ATTRIBUTES (Surfaces)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_child_feature_surface
+  # Linked via: surface_feature_id → lod2.feature.id (Surface features)
+  #
+  # IMPORTANT: Tilt and azimuth should typically ONLY be validated for roof
+  # surfaces, as walls are always ~90° tilt and floors are ~0° tilt.
+  # ---------------------------------------------------------------------------
+  child:
+
+    # -------------------------------------------------------------------------
+    # ROOF SURFACES (RoofSurface classname)
+    # -------------------------------------------------------------------------
+    roof:
+      area:
+        computed_column: "surface_area"
+        source_label: "area"             # UPDATE: Property name for surface area
+        unit: "m²"
+        description: "Individual roof surface area"
+
+      tilt:
+        computed_column: "tilt"
+        source_label: "tilt"             # UPDATE: Property name for roof slope (e.g., "tilt", "slope", "Dachneigung")
+        unit: "degrees"
+        description: "Roof slope angle from horizontal (0-90°)"
+        note: "Only meaningful for roof surfaces - validation typically skips walls/floors"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: "azimuth"          # UPDATE: Property name for orientation (e.g., "azimuth", "orientation", "Dachorientierung")
+        unit: "degrees"
+        description: "Compass bearing (0-360°, -1 for horizontal surfaces)"
+        note: "Only meaningful for roof surfaces with directional orientation"
+
+    # -------------------------------------------------------------------------
+    # WALL SURFACES (WallSurface classname)
+    # -------------------------------------------------------------------------
+    wall:
+      area:
+        computed_column: "surface_area"
+        source_label: "area"             # UPDATE: Property name for surface area
+        unit: "m²"
+        description: "Individual wall surface area"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: ""                 # UPDATE: Often not available for walls - leave empty if not present
+        unit: "degrees"
+        description: "Wall orientation (often not provided in source data)"
+        note: "Many datasets don't include wall orientation thematic data"
+
+    # -------------------------------------------------------------------------
+    # FLOOR/GROUND SURFACES (GroundSurface classname)
+    # -------------------------------------------------------------------------
+    floor:
+      area:
+        computed_column: "surface_area"
+        source_label: "area"             # UPDATE: Property name for surface area
+        unit: "m²"
+        description: "Ground/floor surface area"
+
+
+# =============================================================================
+# VALIDATION TOLERANCES
+# =============================================================================
+# Define acceptable error thresholds for validation
+#
+# Recommendations:
+#   - Height: ±0.5m is reasonable for most datasets
+#   - Tilt: ±2° accounts for geometry precision issues
+#   - Azimuth: ±5° accounts for rounding and north reference differences
+#   - Area: ±5% accounts for calculation method differences
+# =============================================================================
+validation:
+
+  tolerance:
+    # Absolute tolerances
+    abs:
+      height: 0.5      # ±0.5 meters
+      tilt: 2.0        # ±2.0 degrees
+      azimuth: 5.0     # ±5.0 degrees
+
+    # Percentage tolerances
+    percent:
+      footprint_area: 5.0   # ±5%
+      surface_area: 5.0     # ±5%
+
+# =============================================================================
+# DATASET-SPECIFIC EXAMPLES
+# =============================================================================
+#
+# Example 1: Bavarian LoD2 (Germany) - German property names
+# ----------------------------------------------------------
+# source_label values:
+#   - height: "value" (where property name='height' indicates availability)
+#   - footprint_area: "Flaeche"
+#   - surface_area: "Flaeche"
+#   - tilt: "Dachneigung"
+#   - azimuth: "Dachorientierung"
+# =============================================================================

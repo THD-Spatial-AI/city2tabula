@@ -42,3 +42,7 @@ examples/
 settings.json
 
 bin/
+
+__pycache__/
+venv/
+.ipynb_checkpoints/
