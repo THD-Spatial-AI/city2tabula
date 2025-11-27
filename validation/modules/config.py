@@ -76,11 +76,22 @@ def get_building_attribute_mapping(config):
     dict : {'computed_column': 'source_label', ...}
     """
     parent_attrs = config.get('attributes', {}).get('parent', {})
-    return {
-        attr_config.get('computed_column'): attr_config.get('source_label', '')
-        for attr_name, attr_config in parent_attrs.items()
-        if attr_config.get('source_label', '')  # Only include if source_label is not empty
-    }
+    mapping = {}
+
+    for attr_name, attr_config in parent_attrs.items():
+        source_label = attr_config.get('source_label', '')
+        if not source_label:  # Skip if no source label
+            continue
+
+        # Check if computed_columns (plural) exists - for attributes with multiple columns
+        if 'computed_columns' in attr_config:
+            for computed_col in attr_config['computed_columns']:
+                mapping[computed_col] = source_label
+        # Otherwise use computed_column (singular)
+        elif 'computed_column' in attr_config:
+            mapping[attr_config['computed_column']] = source_label
+
+    return mapping
 
 
 def get_surface_attribute_mapping(config, surface_type='roof'):
@@ -140,8 +151,18 @@ def print_config_summary(config):
     print(f"\n Building Attributes:")
     building_mapping = get_building_attribute_mapping(config)
     for computed_col, source_label in building_mapping.items():
-        parent_config = config['attributes']['parent'][computed_col]
-        unit = parent_config.get('unit', '')
+        # Find the parent attribute config that contains this computed_column
+        parent_attrs = config['attributes']['parent']
+        unit = ''
+        for attr_name, attr_config in parent_attrs.items():
+            # Check if this is a single computed_column
+            if attr_config.get('computed_column') == computed_col:
+                unit = attr_config.get('unit', '')
+                break
+            # Or if it's in computed_columns list
+            elif computed_col in attr_config.get('computed_columns', []):
+                unit = attr_config.get('unit', '')
+                break
         print(f"   {computed_col:20s} <- '{source_label}' ({unit})")
 
     print(f"\n Surface Attributes:")

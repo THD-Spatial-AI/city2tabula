@@ -87,19 +87,12 @@ attributes:
   # ---------------------------------------------------------------------------
   parent:
 
-    min_height:
-      computed_column: "min_height"
+    height:
+      computed_columns: ["min_height", "max_height"]  # Validate both columns against same source
       source_label: "value"              # UPDATE: Property name for building height in YOUR data
       unit: "m"
-      description: "Wall height only (excluding roof)"
-      note: "Often stored as property name='value' where parent property indicates 'height'"
-
-    max_height:
-      computed_column: "max_height"
-      source_label: "value"              # UPDATE: Same source as min_height typically
-      unit: "m"
-      description: "Total building height (wall + roof)"
-      note: "City2TABULA calculates both min/max from geometry"
+      description: "Building height from source data"
+      note: "Source typically has single height value; City2TABULA calculates min_height (wall only) and max_height (wall+roof) from 3D geometry. Both are compared to source height to assess which interpretation matches better."
 
     footprint_area:
       computed_column: "footprint_area"
@@ -164,7 +157,7 @@ attributes:
     # -------------------------------------------------------------------------
     floor:
       area:
-        computed_column: "surface_area"
+        computed_column: "surface_area" # Represents the footprint area
         source_label: "area"             # UPDATE: Property name for surface area
         unit: "m²"
         description: "Ground/floor surface area"
@@ -202,7 +195,7 @@ validation:
 # Example 1: Bavarian LoD2 (Germany) - German property names
 # ----------------------------------------------------------
 # source_label values:
-#   - height: "value" (where property name='height' indicates availability)
+#   - height (both min & max): "value" (where property name='height' indicates availability)
 #   - footprint_area: "Flaeche"
 #   - surface_area: "Flaeche"
 #   - tilt: "Dachneigung"

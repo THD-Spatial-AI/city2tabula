@@ -70,3 +70,12 @@ All example datasets are provided under open licenses. When using this data:
 - Example data is provided for **testing and development only**
 - File sizes are optimized for Git LFS to keep repository lightweight
 - Production data directories (`lod2/`, `lod3/`, `tabula/`) are initially empty
+
+## Downloading data from .meta4 files
+
+If you have `.meta4` files for datasets, you can use a download manager that supports Metalink files, such as `aria2`, to download the actual data files.
+
+```bash
+sudo apt install aria2  # Install aria2 if not already installed
+aria2c -M path/to/yourfile.meta4  # Download files using the .meta4 file
+```

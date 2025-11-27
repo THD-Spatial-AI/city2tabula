@@ -67,11 +67,11 @@ attributes:
   # ---------------------------------------------------------------------------
   parent:
 
-    min_height:
-      computed_column: "min_height"
+    height:
+      computed_columns: ["min_height", "max_height"]  # Validate both columns against same source
       source_label: "value"              # Property 'height' indicates availability, 'value' contains the actual height
       unit: "m"
-      description: "Wall height only (excluding roof) - calculated by City2TABULA"
+      description: "Building height from source data"
       note: "Source has single height value; City2TABULA calculates min_height (wall only) and max_height (wall+roof) from 3D geometry. Both are compared to source height to assess which interpretation matches better."
 
     footprint_area:
@@ -139,7 +139,7 @@ attributes:
     # -------------------------------------------------------------------------
     floor:
       area:
-        computed_column: "surface_area"
+        computed_column: "surface_area" # Represents the footprint area
         source_label: "Flaeche"
         unit: "m²"
         description: "Ground/floor surface area"

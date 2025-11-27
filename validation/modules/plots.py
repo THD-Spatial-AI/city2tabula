@@ -9,9 +9,7 @@ This module provides:
 """
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-import pandas as pd
 
 
 def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsize=(8, 6)):
@@ -72,7 +70,6 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsi
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved plot: {save_path}")
 
     return fig
 
@@ -134,7 +131,6 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, figsi
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved plot: {save_path}")
         plt.close(fig)
         return None
 
@@ -195,7 +191,6 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved plot: {save_path}")
         plt.close(fig)
         return None
 
