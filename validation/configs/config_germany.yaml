@@ -1,0 +1,165 @@
+version: "1.1.0"
+date: "2025-11-27"
+author: "Jaykumar R. Ravani"
+# =============================================================================
+# VALIDATION CONFIGURATION: Bavarian LoD2 Dataset (Germany)
+# =============================================================================
+#
+# This configuration maps source CityGML property names (from lod2.property table)
+# to City2TABULA calculated attributes for validation purposes.
+#
+# Dataset Information:
+# - Source: Bavarian 3D City Model (LoD2)
+# - URL: https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2
+# - Format: CityGML
+# - Property names: German (Flaeche, Dachneigung, Dachorientierung, etc.)
+# =============================================================================
+
+dataset:
+  name: "LoD2 Dataset of Bavaria"
+  country: "Germany"
+  lod: 2
+  description: "Bavarian 3D city models in CityGML format with German property names"
+  source_url: "https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2"
+  accessed_date: "2025-11-07"
+
+# =============================================================================
+# DATABASE SCHEMA MAPPING
+# =============================================================================
+db:
+  city2tabula_schema: "city2tabula"      # City2TABULA calculated data schema
+  citydb_schema: "lod2"                  # Source CityGML data schema (lod2 or lod3)
+  tables:
+    citydb_property: "property"          # Source thematic properties table
+    building_feature: "building_feature"        # City2TABULA building table
+    child_feature_surface: "child_feature_surface"  # City2TABULA surface table
+
+# =============================================================================
+# ID FIELD MAPPING (for linking City2TABULA ↔ Source CityGML)
+# =============================================================================
+id_fields:
+  city2tabula_parent_id: "building_feature_id"       # Links to source Building features
+  city2tabula_child_id: "surface_feature_id" # Links to source Surface features
+  citydb_property_feature_id: "feature_id"           # Source property table feature ID
+
+# =============================================================================
+# ATTRIBUTE MAPPING: Source Labels → City2TABULA Columns
+# =============================================================================
+#
+# Structure:
+#   computed_column: Column name in City2TABULA table
+#   source_label:    Property name in lod2.property table
+#   unit:            Measurement unit
+#
+# Notes:
+# - Parent (building) validation uses building_feature_id for matching
+# - Child (surface) validation uses surface_feature_id for matching
+# - Empty source_label means attribute not available in source data
+# =============================================================================
+
+attributes:
+
+  # ---------------------------------------------------------------------------
+  # PARENT-LEVEL ATTRIBUTES (Building)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_building_feature
+  # Linked via: building_feature_id → lod2.feature.id (Building features)
+  # ---------------------------------------------------------------------------
+  parent:
+
+    height:
+      computed_columns: ["min_height", "max_height"]  # Validate both columns against same source
+      source_label: "value"              # Property 'height' indicates availability, 'value' contains the actual height
+      unit: "m"
+      description: "Building height from source data"
+      note: "Source has single height value; City2TABULA calculates min_height (wall only) and max_height (wall+roof) from 3D geometry. Both are compared to source height to assess which interpretation matches better."
+
+    footprint_area:
+      computed_column: "footprint_area"
+      source_label: "Flaeche"            # German: "Area"
+      unit: "m²"
+      description: "Building footprint area (ground surface)"
+
+  # ---------------------------------------------------------------------------
+  # CHILD-LEVEL ATTRIBUTES (Surfaces)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_child_feature_surface
+  # Linked via: surface_feature_id → lod2.feature.id (Surface features)
+  #
+  # Surface Types:
+  #   - roof:  RoofSurface features
+  #   - wall:  WallSurface features
+  #   - floor: GroundSurface features
+  # ---------------------------------------------------------------------------
+  child:
+
+    # -------------------------------------------------------------------------
+    # ROOF SURFACES
+    # -------------------------------------------------------------------------
+    roof:
+      area:
+        computed_column: "surface_area"
+        source_label: "Flaeche"          # German: "Area"
+        unit: "m²"
+        description: "Individual roof surface area"
+
+      tilt:
+        computed_column: "tilt"
+        source_label: "Dachneigung"      # German: "Roof slope"
+        unit: "degrees"
+        description: "Roof slope angle from horizontal (0-90°)"
+        note: "Only validated for roof surfaces - walls are always ~90°"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: "Dachorientierung" # German: "Roof orientation"
+        unit: "degrees"
+        description: "Compass bearing (0-360°, -1 for horizontal surfaces)"
+        note: "Only validated for roof surfaces with meaningful orientation"
+
+    # -------------------------------------------------------------------------
+    # WALL SURFACES
+    # -------------------------------------------------------------------------
+    wall:
+      area:
+        computed_column: "surface_area"
+        source_label: "Flaeche"
+        unit: "m²"
+        description: "Individual wall surface area"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: ""                 # Not available in Bavarian LoD2 source data
+        unit: "degrees"
+        description: "Wall orientation (not provided in source)"
+        note: "Bavarian data doesn't include wall orientation thematic data"
+
+    # -------------------------------------------------------------------------
+    # FLOOR/GROUND SURFACES
+    # -------------------------------------------------------------------------
+    floor:
+      area:
+        computed_column: "surface_area" # Represents the footprint area
+        source_label: "Flaeche"
+        unit: "m²"
+        description: "Ground/floor surface area"
+
+
+# =============================================================================
+# VALIDATION TOLERANCES
+# =============================================================================
+# Define acceptable error thresholds for validation
+# =============================================================================
+validation:
+
+  tolerance:
+    # Absolute tolerances
+    abs:
+      height: 0.5      # ±0.5 meters
+      tilt: 2.0        # ±2.0 degrees
+      azimuth: 5.0     # ±5.0 degrees
+
+    # Percentage tolerances
+    percent:
+      footprint_area: 5.0   # ±5%
+      surface_area: 5.0     # ±5%

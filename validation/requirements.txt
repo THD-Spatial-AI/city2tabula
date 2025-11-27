@@ -1,0 +1,7 @@
+pyyaml
+sqlalchemy
+psycopg2
+python-dotenv
+matplotlib
+pandas
+numpy
