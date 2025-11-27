@@ -1,5 +1,6 @@
-version: "1.0.0"
+version: "1.1.0"
 date: "2025-11-25"
+author: "Jaykumar R. Ravani"
 
 # =============================================================================
 # VALIDATION CONFIGURATION TEMPLATE
@@ -44,8 +45,8 @@ db:
 
   tables:
     citydb_property: "property"                  # Source thematic properties table
-    building_feature: "lod2_building_feature"    # City2TABULA building table
-    child_feature_surface: "lod2_child_feature_surface"  # City2TABULA surface table
+    building_feature: "building_feature"    # City2TABULA building table
+    child_feature_surface: "child_feature_surface"  # City2TABULA surface table
 
 # =============================================================================
 # ID FIELD MAPPING (for linking City2TABULA ↔ Source CityGML)

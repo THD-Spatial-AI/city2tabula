@@ -1,0 +1,219 @@
+version: "1.1.0"
+date: "2025-11-27"
+author: "Jaykumar R. Ravani"
+
+# =============================================================================
+# VALIDATION CONFIGURATION: 3D BAG Dataset (Netherlands)
+# =============================================================================
+#
+# This configuration maps source 3D BAG property names to City2TABULA
+# calculated attributes for validation purposes.
+#
+# Dataset Information:
+# - Source: 3D Basisvoorziening Adressen en Gebouwen (3D BAG)
+# - URL: https://3dbag.nl
+# - Format: CityJSON
+# - Property prefix: b3_ (bag3d properties)
+# - Height reference: NAP (Normaal Amsterdams Peil)
+# =============================================================================
+
+dataset:
+  name: "3D BAG - Netherlands"
+  country: "Netherlands"
+  lod: 2
+  description: "3D building models from 3D BAG with BAG attributes and AHN elevation data"
+  source_url: "https://3dbag.nl"
+  accessed_date: "2025-11-27"
+
+# =============================================================================
+# DATABASE SCHEMA MAPPING
+# =============================================================================
+# Typically these values don't need to change unless you have a custom setup
+# =============================================================================
+db:
+  city2tabula_schema: "city2tabula"      # City2TABULA calculated data schema
+  citydb_schema: "lod2"                  # Source CityJSON data schema
+
+  tables:
+    citydb_property: "property"          # Source thematic properties table
+    building_feature: "building_feature" # City2TABULA building table
+    child_feature_surface: "child_feature_surface"  # City2TABULA surface table
+
+# =============================================================================
+# ID FIELD MAPPING (for linking City2TABULA ↔ Source CityGML)
+# =============================================================================
+# These field names are standard and typically don't need to change
+# =============================================================================
+id_fields:
+  city2tabula_parent_id: "building_feature_id"       # Links to source Building features
+  city2tabula_child_id: "surface_feature_id"         # Links to source Surface features
+  citydb_property_feature_id: "feature_id"           # Source property table feature ID
+
+# =============================================================================
+# ATTRIBUTE MAPPING: 3D BAG Properties → City2TABULA Columns
+# =============================================================================
+#
+# Structure:
+#   computed_column(s): Column name(s) in City2TABULA table
+#   source_label:       Property name in lod2.property table
+#   unit:               Measurement unit
+#
+# 3D BAG Properties Used:
+#   - b3_h_maaiveld: Ground level height (maaiveld = ground level in Dutch)
+#   - b3_h_dak_min: Minimum roof height
+#   - b3_h_dak_max: Maximum roof height
+#   - b3_h_dak_50p: Median (50th percentile) roof height
+#   - b3_h_dak_70p: 70th percentile roof height
+#   - b3_opp_grond: Ground surface area (oppervlakte = area in Dutch)
+#   - b3_opp_dak_plat: Flat roof surface area
+#   - b3_opp_dak_schuin: Sloped roof surface area
+#   - b3_opp_buitenmuur: Exterior wall surface area
+#
+# Note: 3D BAG doesn't provide individual surface tilt/azimuth thematic data
+# =============================================================================
+
+attributes:
+
+  # ---------------------------------------------------------------------------
+  # PARENT-LEVEL ATTRIBUTES (Building)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_building_feature
+  # Linked via: building_feature_id → lod2.feature.id (Building features)
+  # ---------------------------------------------------------------------------
+  parent:
+
+    height:
+      computed_columns: ["min_height", "max_height"]  # Validate both against roof max
+      source_label: "b3_h_dak_min"       # Maximum roof height from AHN point cloud
+      unit: "m"
+      description: "Building height - maximum roof elevation above NAP"
+      note: "3D BAG provides b3_h_dak_max (max roof height) and b3_h_maaiveld (ground level). City2TABULA min_height (wall only) should be closer to (b3_h_dak_max - roof_height), while max_height should match b3_h_dak_max."
+
+    footprint_area:
+      computed_column: "footprint_area"
+      source_label: "b3_opp_grond"       # Ground surface area in m²
+      unit: "m²"
+      description: "Building footprint area from BAG registration"
+
+  # ---------------------------------------------------------------------------
+  # CHILD-LEVEL ATTRIBUTES (Surfaces)
+  # ---------------------------------------------------------------------------
+  # Stored in: city2tabula.lod2_child_feature_surface
+  # Linked via: surface_feature_id → lod2.feature.id (Surface features)
+  #
+  # NOTE: 3D BAG provides aggregated surface areas at building level but not
+  # individual surface-level tilt/azimuth thematic data. Surface areas can be
+  # partially validated using building-level aggregated values.
+  # ---------------------------------------------------------------------------
+  child:
+
+    # -------------------------------------------------------------------------
+    # ROOF SURFACES (RoofSurface classname)
+    # -------------------------------------------------------------------------
+    roof:
+      area:
+        computed_column: "surface_area"
+        source_label: ""                 # No individual roof surface areas in 3D BAG
+        unit: "m²"
+        description: "Individual roof surface area"
+        note: "3D BAG provides b3_opp_dak_plat (flat roof) and b3_opp_dak_schuin (sloped roof) at building level, not individual surfaces"
+
+      tilt:
+        computed_column: "tilt"
+        source_label: ""                 # Not available in 3D BAG
+        unit: "degrees"
+        description: "Roof slope angle from horizontal (0-90°)"
+        note: "3D BAG doesn't provide surface-level tilt data; roof type (flat/sloped) available via b3_dak_type"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: ""                 # Not available in 3D BAG
+        unit: "degrees"
+        description: "Compass bearing (0-360°, -1 for horizontal surfaces)"
+        note: "3D BAG doesn't provide surface-level azimuth data"
+
+    # -------------------------------------------------------------------------
+    # WALL SURFACES (WallSurface classname)
+    # -------------------------------------------------------------------------
+    wall:
+      area:
+        computed_column: "surface_area"
+        source_label: ""                 # No individual wall surface areas in 3D BAG
+        unit: "m²"
+        description: "Individual wall surface area"
+        note: "3D BAG provides b3_opp_buitenmuur (total exterior wall area) at building level, not individual surfaces"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: ""                 # Not available in 3D BAG
+        unit: "degrees"
+        description: "Wall orientation (not provided in 3D BAG)"
+
+    # -------------------------------------------------------------------------
+    # FLOOR/GROUND SURFACES (GroundSurface classname)
+    # -------------------------------------------------------------------------
+    floor:
+      area:
+        computed_column: "surface_area"
+        source_label: "b3_opp_grond"     # Ground surface area
+        unit: "m²"
+        description: "Ground/floor surface area (should match footprint)"
+
+
+# =============================================================================
+# VALIDATION TOLERANCES
+# =============================================================================
+# Define acceptable error thresholds for validation
+#
+# Netherlands-specific considerations:
+#   - Height: 3D BAG uses AHN (Actueel Hoogtebestand Nederland) point cloud data
+#     Accuracy typically within 0.1-0.5m for buildings
+#   - Area: BAG registration is highly accurate, tolerance ±2-5%
+# =============================================================================
+validation:
+
+  tolerance:
+    # Absolute tolerances
+    abs:
+      height: 0.5      # ±0.5 meters (AHN accuracy)
+      tilt: 2.0        # ±2.0 degrees (not applicable for 3D BAG)
+      azimuth: 5.0     # ±5.0 degrees (not applicable for 3D BAG)
+
+    # Percentage tolerances
+    percent:
+      footprint_area: 2.0   # ±2% (BAG is very accurate)
+      surface_area: 5.0     # ±5%
+
+# =============================================================================
+# 3D BAG ADDITIONAL PROPERTIES (for reference)
+# =============================================================================
+#
+# Available but not used in this validation config:
+#
+# Building metadata:
+#   - identificatie: BAG building ID
+#   - oorspronkelijkbouwjaar: Original construction year
+#   - status: Building status (e.g., in use, demolished)
+#   - b3_bouwlagen: Number of floors
+#
+# Roof details:
+#   - b3_dak_type: Roof type classification
+#   - b3_h_dak_50p: Median roof height (50th percentile)
+#   - b3_h_dak_70p: 70th percentile roof height
+#   - b3_is_glas_dak: Glass roof indicator
+#
+# Surface areas (aggregated):
+#   - b3_opp_dak_plat: Flat roof area
+#   - b3_opp_dak_schuin: Sloped roof area
+#   - b3_opp_buitenmuur: Exterior wall area
+#   - b3_opp_scheidingsmuur: Partition wall area
+#
+# Quality metrics:
+#   - b3_rmse_lod12, b3_rmse_lod13, b3_rmse_lod22: RMSE values for different LoDs
+#   - b3_val3dity_lod12, etc.: val3dity validation results
+#   - b3_puntdichtheid_AHN3/4/5: Point density from different AHN versions
+#
+# =============================================================================
+#   - tilt: "Dachneigung"
+#   - azimuth: "Dachorientierung"
+# =============================================================================
