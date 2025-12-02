@@ -43,7 +43,7 @@ all_points AS (
   GROUP BY id, child_row_id, building_feature_id, surface_feature_id, objectclass_id, classname, valid_geom
   HAVING COUNT(*) >= 3
 ),
--- Find the first three non-colinear points by testing combinations
+-- Find the first three non-collinear points by testing combinations
 point_combinations AS (
   SELECT
     id,
@@ -105,14 +105,40 @@ normals AS (
 -- Tilt = angle between normal vector and vertical axis
 -- Azimuth = compass direction of the projection of the normal vector onto the horizontal plane
 -- Using formulas:
--- tilt = DEGREES(ASIN(ABS(n_z) / |n|))
+-- tilt = DEGREES(ASIN(ABS(nz)))
 -- azimuth = MOD((DEGREES(ATAN2(n_x, n_y)) + 360), 360)
+-- For roof surfaces, ensure the normal points upward (nz > 0) to get correct azimuth
 final AS (
-  SELECT *,
+  SELECT
+    id,
+    child_row_id,
+    building_feature_id,
+    surface_feature_id,
+    objectclass_id,
+    classname,
+    valid_geom,
+    p1, p2, p3,
+    a_x, a_y, a_z,
+    b_x, b_y, b_z,
     cross_magnitude AS norm_len,
-    n_x / NULLIF(cross_magnitude, 0) AS nx,
-    n_y / NULLIF(cross_magnitude, 0) AS ny,
-    n_z / NULLIF(cross_magnitude, 0) AS nz
+    -- Flip normal if it points downward for roof surfaces
+    CASE
+      WHEN classname = 'RoofSurface' AND (n_z / NULLIF(cross_magnitude, 0)) < 0
+      THEN -(n_x / NULLIF(cross_magnitude, 0))
+      ELSE n_x / NULLIF(cross_magnitude, 0)
+    END AS nx,
+    CASE
+      WHEN classname = 'RoofSurface' AND (n_z / NULLIF(cross_magnitude, 0)) < 0
+      THEN -(n_y / NULLIF(cross_magnitude, 0))
+      ELSE n_y / NULLIF(cross_magnitude, 0)
+    END AS ny,
+    CASE
+      WHEN classname = 'RoofSurface' AND (n_z / NULLIF(cross_magnitude, 0)) < 0
+      THEN -(n_z / NULLIF(cross_magnitude, 0))
+      ELSE n_z / NULLIF(cross_magnitude, 0)
+    END AS nz,
+    n_x, n_y, n_z,
+    cross_magnitude
   FROM normals
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_surface (
@@ -149,7 +175,7 @@ SELECT
     DEGREES(ASIN(ABS(nz))) AS tilt,
     'degrees' AS tilt_unit,
     CASE
-      WHEN ABS(nz) > 0.99 THEN -1
+      WHEN ABS(nz) < 0.01 THEN -1  -- Vertical surface, azimuth undefined
       ELSE MOD((450.0 - degrees(atan2(ny::numeric, nx::numeric)))::numeric + 360.0, 360.0)
     END AS azimuth,
     'degrees' AS azimuth_unit,
