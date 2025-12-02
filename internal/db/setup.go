@@ -30,7 +30,7 @@ func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 	}
 
 	// Step 2: Create City2TABULA schemas and setup
-	if err := CreateCity2TabulaSchemas(config, conn); err != nil {
+	if err := RunCity2TabulaDBSetup(config, conn); err != nil {
 		return fmt.Errorf("failed to create City2TABULA schemas: %w", err)
 	}
 
@@ -84,9 +84,8 @@ func ResetCityDBOnly(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
-// CreateCity2TabulaSchemas creates only the City2TABULA schemas and setup
-func CreateCity2TabulaSchemas(config *config.Config, conn *pgxpool.Pool) error {
-	utils.Info.Println("Creating City2TABULA schemas...")
+// RunCity2TabulaDBSetup runs the SQL setup pipelines
+func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 
 	// Create schemas
 	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
@@ -94,39 +93,55 @@ func CreateCity2TabulaSchemas(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create schemas: %w", err)
 	}
 
-	// Run database setup pipelines
-	if err := RunDatabaseSetupPipelines(config, conn); err != nil {
-		return fmt.Errorf("failed to run setup pipelines: %w", err)
-	}
-
-	utils.Info.Println("City2TABULA schemas created successfully")
-	return nil
-}
-
-// RunDatabaseSetupPipelines runs the SQL setup pipelines
-func RunDatabaseSetupPipelines(config *config.Config, conn *pgxpool.Pool) error {
-	pipelineQueue, err := process.DBSetupPipelineQueue(config)
+	// Step 1: Run main database setup pipeline
+	mainPipelineQueue, err := process.MainDBSetupPipelineQueue(config)
 	if err != nil {
-		return fmt.Errorf("failed to setup DB queue: %w", err)
+		return fmt.Errorf("failed to setup main DB queue: %w", err)
 	}
 
-	pipelineChan := make(chan *process.Pipeline, pipelineQueue.Len())
-	for !pipelineQueue.IsEmpty() {
-		pipeline := pipelineQueue.Dequeue()
+	mainPipelineChan := make(chan *process.Pipeline, mainPipelineQueue.Len())
+	for !mainPipelineQueue.IsEmpty() {
+		pipeline := mainPipelineQueue.Dequeue()
 		if pipeline != nil {
-			pipelineChan <- pipeline
+			mainPipelineChan <- pipeline
 		}
 	}
-	close(pipelineChan)
+	close(mainPipelineChan)
 
 	numWorkers := config.Batch.Threads
 	var wg sync.WaitGroup
 	for i := 1; i <= numWorkers; i++ {
 		wg.Add(1)
 		worker := process.NewWorker(i)
-		go worker.Start(pipelineChan, conn, &wg, config)
+		go worker.Start(mainPipelineChan, conn, &wg, config)
 	}
 	wg.Wait()
+
+	utils.Info.Println("Main database setup completed")
+
+	// Step 2: Run supplementary database setup pipeline
+	supplementaryPipelineQueue, err := process.SupplementaryDBSetupPipelineQueue(config)
+	if err != nil {
+		return fmt.Errorf("failed to setup supplementary DB queue: %w", err)
+	}
+
+	supplementaryPipelineChan := make(chan *process.Pipeline, supplementaryPipelineQueue.Len())
+	for !supplementaryPipelineQueue.IsEmpty() {
+		pipeline := supplementaryPipelineQueue.Dequeue()
+		if pipeline != nil {
+			supplementaryPipelineChan <- pipeline
+		}
+	}
+	close(supplementaryPipelineChan)
+
+	for i := 1; i <= numWorkers; i++ {
+		wg.Add(1)
+		worker := process.NewWorker(i)
+		go worker.Start(supplementaryPipelineChan, conn, &wg, config)
+	}
+	wg.Wait()
+
+	utils.Info.Println("Supplementary database setup completed")
 
 	return nil
 }
@@ -276,11 +291,11 @@ func DropSchemaIfExists(conn *pgxpool.Pool, schemaName string) error {
 func ListCityDBSchemas(conn *pgxpool.Pool, config *config.Config) ([]string, error) {
 	query := fmt.Sprintf(
 		`SELECT schema_name
-		FROM information_schema.schemata
-		WHERE schema_name LIKE '%%citydb%%'
-		   OR schema_name = '%s'
-		   OR schema_name = '%s'
-		ORDER BY schema_name;`,
+        FROM information_schema.schemata
+        WHERE schema_name LIKE '%%citydb%%'
+           OR schema_name = '%s'
+           OR schema_name = '%s'
+        ORDER BY schema_name;`,
 		config.DB.Schemas.Lod2, config.DB.Schemas.Lod3)
 
 	rows, err := conn.Query(context.Background(), query, config.DB.Schemas.Lod2, config.DB.Schemas.Lod3)

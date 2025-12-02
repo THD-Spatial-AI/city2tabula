@@ -58,7 +58,7 @@ func BuildFeatureExtractionQueue(
 	return pipelineQueue, nil
 }
 
-func DBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
+func MainDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
 	// Load SQL scripts in correct order
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
@@ -76,20 +76,53 @@ func DBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
 
 	jobPriority := 1
 
-	for _, file := range sqlScripts.TableScripts {
-		pipeline.AddJob(NewJob("LOD2", &params, file, jobPriority))
-		jobPriority++
-	}
-
-	for _, file := range sqlScripts.TableScripts {
-		pipeline.AddJob(NewJob("LOD3", &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Add main script jobs in order (core feature extraction pipeline)
+	// Add function scripts FIRST (they need to exist before being used)
 	for _, file := range sqlScripts.FunctionScripts {
 		filename := filepath.Base(file)
 		pipeline.AddJob(NewJob("FUNCTION: "+filename, &params, file, jobPriority))
+		jobPriority++
+	}
+
+	// Add main table scripts
+	for _, file := range sqlScripts.MainTableScripts {
+		filename := filepath.Base(file)
+		pipeline.AddJob(NewJob("LOD2: "+filename, &params, file, jobPriority))
+		jobPriority++
+	}
+
+	// Add main scripts last (these use the functions and tables)
+	for _, file := range sqlScripts.MainTableScripts {
+		filename := filepath.Base(file)
+		pipeline.AddJob(NewJob("LOD3: "+filename, &params, file, jobPriority))
+		jobPriority++
+	}
+
+	// Enqueue the pipeline
+	pipelineQueue.Enqueue(pipeline)
+
+	return pipelineQueue, nil
+}
+
+func SupplementaryDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
+	// Load SQL scripts in correct order
+	sqlScripts, err := config.LoadSQLScripts()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
+	}
+
+	pipelineQueue := NewPipelineQueue()
+
+	// Create a single pipeline for DB setup
+	pipeline := NewPipeline([]int64{}, nil)
+
+	params := Params{
+		BuildingIDs: []int64{},
+	}
+
+	jobPriority := 1
+
+	for _, file := range sqlScripts.SupplementaryTableScripts {
+		pipeline.AddJob(NewJob("SUPPLEMENTARY: "+file, &params, file, jobPriority))
 		jobPriority++
 	}
 
