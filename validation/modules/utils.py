@@ -46,9 +46,22 @@ def load_city2tabula_data(engine, config):
     building_features_df = pd.read_sql(query_buildings, engine)
     print(f"Loaded {len(building_features_df)} buildings")
 
-    # Load surface features
+    # Load surface features with geometry
     print(f"Loading surface features from {city2tabula_schema}.{surface_table}...")
-    query_surfaces = f"SELECT * FROM {city2tabula_schema}.{surface_table};"
+    query_surfaces = f"""
+    SELECT
+        surface_feature_id,
+        building_feature_id,
+        objectclass_id,
+        classname,
+        surface_area,
+        tilt,
+        azimuth,
+        is_valid,
+        is_planar,
+        ST_AsText(geom) as geom
+    FROM {city2tabula_schema}.{surface_table};
+    """
     surface_features_df = pd.read_sql(query_surfaces, engine)
     print(f"Loaded {len(surface_features_df)} surfaces")
 

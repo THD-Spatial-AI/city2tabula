@@ -108,7 +108,7 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
     -----------
     surface_calc_df : pd.DataFrame
         DataFrame with calculated surface data from City2TABULA
-        Must have columns: surface_feature_id, classname, and computed columns
+        Must have columns: surface_feature_id, building_feature_id, classname, geom, and computed columns
     surface_thematic_df : pd.DataFrame
         DataFrame with thematic surface data from CityDB property table
         Must have columns: feature_id, attribute_name, thematic_value
@@ -121,6 +121,7 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
     Returns:
     --------
     pd.DataFrame : Validation results with columns:
+        - building_feature_id: Building ID
         - surface_feature_id: Surface ID
         - classname: Surface type
         - attribute_name: Name of the attribute being validated
@@ -128,6 +129,7 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         - thematic_value: Value from CityDB thematic data
         - difference: calculated_value - thematic_value
         - percent_error: (difference / thematic_value) * 100
+        - geom: Surface geometry (if available)
     """
     if surface_calc_df.empty or surface_thematic_df.empty:
         print(f"Warning: Empty input dataframes for {surface_type} validation")
@@ -141,6 +143,11 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         return pd.DataFrame()
 
     results = []
+
+    # Determine which columns to keep (include geom if it exists)
+    base_cols = ['surface_feature_id', 'building_feature_id', 'classname']
+    if 'geom' in filtered_calc.columns:
+        base_cols.append('geom')
 
     # Process each attribute
     for computed_column, source_label in attribute_mapping.items():
@@ -162,8 +169,11 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
             print(f"Warning: No thematic data found for attribute '{computed_column}' in {surface_type}")
             continue
 
+        # Select columns to merge
+        merge_cols = base_cols + [computed_column]
+
         # Merge calculated and thematic data on surface_feature_id
-        merged = filtered_calc[['surface_feature_id', 'classname', computed_column]].merge(
+        merged = filtered_calc[merge_cols].merge(
             attr_thematic[['feature_id', 'thematic_value']],
             left_on='surface_feature_id',
             right_on='feature_id',
@@ -183,8 +193,8 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         )
 
         # Keep only needed columns
-        result_cols = [
-            'surface_feature_id', 'classname', 'attribute_name',
+        result_cols = base_cols + [
+            'attribute_name',
             'calculated_value', 'thematic_value',
             'difference', 'percent_error'
         ]
@@ -242,3 +252,56 @@ def get_validation_summary(validation_df):
     summary = summary.round(4)
 
     return summary
+
+
+def export_problematic_surfaces(validation_df, output_path, error_threshold=10.0):
+    """
+    Export surfaces with validation errors above threshold.
+
+    Simply filters the validation DataFrame for high errors and exports to CSV.
+    The CSV includes building_id, surface_id, geometry, and all validation metrics.
+
+    Parameters:
+    -----------
+    validation_df : pd.DataFrame
+        Validation results from validate_surface_attributes
+        Must include: building_feature_id, surface_feature_id, attribute_name,
+                     calculated_value, thematic_value, difference, percent_error
+                     Optional: geom (surface geometry)
+    output_path : str or Path
+        Full path for output CSV file
+    error_threshold : float
+        Percentage error threshold (default: 10%)
+
+    Returns:
+    --------
+    pd.DataFrame : Filtered DataFrame with only problematic surfaces
+    """
+    if validation_df.empty:
+        print("No validation data to export")
+        return pd.DataFrame()
+
+    # Filter for problematic surfaces based on error threshold and special cases
+    problematic = validation_df[
+        (abs(validation_df['percent_error']) > error_threshold) |
+        (abs(validation_df['difference']) > 170)  # Catch 180° azimuth flips
+    ].copy()
+
+    if problematic.empty:
+        print(f"No surfaces found with errors above {error_threshold}% threshold")
+        return pd.DataFrame()
+
+    # Export to CSV
+    problematic.to_csv(output_path, index=False)
+
+    n_surfaces = problematic['surface_feature_id'].nunique()
+    n_buildings = problematic['building_feature_id'].nunique() if 'building_feature_id' in problematic.columns else 0
+
+    print(f"\n{'='*80}")
+    print(f"Exported {len(problematic)} problematic validations")
+    print(f"  - {n_surfaces} unique surfaces")
+    print(f"  - {n_buildings} unique buildings")
+    print(f"  - Saved to: {output_path}")
+    print(f"{'='*80}\n")
+
+    return problematic

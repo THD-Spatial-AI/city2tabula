@@ -11,8 +11,58 @@ This module provides:
 import matplotlib.pyplot as plt
 import numpy as np
 
+def compute_errors(df, attribute):
+    """
+    Compute difference and percent_error safely for each attribute.
+    Handles circular variables and avoids division-by-zero explosions.
+    """
+    thematic = df["thematic_value"]
+    calc = df["calculated_value"]
+    eps = 1e-6
 
-def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsize=(8, 6)):
+    # ----------------------------------------------------------
+    # HEIGHT (linear, but thematic may be 0 or extremely small)
+    # ----------------------------------------------------------
+    if attribute in ["min_height", "max_height", "height"]:
+        df["difference"] = calc - thematic
+        df["percent_error"] = (df["difference"] / (thematic + eps)) * 100
+        return df
+
+    # ----------------------------------------------------------
+    # SURFACE AREA (valid % error, linear)
+    # ----------------------------------------------------------
+    if attribute in ["surface_area", "area", "footprint_area"]:
+        df["difference"] = calc - thematic
+        df["percent_error"] = (df["difference"] / (thematic + eps)) * 100
+        return df
+
+    # ----------------------------------------------------------
+    # TILT (0–90°, not suitable for percent error)
+    # thematic tilt may be 0 → percent error is meaningless
+    # ----------------------------------------------------------
+    if attribute == "tilt":
+        df["difference"] = calc - thematic
+        df["percent_error"] = np.nan      # disable percent error
+        return df
+
+    # ----------------------------------------------------------
+    # AZIMUTH (circular variable 0–360°)
+    # must use smallest angular distance
+    # percent error is meaningless
+    # ----------------------------------------------------------
+    if attribute == "azimuth":
+        raw = np.abs(calc - thematic) % 360
+        circ = np.where(raw > 180, 360 - raw, raw)
+        df["difference"] = circ
+        df["percent_error"] = np.nan      # disable % error
+        return df
+
+    # Default fallback
+    df["difference"] = calc - thematic
+    df["percent_error"] = np.nan
+    return df
+
+def plot_comparison_scatter(validation_df, attribute_name, save_path=None):
     """
     Create scatter plot comparing calculated vs thematic values.
 
@@ -32,12 +82,13 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsi
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
+    df = compute_errors(df, attribute_name)
 
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
         return None
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     # Scatter plot
     ax.scatter(df['thematic_value'], df['calculated_value'],
@@ -94,7 +145,7 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, figsi
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
-
+    df = compute_errors(df, attribute_name)
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
         return None
@@ -157,6 +208,7 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
+    df = compute_errors(df, attribute_name)
 
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
@@ -243,6 +295,7 @@ def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 
 
     for idx, attr in enumerate(attributes):
         df = validation_df[validation_df['attribute_name'] == attr].copy()
+        df = compute_errors(df, attr)
 
         if df.empty:
             continue
