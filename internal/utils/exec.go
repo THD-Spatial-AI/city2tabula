@@ -85,8 +85,8 @@ func ExecuteSQLScript(sqlScript string, config *config.Config, conn *pgxpool.Poo
 					}
 					params[key] = fmt.Sprintf("(%s)", strings.Join(idStrings, ","))
 				} else {
-					// Empty slice - handle as needed by your SQL
-					params[key] = "()"
+					// Empty slice - use (-1) to prevent syntax error while matching nothing
+					params[key] = "(-1)"
 				}
 			} else {
 				return fmt.Errorf("building_ids parameter is not of type []int64")

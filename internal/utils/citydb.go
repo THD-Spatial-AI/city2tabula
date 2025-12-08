@@ -6,46 +6,75 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func GetBuildingFeatureCount(dbConn *pgxpool.Pool, schemaName string) (int, error) {
-	query := fmt.Sprintf(`SELECT COUNT(*) FROM %s.feature WHERE objectclass_id IN (901, 905)`, schemaName)
-	var count int
-	err := dbConn.QueryRow(context.Background(), query).Scan(&count)
-	return count, err
+func GetBuildingObjectClassIDs(dbConn *pgxpool.Pool, schemaName string) ([]int, error) {
+	query := fmt.Sprintf(`
+        SELECT DISTINCT objectclass_id
+        FROM %s.feature
+        WHERE objectclass_id BETWEEN 900 AND 999
+        ORDER BY objectclass_id`, schemaName)
+
+	rows, err := dbConn.Query(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query building objectclass_ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, rows.Err()
 }
 
 // GetBuildingIDsFromCityDB fetches building feature IDs from specified LOD schema
 func GetBuildingIDsFromCityDB(dbConn *pgxpool.Pool, schemaName string) ([]int64, error) {
-	// Query to get building feature IDs (objectclass_id 901 for building feature and 905 for building part feature)
+	// Fetch all building-related object classes dynamically
+	buildingClasses, err := GetBuildingObjectClassIDs(dbConn, schemaName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return empty slice if no building classes found
+	if len(buildingClasses) == 0 {
+		return []int64{}, nil
+	}
+
+	// Convert slice to comma-separated list
+	classList := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(buildingClasses)), ","), "[]")
+
+	// Query all building feature IDs using the dynamic classes
 	query := fmt.Sprintf(`
-		SELECT f.id
-		FROM %s.feature f
-		WHERE f.objectclass_id IN (901, 905)
-		ORDER BY f.id`, schemaName)
+        SELECT id
+        FROM %s.feature
+        WHERE objectclass_id IN (%s)
+        ORDER BY id`, schemaName, classList)
 
 	rows, err := dbConn.Query(context.Background(), query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query building IDs from %s: %w", schemaName, err)
+		return nil, fmt.Errorf("failed to query building IDs: %w", err)
 	}
 	defer rows.Close()
 
-	var buildingIDs []int64
+	var ids []int64
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("failed to scan building ID: %w", err)
+			return nil, err
 		}
-		buildingIDs = append(buildingIDs, id)
+		ids = append(ids, id)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during row iteration: %w", err)
-	}
-
-	return buildingIDs, nil
+	return ids, rows.Err()
 }
 
 func ExecuteCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) error {
