@@ -46,3 +46,4 @@ bin/
 __pycache__/
 venv/
 .ipynb_checkpoints/
+obsidian_vault/
