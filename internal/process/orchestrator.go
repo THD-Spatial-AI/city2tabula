@@ -6,6 +6,18 @@ import (
 	"path/filepath"
 )
 
+// PipelineType represents different types of pipeline operations
+type PipelineType string
+
+const (
+	LOD2               PipelineType = "lod2"
+	LOD3               PipelineType = "lod3"
+	Function           PipelineType = "function"
+	MainTable          PipelineType = "main_table"
+	Supplementary      PipelineType = "supplementary"
+	SupplementaryTable PipelineType = "supplementary_table"
+)
+
 // BuildFeatureExtractionQueue creates a queue of pipelines (one per batch)
 // for both LOD2 and LOD3 building IDs.
 func BuildFeatureExtractionQueue(
@@ -13,7 +25,6 @@ func BuildFeatureExtractionQueue(
 	lod2Batches [][]int64,
 	lod3Batches [][]int64,
 ) (*PipelineQueue, error) {
-	// Load SQL scripts in correct order
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
@@ -21,45 +32,55 @@ func BuildFeatureExtractionQueue(
 
 	pipelineQueue := NewPipelineQueue()
 
-	// helper for creating pipelines
-	createPipeline := func(batch []int64, lod int) {
-		params := Params{
-			BuildingIDs: batch,
-		}
-
-		pipeline := NewPipeline(batch, nil)
-
-		// prefix job names with LOD number for clarity
-		lodLabel := func(name string) string {
-			return "LOD" + fmt.Sprint(lod) + " " + name
-		}
-
-		jobPriority := 1
-		// Finally, add main script jobs in order (core feature extraction pipeline)
-		for _, file := range sqlScripts.MainScripts {
-			pipeline.AddJob(NewJob(lodLabel(file), &params, file, jobPriority))
-			jobPriority++
-		}
-
-		// Enqueue the pipeline
+	// Build LOD2 pipelines
+	for _, batch := range lod2Batches {
+		pipeline := createPipeline(batch, sqlScripts.MainScripts, LOD2, 2)
 		pipelineQueue.Enqueue(pipeline)
 	}
 
-	// Build pipelines for LOD2
-	for _, batch := range lod2Batches {
-		createPipeline(batch, 2)
-	}
-
-	// Build pipelines for LOD3
+	// Build LOD3 pipelines
 	for _, batch := range lod3Batches {
-		createPipeline(batch, 3)
+		pipeline := createPipeline(batch, sqlScripts.MainScripts, LOD3, 3)
+		pipelineQueue.Enqueue(pipeline)
 	}
 
 	return pipelineQueue, nil
 }
 
+// createPipeline is a helper function to create a pipeline with jobs
+func createPipeline(batch []int64, scripts []string, pipelineType PipelineType, lod int) *Pipeline {
+	params := Params{BuildingIDs: batch}
+	pipeline := NewPipeline(batch, nil)
+
+	// Determine job name prefix based on pipeline type
+	var prefix string
+	switch pipelineType {
+	case LOD2:
+		prefix = "LOD2"
+	case LOD3:
+		prefix = "LOD3"
+	case Function:
+		prefix = "FUNCTION"
+	case MainTable:
+		prefix = "MAIN_TABLE"
+	case Supplementary:
+		prefix = "SUPPLEMENTARY"
+	case SupplementaryTable:
+		prefix = "SUPPLEMENTARY_TABLE"
+	}
+
+	// Add jobs to pipeline
+	for i, file := range scripts {
+		filename := filepath.Base(file)
+		jobName := fmt.Sprintf("%s: %s", prefix, filename)
+		pipeline.AddJob(NewJob(jobName, &params, file, i+1))
+	}
+
+	return pipeline
+}
+
+// MainDBSetupPipelineQueue creates a queue with function scripts and main table scripts
 func MainDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
-	// Load SQL scripts in correct order
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
@@ -67,44 +88,23 @@ func MainDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
 
 	pipelineQueue := NewPipelineQueue()
 
-	// Create a single pipeline for DB setup
-	pipeline := NewPipeline([]int64{}, nil)
+	// Add function scripts pipeline
+	functionPipeline := createPipeline([]int64{}, sqlScripts.FunctionScripts, Function, 0)
+	pipelineQueue.Enqueue(functionPipeline)
 
-	params := Params{
-		BuildingIDs: []int64{},
-	}
+	// Add LOD2 main table scripts pipeline
+	lod2Pipeline := createPipeline([]int64{}, sqlScripts.MainTableScripts, LOD2, 2)
+	pipelineQueue.Enqueue(lod2Pipeline)
 
-	jobPriority := 1
-
-	// Add function scripts FIRST (they need to exist before being used)
-	for _, file := range sqlScripts.FunctionScripts {
-		filename := filepath.Base(file)
-		pipeline.AddJob(NewJob("FUNCTION: "+filename, &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Add main table scripts
-	for _, file := range sqlScripts.MainTableScripts {
-		filename := filepath.Base(file)
-		pipeline.AddJob(NewJob("LOD2: "+filename, &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Add main scripts last (these use the functions and tables)
-	for _, file := range sqlScripts.MainTableScripts {
-		filename := filepath.Base(file)
-		pipeline.AddJob(NewJob("LOD3: "+filename, &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Enqueue the pipeline
-	pipelineQueue.Enqueue(pipeline)
+	// Add LOD3 main table scripts pipeline
+	lod3Pipeline := createPipeline([]int64{}, sqlScripts.MainTableScripts, LOD3, 3)
+	pipelineQueue.Enqueue(lod3Pipeline)
 
 	return pipelineQueue, nil
 }
 
+// SupplementaryDBSetupPipelineQueue creates a queue with supplementary table scripts
 func SupplementaryDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
-	// Load SQL scripts in correct order
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
@@ -112,28 +112,14 @@ func SupplementaryDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, e
 
 	pipelineQueue := NewPipelineQueue()
 
-	// Create a single pipeline for DB setup
-	pipeline := NewPipeline([]int64{}, nil)
-
-	params := Params{
-		BuildingIDs: []int64{},
-	}
-
-	jobPriority := 1
-
-	for _, file := range sqlScripts.SupplementaryTableScripts {
-		pipeline.AddJob(NewJob("SUPPLEMENTARY: "+file, &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Enqueue the pipeline
+	pipeline := createPipeline([]int64{}, sqlScripts.SupplementaryTableScripts, SupplementaryTable, 0)
 	pipelineQueue.Enqueue(pipeline)
 
 	return pipelineQueue, nil
 }
 
+// SupplementaryPipelineQueue creates a queue with supplementary processing scripts
 func SupplementaryPipelineQueue(config *config.Config) (*PipelineQueue, error) {
-	// Load SQL scripts in correct order
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
@@ -141,22 +127,7 @@ func SupplementaryPipelineQueue(config *config.Config) (*PipelineQueue, error) {
 
 	pipelineQueue := NewPipelineQueue()
 
-	// Create a single pipeline for DB setup
-	pipeline := NewPipeline([]int64{}, nil)
-
-	params := Params{
-		BuildingIDs: []int64{},
-	}
-
-	jobPriority := 1
-
-	for _, file := range sqlScripts.SupplementaryScripts {
-		filename := filepath.Base(file)
-		pipeline.AddJob(NewJob("SUPPLEMENTARY: "+filename, &params, file, jobPriority))
-		jobPriority++
-	}
-
-	// Enqueue the pipeline
+	pipeline := createPipeline([]int64{}, sqlScripts.SupplementaryScripts, Supplementary, 0)
 	pipelineQueue.Enqueue(pipeline)
 
 	return pipelineQueue, nil

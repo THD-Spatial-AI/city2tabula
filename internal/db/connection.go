@@ -122,3 +122,8 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 
 	return nil
 }
+
+func ClosePool(pool *pgxpool.Pool) {
+	pool.Close()
+	utils.Info.Println("Database pool connection closed")
+}

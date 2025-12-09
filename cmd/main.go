@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		utils.Error.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer pool.Close()
+	defer db.ClosePool(pool)
 	utils.Info.Println("Database connection established")
 
 	// Execute commands based on flags
