@@ -54,12 +54,18 @@ func testCityDBExecutable(cityDBExecutable string) error {
 func importCityDBFiles(cityDBExecutable, dataPath, dbSchema, lodLevel string, config *config.Config) error {
 	// Import CityGML files
 	cmd := getCityDBImportCommand(cityDBExecutable, dataPath, dbSchema, "citygml", config)
+	if cmd == nil {
+		return fmt.Errorf("no CityGML files found in %s for %s", dataPath, lodLevel)
+	}
 	if err := executeCityDBCommand(cmd, fmt.Sprintf("%s CityGML", lodLevel)); err != nil {
 		return err
 	}
 
 	// Import CityJSON files
 	cmd = getCityDBImportCommand(cityDBExecutable, dataPath, dbSchema, "cityjson", config)
+	if cmd == nil {
+		return fmt.Errorf("no CityJSON files found in %s for %s", dataPath, lodLevel)
+	}
 	if err := executeCityDBCommand(cmd, fmt.Sprintf("%s CityJSON", lodLevel)); err != nil {
 		return err
 	}
@@ -84,6 +90,12 @@ func executeCityDBCommand(cmd *exec.Cmd, description string) error {
 
 // getCityDBImportCommand creates a CityDB import command for the specified format
 func getCityDBImportCommand(cityDBExecutable, dataPath, dbSchema, format string, config *config.Config) *exec.Cmd {
+	// Check file path exists before creating command
+	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+		utils.Error.Fatalf("Data path not found: %s", dataPath)
+		return nil
+	}
+
 	return exec.Command(cityDBExecutable,
 		"import",
 		"--log-level=debug",

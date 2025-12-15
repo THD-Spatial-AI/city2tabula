@@ -46,33 +46,6 @@ The City2TABULA pipeline consists of several key components:
 .. image:: img/City2TABULA_complete_pipeline_stages.png
   :alt: City2TABULA Pipeline Workflow
 
-Table of Contents
------------------
-
-.. toctree::
-  :maxdepth: 2
-  :caption: Core Modules
-
-  config_module
-  database_module
-  process_module
-  importer_module
-  utils_module
-
-.. toctree::
-  :maxdepth: 2
-  :caption: Pipeline Workflows
-
-  building_feature_labeling
-
-.. toctree::
-  :maxdepth: 2
-  :caption: Advanced Topics
-
-  performance_optimization
-  troubleshooting
-  api_reference
-
 Support
 -------
 

@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		utils.Error.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer pool.Close()
+	defer db.ClosePool(pool)
 	utils.Info.Println("Database connection established")
 
 	// Execute commands based on flags
@@ -81,14 +81,7 @@ func main() {
 				utils.Warn.Printf("Warning dropping schema %s: %v", schema, err)
 			}
 		}
-		// Recreate City2TABULA schemas
-		if err := db.CreateCity2TabulaSchemas(&config, pool); err != nil {
-			utils.Error.Fatalf("Failed to recreate City2TABULA schemas: %v", err)
-		}
-		// Import supplementary data
-		if err := db.ImportAllData(&config, pool); err != nil {
-			utils.Error.Fatalf("Failed to import data: %v", err)
-		}
+		db.RunCity2TabulaDBSetup(&config, pool)
 		utils.Info.Println("City2TABULA schemas reset completed successfully")
 	}
 

@@ -17,7 +17,9 @@ const (
 	SQLSupplementaryScriptDir = SQLScriptDir + "supplementary" + string(os.PathSeparator) // Supporting/setup scripts
 
 	// Schema files
-	SQLSchemaFileDir = SQLDir + "schema" + string(os.PathSeparator)
+	SQLSchemaFileDir           = SQLDir + "schema" + string(os.PathSeparator)
+	SQLMainSchemaPath          = SQLSchemaFileDir + "main" + string(os.PathSeparator)
+	SQLSupplementarySchemaPath = SQLSchemaFileDir + "supplementary" + string(os.PathSeparator)
 
 	// Function files
 	SQLTrainingFunctionsPath = SQLDir + "functions" + string(os.PathSeparator)
@@ -25,10 +27,11 @@ const (
 
 // SQLScripts holds dynamically loaded SQL script paths
 type SQLScripts struct {
-	MainScripts          []string // Core feature extraction pipeline (01-10)
-	SupplementaryScripts []string // Supporting scripts (tabula extraction, etc.)
-	TableScripts         []string // Schema creation scripts
-	FunctionScripts      []string // Function scripts
+	MainScripts               []string // Core feature extraction pipeline (01-10)
+	SupplementaryScripts      []string // Supporting scripts (tabula extraction, etc.)
+	MainTableScripts          []string // Schema creation scripts
+	SupplementaryTableScripts []string // Supplementary schema creation scripts
+	FunctionScripts           []string // Function scripts
 }
 
 // SQLParameters holds all SQL template parameters
@@ -88,7 +91,12 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 	}
 
 	// Load schema scripts
-	TableScripts, err := loadSQLFilesFromDir(SQLSchemaFileDir)
+	MainTableScripts, err := loadSQLFilesFromDir(SQLMainSchemaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	SupplementaryTableScripts, err := loadSQLFilesFromDir(SQLSupplementarySchemaPath)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +107,11 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 		return nil, err
 	}
 	return &SQLScripts{
-		MainScripts:          mainScripts,
-		SupplementaryScripts: supplementaryScripts,
-		TableScripts:         TableScripts,
-		FunctionScripts:      functionScripts,
+		MainScripts:               mainScripts,
+		SupplementaryScripts:      supplementaryScripts,
+		MainTableScripts:          MainTableScripts,
+		SupplementaryTableScripts: SupplementaryTableScripts,
+		FunctionScripts:           functionScripts,
 	}, nil
 }
 

@@ -269,7 +269,6 @@ CITYDB_SRS_NAME=ETRS89 / UTM zone 32N # Spatial Reference System Name for CityDB
 # Parallel Processing Configuration
 THREAD_COUNT=4        # Number of threads for parallel processing (optional)
 DB_MAX_OPEN_CONNS=10   # Maximum number of open connections to the database
-DB_MAX_IDLE_CONNS=5    # Maximum number of idle connections to the database
 
 # Logging Configuration
 LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)

@@ -8,11 +8,74 @@ This module provides:
 - Correlation plots
 """
 
+import matplotlib
+matplotlib.use('module://backend_ipe')   # must come BEFORE pyplot
+
 import matplotlib.pyplot as plt
+
+# Try to use the IPE backend if available; otherwise fall back.
+HAS_IPE = False
+try:
+    matplotlib.use('module://backend_ipe')
+    HAS_IPE = True
+except Exception:
+    # Safe non-GUI backend suitable for headless environments
+    matplotlib.use('Agg')
+
 import numpy as np
 
+def compute_errors(df, attribute):
+    """
+    Compute difference and percent_error safely for each attribute.
+    Handles circular variables and avoids division-by-zero explosions.
+    """
+    thematic = df["thematic_value"]
+    calc = df["calculated_value"]
+    eps = 1e-6
 
-def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsize=(8, 6)):
+    # ----------------------------------------------------------
+    # HEIGHT (linear, but thematic may be 0 or extremely small)
+    # ----------------------------------------------------------
+    if attribute in ["min_height", "max_height", "height"]:
+        df["difference"] = calc - thematic
+        df["percent_error"] = (df["difference"] / (thematic + eps)) * 100
+        return df
+
+    # ----------------------------------------------------------
+    # SURFACE AREA (valid % error, linear)
+    # ----------------------------------------------------------
+    if attribute in ["surface_area", "area", "footprint_area"]:
+        df["difference"] = calc - thematic
+        df["percent_error"] = (df["difference"] / (thematic + eps)) * 100
+        return df
+
+    # ----------------------------------------------------------
+    # TILT (0–90°, not suitable for percent error)
+    # thematic tilt may be 0 → percent error is meaningless
+    # ----------------------------------------------------------
+    if attribute == "tilt":
+        df["difference"] = calc - thematic
+        df["percent_error"] = np.nan      # disable percent error
+        return df
+
+    # ----------------------------------------------------------
+    # AZIMUTH (circular variable 0–360°)
+    # must use smallest angular distance
+    # percent error is meaningless
+    # ----------------------------------------------------------
+    if attribute == "azimuth":
+        raw = np.abs(calc - thematic) % 360
+        circ = np.where(raw > 180, 360 - raw, raw)
+        df["difference"] = circ
+        df["percent_error"] = np.nan      # disable % error
+        return df
+
+    # Default fallback
+    df["difference"] = calc - thematic
+    df["percent_error"] = np.nan
+    return df
+
+def plot_comparison_scatter(validation_df, attribute_name, save_path=None, fig_format=None):
     """
     Create scatter plot comparing calculated vs thematic values.
 
@@ -32,12 +95,13 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsi
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
+    df = compute_errors(df, attribute_name)
 
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
         return None
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     # Scatter plot
     ax.scatter(df['thematic_value'], df['calculated_value'],
@@ -69,12 +133,20 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, figsi
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        # If requesting IPE without backend support, save PNG alternative
+        if fig_format == 'ipe' and not HAS_IPE:
+            png_path = (
+                save_path[:-4] + '.png' if save_path.lower().endswith('.ipe') else save_path + '.png'
+            )
+            print("IPE backend not available; saving PNG:", png_path)
+            plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
 
     return fig
 
 
-def plot_error_distribution(validation_df, attribute_name, save_path=None, figsize=(10, 4)):
+def plot_error_distribution(validation_df, attribute_name, save_path=None, fig_format=None):
     """
     Create histogram and box plot of error distribution.
 
@@ -94,12 +166,12 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, figsi
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
-
+    df = compute_errors(df, attribute_name)
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
         return None
 
-    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    fig, axes = plt.subplots(1, 2)
 
     # Histogram
     axes[0].hist(df['difference'], bins=30, edgecolor='k', alpha=0.7, color='steelblue')
@@ -130,14 +202,21 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, figsi
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if fig_format == 'ipe' and not HAS_IPE:
+            png_path = (
+                save_path[:-4] + '.png' if save_path.lower().endswith('.ipe') else save_path + '.png'
+            )
+            print("IPE backend not available; saving PNG:", png_path)
+            plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
         plt.close(fig)
         return None
 
     return fig
 
 
-def plot_percent_error_distribution(validation_df, attribute_name, save_path=None, figsize=(8, 5)):
+def plot_percent_error_distribution(validation_df, attribute_name, save_path=None, fig_format=None):
     """
     Create histogram of percentage error distribution.
 
@@ -157,6 +236,7 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
     matplotlib.figure.Figure : The created figure
     """
     df = validation_df[validation_df['attribute_name'] == attribute_name].copy()
+    df = compute_errors(df, attribute_name)
 
     if df.empty:
         print(f"No data for attribute '{attribute_name}'")
@@ -169,7 +249,7 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
         print(f"No valid percentage errors for attribute '{attribute_name}'")
         return None
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots()
 
     # Histogram
     ax.hist(df['percent_error'], bins=30, edgecolor='k', alpha=0.7, color='coral')
@@ -190,14 +270,21 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if fig_format == 'ipe' and not HAS_IPE:
+            png_path = (
+                save_path[:-4] + '.png' if save_path.lower().endswith('.ipe') else save_path + '.png'
+            )
+            print("IPE backend not available; saving PNG:", png_path)
+            plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
         plt.close(fig)
         return None
 
     return fig
 
 
-def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 8), title_prefix=None):
+def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 8), title_prefix=None, fig_format=None):
     """
     Create comparison plots for all attributes in validation results.
 
@@ -243,6 +330,7 @@ def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 
 
     for idx, attr in enumerate(attributes):
         df = validation_df[validation_df['attribute_name'] == attr].copy()
+        df = compute_errors(df, attr)
 
         if df.empty:
             continue
@@ -285,5 +373,16 @@ def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 
                  fontsize=16, fontweight='bold', y=0.995)
 
     plt.tight_layout()
+    if save_path:
+        if fig_format == 'ipe' and not HAS_IPE:
+            png_path = (
+                save_path[:-4] + '.png' if save_path.lower().endswith('.ipe') else save_path + '.png'
+            )
+            print("IPE backend not available; saving PNG:", png_path)
+            plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
+        plt.close(fig)
+        return None
 
     return fig
