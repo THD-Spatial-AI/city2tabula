@@ -6,30 +6,13 @@
 
 # City2TABULA
 
-A high-performance Go-based tool for preparing 3D spatial data from CityDB and PostGIS-enabled PostgreSQL databases. The tool is part of a larger pipeline to classify OSM buildings into TABULA building types for heating demand estimation.
+City2TABULA is a high-performance, Go-based data preparation tool for 3D building datasets stored in PostgreSQL/PostGIS using CityDB schemas. Its primary purpose is to extract, normalise, and enrich geometric and spatial attributes from LoD2 and LoD3 building models, enabling downstream tasks such as building typology classification and heating demand estimation.
 
-The pipeline processes spatial features such as attached neighbours, grid-based geometry relationships, and building characteristics from LOD2 and LOD3 3D building data.
+The tool is designed as an upstream component within a larger research and modelling pipeline, where prepared building-level features are later consumed by machine learning models or energy calculation services (for example, TABULA-based workflows).
 
-## Key Features
+City2TABULA focuses on scalable, database-centric processing of large national or city-scale datasets, avoiding country-specific assumptions and minimising manual intervention.
 
-### Core Processing Capabilities
-- **Building-Centric Parallel Processing**: Advanced parallel architecture processing 100K+ buildings efficiently
-- **CityDB Integration**: Native support for 3D building data (LOD2/LOD3) in CityGML and CityJSON format from CityDB schemas
-- **Parameterized SQL Templates**: Dynamic SQL scripts supporting multiple LOD levels with single templates
-- **Batch Processing**: Optimized batch processing with configurable batch sizes for large datasets
-
-### Data Processing Pipeline
-- **Multi-LOD Support**: Process both LOD2 and LOD3 building data simultaneously
-- **Spatial Analysis**: Building geometry analysis, volume calculations, and neighbour detection
-- **Feature Extraction**: Child feature extraction (walls, roofs, windows) with geometric relationships
-- **TABULA Integration**: Building type classification using TABULA methodology
-- **Sequence Processing**: Enumerated sql scripts allowing modify and extend functionality easily.
-
-### Performance & Scalability
-- **Memory Efficient**: Batch-based processing preventing memory exhaustion
-- **Parallel Architecture**: Goroutine-based workers for concurrent processing
-- **Configurable Threading**: User-defined thread counts for optimal resource utilization
-- **Database Optimization**: Connection pooling and prepared statements with parameterized queries.
+---
 
 ## System Requirements
 
@@ -161,17 +144,6 @@ setup.bat dev
 ./city2tabula -help
 ```
 
-**Alternative: One-command full pipeline**
-```bash
-# Linux/macOS
-make quick-start
-
-# Windows
-setup.bat quick-start
-# or
-.\setup.ps1 quick-start
-```
-
 ### Data Management with Docker
 
 Place your 3D data files in the `data` directory before starting:
@@ -191,8 +163,6 @@ The Docker environment provides intelligent configuration management through an 
 
 - Shows all 19 supported countries with their SRID and SRS information
 - Automatically sets the correct SRID and SRS name based on your country selection
-- Provides secure password input (hidden typing)
-- Works across all platforms (Windows, macOS, Linux)
 
 Example configuration result:
 ```bash
