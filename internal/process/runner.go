@@ -100,7 +100,7 @@ func (r *Runner) RunJobWithRetry(job *Job, conn *pgxpool.Pool, config *config.Co
 
 // runSingleJob is the internal method that actually executes a job
 func (r *Runner) runSingleJob(job *Job, conn *pgxpool.Pool, workerID int) error {
-	utils.Info.Printf("[Worker %d] Starting job: %s (SQL file: %s)", workerID, job.JobType, job.SQLFile)
+	utils.Debug.Printf("[Worker %d] Starting job: %s (SQL file: %s)", workerID, job.JobType, job.SQLFile)
 	sqlScript, err := r.getSQLScript(job.SQLFile)
 	if err != nil {
 		return fmt.Errorf("failed to read SQL file %s: %w", job.SQLFile, err)
@@ -126,7 +126,7 @@ func (r *Runner) runSingleJob(job *Job, conn *pgxpool.Pool, workerID int) error 
 		}
 	}
 
-	utils.Info.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, job.SQLFile)
+	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, job.SQLFile)
 	return nil
 }
 

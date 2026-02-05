@@ -113,7 +113,7 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 	}
 
 	// Try SFCGAL extension
-	if _, err := pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS postgis_sfcgal-3`); err != nil {
+	if _, err := pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS postgis_sfcgal`); err != nil {
 		utils.Warn.Printf("PostGIS SFCGAL extension not available: %v", err)
 		// Don't fail if SFCGAL is not installed
 	} else {
@@ -125,5 +125,5 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 
 func ClosePool(pool *pgxpool.Pool) {
 	pool.Close()
-	utils.Info.Println("Database pool connection closed")
+	utils.Debug.Println("Database pool connection closed")
 }

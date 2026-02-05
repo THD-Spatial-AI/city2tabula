@@ -47,6 +47,8 @@ func PrintPipelineQueueInfo(totalPipelines int, totalJobsInPipeline int) {
 	Info.Printf("Total Jobs             : %d", totalPipelines*totalJobsInPipeline)
 	Info.Printf("----------------------------------")
 	Info.Printf("")
+	Info.Printf("Extracting Features, this may take a while...")
+	Info.Printf("")
 }
 
 func PrintWorkerInfo(workerID int) {

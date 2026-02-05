@@ -19,14 +19,14 @@ type Params struct {
 type Job struct {
 	JobID     uuid.UUID `json:"job_id"`     // Unique identifier for the job
 	JobType   string    `json:"job_type"`   // e.g. "AGGREGATE_SURFACES"
-	Params    *Params   `json:"params"`     // Parameters for the job
+	Params    Params    `json:"params"`     // Parameters for the job
 	SQLFile   string    `json:"sql_file"`   // SQL file information
 	Priority  int       `json:"priority"`   // Job priority (lower number = higher priority)
 	CreatedAt time.Time `json:"created_at"` // Creation timestamp
 }
 
 // NewJob creates a new Job instance
-func NewJob(jobType string, params *Params, SQLFile string, Priority int) *Job {
+func NewJob(jobType string, params Params, SQLFile string, Priority int) *Job {
 	return &Job{
 		JobID:     uuid.New(),
 		JobType:   jobType,

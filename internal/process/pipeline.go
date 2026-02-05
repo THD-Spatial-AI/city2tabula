@@ -16,7 +16,7 @@ type Pipeline struct {
 	BuildingIDs []int64   `json:"building_ids"`
 	Jobs        []*Job    `json:"jobs"`
 	EnqueuedAt  time.Time `json:"enqueued_at"` // Timestamp when the pipeline was enqueued
-	CreatedAt   string    `json:"created_at"`  // Creation timestamp
+	CreatedAt   time.Time `json:"created_at"`  // Creation timestamp
 }
 
 // NewPipeline creates a new Pipeline instance
@@ -25,7 +25,7 @@ func NewPipeline(buildingIDs []int64, jobs []*Job) *Pipeline {
 		PipelineID:  uuid.New(),
 		BuildingIDs: buildingIDs,
 		Jobs:        jobs,
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		CreatedAt:   time.Now(),
 	}
 }
 

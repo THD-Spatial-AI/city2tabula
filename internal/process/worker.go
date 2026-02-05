@@ -20,14 +20,10 @@ func (w *Worker) Start(pipelineChan <-chan *Pipeline, conn *pgxpool.Pool, wg *sy
 	defer wg.Done()
 
 	for pipeline := range pipelineChan {
-		utils.Info.Printf("[Worker %d] Starting pipeline %s", w.ID, pipeline.PipelineID)
-
 		runner := NewRunner(config)
 		if err := runner.RunPipeline(pipeline, conn, w.ID); err != nil {
-			utils.Error.Printf("[Worker %d] Pipeline %s failed: %v", w.ID, pipeline.PipelineID, err)
+			utils.Error.Printf("[Worker %d] Pipeline failed: %v", w.ID, err)
 			continue
 		}
-
-		utils.Info.Printf("[Worker %d] Pipeline %s completed successfully", w.ID, pipeline.PipelineID)
 	}
 }

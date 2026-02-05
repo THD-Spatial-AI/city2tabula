@@ -73,7 +73,7 @@ func createPipeline(batch []int64, scripts []string, pipelineType PipelineType, 
 	for i, file := range scripts {
 		filename := filepath.Base(file)
 		jobName := fmt.Sprintf("%s: %s", prefix, filename)
-		pipeline.AddJob(NewJob(jobName, &params, file, i+1))
+		pipeline.AddJob(NewJob(jobName, params, file, i+1))
 	}
 
 	return pipeline

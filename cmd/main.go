@@ -28,7 +28,9 @@ func main() {
 	startTime := time.Now()
 	defer func() {
 		duration := time.Since(startTime)
+		utils.Info.Println("==================================")
 		utils.Info.Printf("Total runtime: %v", duration)
+		utils.Info.Println("==================================")
 	}()
 
 	// Initialize logger and config
@@ -61,7 +63,7 @@ func main() {
 		if err := db.ResetCompleteDatabase(&config, pool); err != nil {
 			utils.Error.Fatalf("Failed to reset complete database: %v", err)
 		}
-		utils.Info.Println("Complete database reset completed successfully")
+		utils.Info.Println("Database reset completed successfully.")
 	}
 
 	if *resetCityDB {

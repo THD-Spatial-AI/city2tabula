@@ -53,7 +53,7 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 
 // ImportTabulaData orchestrates the import of Tabula data into the database
 func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
-	csvFilePath := config.Data.Tabula + "/" + config.Country + ".csv"
+	csvFilePath := config.Data.Tabula + config.Country + ".csv"
 
 	utils.Info.Printf("Importing Tabula data from %s", csvFilePath)
 

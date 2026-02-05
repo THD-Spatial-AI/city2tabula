@@ -39,13 +39,12 @@ func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to import data: %w", err)
 	}
 
-	utils.Info.Println("Complete database created successfully")
+	utils.Debug.Println("Complete database created successfully")
 	return nil
 }
 
 // ResetCompleteDatabase completely resets everything (CityDB + City2TABULA)
 func ResetCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
-	utils.Info.Println("Resetting complete database...")
 
 	// Step 1: Drop everything
 	if err := DropAllSchemas(config, conn); err != nil {
@@ -57,7 +56,7 @@ func ResetCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to recreate database: %w", err)
 	}
 
-	utils.Info.Println("Complete database reset successfully")
+	utils.Debug.Println("Complete database reset successfully")
 	return nil
 }
 
@@ -157,68 +156,6 @@ func ImportAllData(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
-// ============================================================================
-// CityDB Operations
-// ============================================================================
-
-// CreateCityDB creates CityDB core and schemas
-func CreateCityDB(config *config.Config) error {
-	utils.Info.Println("Setting up CityDB infrastructure...")
-
-	// Create CityDB core
-	if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.CreateDB, ""); err != nil {
-		return fmt.Errorf("failed to create CityDB core: %w", err)
-	}
-
-	// Create CityDB schemas (lod2, lod3)
-	schemas := []string{config.DB.Schemas.Lod2, config.DB.Schemas.Lod3}
-	for _, schema := range schemas {
-		if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.CreateSchema, schema); err != nil {
-			return fmt.Errorf("failed to create CityDB schema %s: %w", schema, err)
-		}
-		utils.Info.Printf("CityDB schema %s created successfully", schema)
-	}
-
-	utils.Info.Println("CityDB infrastructure setup completed")
-	return nil
-}
-
-// DropCityDBSchemas drops CityDB infrastructure schemas
-func DropCityDBSchemas(config *config.Config, conn *pgxpool.Pool) error {
-	utils.Info.Println("Dropping CityDB schemas...")
-
-	// List of all CityDB schemas to drop
-	cityDBSchemas := []string{
-		config.DB.Schemas.Lod2,
-		config.DB.Schemas.Lod3,
-		config.DB.Schemas.CityDB,
-		config.DB.Schemas.CityDBPkg,
-	}
-
-	// Try CityDB scripts first, then fallback to direct SQL
-	schemas := []string{config.DB.Schemas.Lod2, config.DB.Schemas.Lod3}
-	for _, schema := range schemas {
-		if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.DropSchema, schema); err != nil {
-			utils.Warn.Printf("CityDB script drop failed for %s: %v", schema, err)
-		}
-	}
-
-	// Drop database using CityDB script
-	if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.DropDB, ""); err != nil {
-		utils.Warn.Printf("CityDB script drop database failed: %v", err)
-	}
-
-	// Force drop all CityDB schemas using direct SQL
-	for _, schema := range cityDBSchemas {
-		if err := DropSchemaIfExists(conn, schema); err != nil {
-			utils.Warn.Printf("Warning during schema %s drop: %v", schema, err)
-		}
-	}
-
-	utils.Info.Println("CityDB schemas dropped")
-	return nil
-}
-
 // DropAllSchemas drops all schemas (both CityDB and City2TABULA)
 func DropAllSchemas(config *config.Config, conn *pgxpool.Pool) error {
 	utils.Info.Println("Dropping all schemas...")
@@ -238,9 +175,54 @@ func DropAllSchemas(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
+// DropCityDBSchemas drops CityDB infrastructure schemas
+func DropCityDBSchemas(config *config.Config, conn *pgxpool.Pool) error {
+	utils.Info.Println("Dropping CityDB schemas...")
+
+	// List of all CityDB schemas to drop
+	cityDBSchemas := []string{
+		config.DB.Schemas.Lod2,
+		config.DB.Schemas.Lod3,
+		config.DB.Schemas.CityDB,
+		config.DB.Schemas.CityDBPkg,
+	}
+
+	// Force drop all CityDB schemas using direct SQL
+	for _, schema := range cityDBSchemas {
+		if err := DropSchemaIfExists(conn, schema); err != nil {
+			utils.Warn.Printf("Warning during schema %s drop: %v", schema, err)
+		}
+	}
+
+	utils.Debug.Println("CityDB schemas dropped")
+	return nil
+}
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+// CreateCityDB creates CityDB core and schemas
+func CreateCityDB(config *config.Config) error {
+	utils.Debug.Println("Setting up CityDB infrastructure...")
+
+	// Create CityDB core
+	if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.CreateDB, ""); err != nil {
+		return fmt.Errorf("failed to create CityDB core: %w", err)
+	}
+
+	// Create CityDB schemas (lod2, lod3)
+	schemas := []string{config.DB.Schemas.Lod2, config.DB.Schemas.Lod3}
+	for _, schema := range schemas {
+		if err := ExecuteCityDBScript(config, config.CityDB.SQLScripts.CreateSchema, schema); err != nil {
+			return fmt.Errorf("failed to create CityDB schema %s: %w", schema, err)
+		}
+		utils.Debug.Printf("CityDB schema %s created successfully", schema)
+	}
+
+	utils.Debug.Println("CityDB infrastructure setup completed")
+	return nil
+}
 
 func ExecuteCityDBScript(config *config.Config, scriptPath string, schemaName string) error {
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
@@ -273,7 +255,7 @@ func CreateSchemaIfNotExists(conn *pgxpool.Pool, schemaName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create schema %s: %w", schemaName, err)
 	}
-	utils.Info.Printf("Schema %s created successfully", schemaName)
+	utils.Debug.Printf("Schema %s created successfully", schemaName)
 	return nil
 }
 
@@ -283,7 +265,7 @@ func DropSchemaIfExists(conn *pgxpool.Pool, schemaName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to drop schema %s: %w", schemaName, err)
 	}
-	utils.Info.Printf("Schema %s dropped successfully", schemaName)
+	utils.Debug.Printf("Schema %s dropped successfully", schemaName)
 	return nil
 }
 

@@ -78,7 +78,7 @@ func GetBuildingIDsFromCityDB(dbConn *pgxpool.Pool, schemaName string) ([]int64,
 }
 
 func ExecuteCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) error {
-	Info.Printf("Executing CityDB script: %s", sqlFilePath)
+	Debug.Printf("Executing CityDB script: %s", sqlFilePath)
 
 	srid, err := parseSRID(cfg.CityDB.SRID)
 	if err != nil {
@@ -105,7 +105,7 @@ func ExecuteCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) err
 
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
-		Info.Printf("psql output:\n%s", string(out))
+		Debug.Printf("psql output:\n%s", string(out))
 	}
 	return err
 }
