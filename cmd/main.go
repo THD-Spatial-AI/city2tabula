@@ -16,11 +16,11 @@ import (
 
 func main() {
 	// Define clear and simple flags
-	createDB := flag.Bool("create_db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
-	resetAll := flag.Bool("reset_all", false, "Reset everything: drop all schemas and recreate the complete database")
-	resetCityDB := flag.Bool("reset_citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
-	resetCity2Tabula := flag.Bool("reset_city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
-	extractFeatures := flag.Bool("extract_features", false, "Run the feature extraction pipeline")
+	createDB := flag.Bool("create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
+	resetAll := flag.Bool("reset-all", false, "Reset everything: drop all schemas and recreate the complete database")
+	resetCityDB := flag.Bool("reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
+	resetCity2Tabula := flag.Bool("reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
+	extractFeatures := flag.Bool("extract-features", false, "Run the feature extraction pipeline")
 
 	flag.Parse()
 
