@@ -31,19 +31,19 @@ jobs:
           mkdir -p dist
 
           MOD_PATH="$(awk '/^module /{print $2}' go.mod)"
-          MAIN_PKG="./cmd"
+          MAIN_PKG="./cmd/city2tabula"
 
           LDFLAGS="-s -w \
-            -X '${MOD_PATH}/internal/version.Version=${VERSION}' \
-            -X '${MOD_PATH}/internal/version.Commit=${COMMIT}' \
-            -X '${MOD_PATH}/internal/version.Date=${DATE}'"
+            -X ${MOD_PATH}/internal/version.Version=${VERSION} \
+            -X ${MOD_PATH}/internal/version.Commit=${COMMIT} \
+            -X ${MOD_PATH}/internal/version.Date=${DATE}"
 
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_linux_amd64 "$MAIN_PKG"
-          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_amd64.exe "$MAIN_PKG"
-          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_amd64 "$MAIN_PKG"
-          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_arm64 "$MAIN_PKG"
+          GOOS=linux   GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "dist/city2tabula_${VERSION}_linux_amd64" "$MAIN_PKG"
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "dist/city2tabula_${VERSION}_windows_amd64.exe" "$MAIN_PKG"
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "dist/city2tabula_${VERSION}_darwin_amd64" "$MAIN_PKG"
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o "dist/city2tabula_${VERSION}_darwin_arm64" "$MAIN_PKG"
 
-      - name: Upload assets to Github release
+      - name: Upload assets to GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
