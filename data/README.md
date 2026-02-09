@@ -6,39 +6,34 @@ This directory contains sample datasets for testing and development purposes. Al
 
 ```
 data/
-├── example_data/           # Sample datasets for testing
-│   ├── example_lod2/      # Level of Detail 2 datasets
-│   └── example_lod3/      # Level of Detail 3 datasets
 ├── lod2/                  # LOD2 production data (empty - populate as needed)
 ├── lod3/                  # LOD3 production data (empty - populate as needed)
-└── tabula/                # TABULA reference data
+└── tabula/                # TABULA reference data (No changes required)
 ```
 
 ## Example Datasets
 
 ### LOD2 (Level of Detail 2)
 
-| Country | Region | Format | Path | Source | License |
-|---------|--------|--------|------|--------|---------|
-| 🇩🇪 Germany | Deggendorf, Bavaria | CityGML | `example_data/example_lod2/germany/` | [Bayerische Vermessungsverwaltung](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
-| 🇦🇹 Austria | Vienna | CityGML | `example_data/example_lod2/austria/` | [Vienna Open Government Data](https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
-| 🇳🇱 Netherlands | Loenen | CityJSON | `example_data/example_lod2/netherlands/` | [3DBAG](https://3dbag.nl/en/download) (Tiles: [7-736-608.city.json](https://data.3dbag.nl/v20241216/tiles/7/736/608/7-736-608.city.json), [8-736-600.city.json](https://data.3dbag.nl/v20241216/tiles/8/736/600/8-736-600.city.json)) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
-
-**Netherlands Dataset Details:**
-- `7-736-608.city.json`  (16MB)
-- `8-736-600.city.json` (7.6MB)
+| Country | Region | Format | Source | License |
+|---------|--------|--------|--------|---------|
+| Germany | Deggendorf, Bavaria | CityGML | [Bayerische Vermessungsverwaltung](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
+| Austria | Vienna | CityGML | [Vienna Open Government Data](https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
+| Netherlands | Loenen | CityJSON | [3DBAG](https://3dbag.nl/en/download) (Tiles: [7-736-608.city.json](https://data.3dbag.nl/v20241216/tiles/7/736/608/7-736-608.city.json), [8-736-600.city.json](https://data.3dbag.nl/v20241216/tiles/8/736/600/8-736-600.city.json)) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
 
 ### LOD3 (Level of Detail 3)
 
-| Country | Region | Format | Path | Source | License | Notes |
-|---------|--------|--------|------|--------|---------|-------|
-| 🇩🇪 Germany | Hamburg | CityGML + Textures | `example_data/example_lod3/germany/` | [MetaVer Geodata Portal](https://metaver.de/trefferanzeige?docuuid=B438AD57-223B-43A4-8E74-767CEC8A96D7#detail_links) | [Data licence Germany – attribution – Version 2.0](http://www.govdata.de/dl-de/by-2-0) | Includes building textures and detailed geometries |
+| Country | Region | Format | Source | License | Notes |
+|---------|--------|--------|--------|---------|-------|
+| Germany | Hamburg | CityGML + Textures | [MetaVer Geodata Portal](https://metaver.de/trefferanzeige?docuuid=B438AD57-223B-43A4-8E74-767CEC8A96D7#detail_links) | [Data licence Germany – attribution – Version 2.0](http://www.govdata.de/dl-de/by-2-0) | Includes building textures and detailed geometries |
 
-*All datasets accessed on 2025-10-10*
+> [!NOTE]
+>All datasets accessed on 2026-02-09
 
 ## Data Usage
 
 ### For Development
+
 ```bash
 # Use example data for testing
 ./city2tabula -create_db  # Creates database with example data
@@ -46,6 +41,7 @@ data/
 ```
 
 ### For Production
+
 1. Place your CityGML/CityJSON files in the appropriate `lod2/` or `lod3/` directories
 2. Update the configuration to point to your data sources
 3. Run the pipeline with your production data
