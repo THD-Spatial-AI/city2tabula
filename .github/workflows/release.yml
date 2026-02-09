@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+
+      - name: Build binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p dist
+
+          MOD_PATH="$(awk '/^module /{print $2}' go.mod)"
+          MAIN_PKG="./cmd"
+
+          LDFLAGS="-s -w \
+            -X '${MOD_PATH}/internal/version.Version=${VERSION}' \
+            -X '${MOD_PATH}/internal/version.Commit=${COMMIT}' \
+            -X '${MOD_PATH}/internal/version.Date=${DATE}'"
+
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_linux_amd64 "$MAIN_PKG"
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_windows_amd64.exe "$MAIN_PKG"
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_darwin_amd64 "$MAIN_PKG"
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_darwin_arm64 "$MAIN_PKG"
+
+      - name: Upload assets to Github release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
