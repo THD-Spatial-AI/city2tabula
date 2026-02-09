@@ -31,7 +31,7 @@ jobs:
           mkdir -p dist
 
           MOD_PATH="$(awk '/^module /{print $2}' go.mod)"
-          MAIN_PKG="./cmd/city2tabula"
+          MAIN_PKG="./cmd"
 
           LDFLAGS="-s -w \
             -X ${MOD_PATH}/internal/version.Version=${VERSION} \
