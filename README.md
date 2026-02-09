@@ -14,35 +14,21 @@ City2TABULA focuses on scalable, database-centric processing of large national o
 
 ---
 
-## System Requirements
-
-### Software Dependencies
-
-**Required:**
-- **Go**: 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
-- **PostgreSQL**: 17+ with PostGIS 3.5+ (https://www.postgresql.org/download/)
-- **PostGIS**: 3.5+ (https://postgis.net/install/)
-- **Java**: 17+ for CityDB Tool (https://www.oracle.com/java/technologies/downloads/)
-- **Git**: 2.25+ for source management (https://git-scm.com/downloads)
-
-### CityDB Tool
-
-- **CityDB Importer/Exporter**: v1.0.0 Download from [here](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0)
-
-Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
-
 ## Quick Start with Docker (Recommended)
 
 The fastest way to get started with City2TABULA is using Docker. This approach automatically handles all dependencies and setup.
 
 ### Prerequisites
+
 - [Docker](https://docs.docker.com/get-docker/) 20.10+
 - [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
 
 **For Linux/macOS users:**
+
 - `make` (usually pre-installed)
 
 **For Windows users:**
+
 - Windows batch scripts are provided (`setup.bat`)
 - Or PowerShell scripts (`setup.ps1`)
 - No need to install `make`
@@ -50,6 +36,7 @@ The fastest way to get started with City2TABULA is using Docker. This approach a
 ### Interactive Setup
 
 **Linux/macOS:**
+
 ```bash
 # Clone the repository
 git clone https://github.com/THD-Spatial/City2TABULA.git
@@ -60,6 +47,7 @@ make setup
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 # Clone the repository
 git clone https://github.com/THD-Spatial/City2TABULA.git
@@ -70,6 +58,7 @@ setup.bat setup
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 # Clone the repository
 git clone https://github.com/THD-Spatial/City2TABULA.git
@@ -80,6 +69,7 @@ cd City2TABULA
 ```
 
 The setup command will:
+
 1. Build the Docker environment
 2. Show available countries with SRID information
 3. Prompt you to select your target country
@@ -88,6 +78,7 @@ The setup command will:
 6. Start the containers
 
 The Docker environment includes:
+
 - Go 1.23.3 runtime (automatically configured)
 - Java 25 with CityDB Tool 1.1.0 (automatically downloaded)
 - All system dependencies (PostGIS tools, GDAL, etc.)
@@ -111,6 +102,7 @@ setup.bat help
 ### Complete Docker Workflow
 
 **Step 1: Complete interactive setup**
+
 ```bash
 # Linux/macOS
 make setup
@@ -122,6 +114,7 @@ setup.bat setup
 ```
 
 **Step 2: Access development shell**
+
 ```bash
 # Linux/macOS
 make dev
@@ -133,6 +126,7 @@ setup.bat dev
 ```
 
 **Step 3: Inside the container, run the pipeline**
+
 ```bash
 # Setup database
 ./city2tabula -create_db
@@ -148,7 +142,7 @@ setup.bat dev
 
 Place your 3D data files in the `data` directory before starting:
 
-```
+```bash
 data/
 ├── lod2/germany/your-city.gml
 ├── lod3/germany/your-city.gml
@@ -165,6 +159,7 @@ The Docker environment provides intelligent configuration management through an 
 - Automatically sets the correct SRID and SRS name based on your country selection
 
 Example configuration result:
+
 ```bash
 # Automatically set based on your selections
 COUNTRY=netherlands
@@ -179,35 +174,37 @@ DB_USER=postgres
 CITYDB_TOOL_PATH=/usr/local/citydb-tool/citydb-tool-1.1.0/bin/citydb
 ```
 
----
-
 ## Manual Installation
 
-If you prefer to install dependencies manually or need a custom setup, follow these steps:
+If you prefer to install dependencies manually or need a custom setup for development purpose, follow these steps:
 
-### System Requirements
+> [!NOTE]
+> Current version of City2TABULA only supports Linux environments. Windows users are encouraged to use the Docker setup for a seamless experience.
 
-**Required Software:**
-- Go 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
-- PostgreSQL 17+ with PostGIS 3.5+ (https://www.postgresql.org/download/)
-- PostGIS 3.5+ (https://postgis.net/install/)
-- Java 17+ for CityDB Tool (https://www.oracle.com/java/technologies/downloads/)
-- Git 2.25+ for source management (https://git-scm.com/downloads)
+### Software Dependencies
 
-**CityDB Tool:**
-- CityDB Importer/Exporter v1.0.0 Download from [here](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0)
+**Required:**
 
-Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
+- **Go**: 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
+- **PostgreSQL**: 17+ with PostGIS 3.5+ (Download from [postgresql.org](https://www.postgresql.org/download/))
+- **PostGIS**: 3.5+ (Download from [postgis.net](https://postgis.net/install/))
+- **Java**: 17+ for CityDB Tool (Download from [oracle.com](https://www.oracle.com/java/technologies/downloads/))
+- **Git**: 2.25+ for source management (Download from [git-scm.com](https://git-scm.com/downloads))
+- **CityDB Importer/Exporter**: v1.0.0 (Download from [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0))
+
+  - Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
 
 ### Installation Steps
 
-**1. Clone the Repository**
+#### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/THD-Spatial/City2TABULA.git
 cd City2TABULA
 ```
 
-**2. Create Configuration File**
+#### 2. Create Configuration File
+
 ```bash
 # Copy example configuration
 cp .env.example .env
@@ -217,6 +214,7 @@ nano .env
 ```
 
 **Example .env Configuration:**
+
 ```bash
 # Global Configuration
 COUNTRY=germany # Specify the country you want to train from the list of available countries
@@ -247,25 +245,29 @@ LOG_LEVEL=INFO # Set the logging level (DEBUG, INFO, WARN, ERROR)
                # For monitoring: WARN - shows only warnings and errors
 ```
 
-**3. Initialize Go Module**
+#### 3. Initialize Go Module
+
 ```bash
 go mod tidy
 ```
 
-**4. Build the Binary**
+#### 4. Build the Binary
+
 ```bash
 go build -o city2tabula ./cmd
 ```
 
-**5. Verify Installation**
+#### 5. Verify Installation
+
 ```bash
 ./city2tabula -help
 ```
 
-**6. Prepare Data**
+#### 6. Prepare Data
+
 Download or obtain 3D city model data in CityGML or CityJSON format and organize in this structure:
 
-```
+```bash
 data/
 ├── lod2/
 │   └── germany/
@@ -277,16 +279,20 @@ data/
     └── germany.csv # Already included
 ```
 
-**7. Initialize Database**
+#### 7. Initialize Database
+
 ```bash
-# Create complete database setup:
-# - CityDB schemas (lod2, lod3)
-# - Training and tabula schemas
-# - Import supplementary data
 ./city2tabula -create_db
 ```
 
-**8. Extract Features**
+Creates complete database setup:
+
+- CityDB schemas (lod2, lod3)
+- Training and tabula schemas
+- Import supplementary data
+
+#### 8. Extract Features
+
 ```bash
 # Run feature extraction pipeline
 ./city2tabula -extract_features
@@ -296,12 +302,15 @@ data/
 
 For users who prefer downloading pre-built binaries:
 
-**1. Download Source Code and Binary from [Release](https://github.com/THD-Spatial/City2TABULA/releases)**
+1. Download Source Code and Binary from [Release](https://github.com/THD-Spatial/City2TABULA/releases)
 
-**2. Make Executable and Verify**
+2. Make Executable and Verify
+
 ```bash
 # Unix-like systems
-mv city2tabula-* city2tabula  # Replace * with your platform
+mv city2tabula-<your_platform> city2tabula
+# e.g., mv city2tabula-linux-amd64 city2tabula
+
 chmod +x city2tabula
 ./city2tabula -help
 
@@ -309,7 +318,7 @@ chmod +x city2tabula
 .\city2tabula.exe -help
 ```
 
-**3. Follow steps 2-8 from the manual installation above**
+3. Follow steps 2-8 from the [manual installation](#manual-installation) section for configuration and usage.
 
 ---
 
@@ -345,7 +354,8 @@ sphinx-autobuild source build/html
 
 This project is licensed under the Apache License Version 2.0 - see the [LICENSE](/LICENSE) file for details.
 
-> **Note**: This tool is under active development. Features and performance may evolve with future releases.
+> [!NOTE]
+> This tool is under active development. Features and performance may evolve with future releases.
 
 ## Acknowledgments
 
