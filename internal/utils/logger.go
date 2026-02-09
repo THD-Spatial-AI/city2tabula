@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"City2TABULA/internal/config"
+	"github.com/THD-Spatial/City2TABULA/internal/config"
 )
 
 // LogLevel represents the logging level

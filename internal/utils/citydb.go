@@ -1,12 +1,13 @@
 package utils
 
 import (
-	"City2TABULA/internal/config"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/THD-Spatial/City2TABULA/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

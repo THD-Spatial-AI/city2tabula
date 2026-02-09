@@ -1,4 +1,4 @@
-module City2TABULA
+module github.com/THD-Spatial/City2TABULA
 
 go 1.24
 

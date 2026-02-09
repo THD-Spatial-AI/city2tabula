@@ -1,12 +1,13 @@
 package importer
 
 import (
-	"City2TABULA/internal/config"
-	"City2TABULA/internal/utils"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/THD-Spatial/City2TABULA/internal/config"
+	"github.com/THD-Spatial/City2TABULA/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"City2TABULA/internal/config"
+	"github.com/THD-Spatial/City2TABULA/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -6,11 +6,12 @@ import (
 	"math/rand"
 	"os"
 
-	"City2TABULA/internal/config"
-	"City2TABULA/internal/utils"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/THD-Spatial/City2TABULA/internal/config"
+	"github.com/THD-Spatial/City2TABULA/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
