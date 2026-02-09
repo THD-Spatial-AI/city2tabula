@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24.x"
+          go-version-file: go.mod
 
       - name: Build binaries
         env:
@@ -38,10 +38,10 @@ jobs:
             -X '${MOD_PATH}/internal/version.Commit=${COMMIT}' \
             -X '${MOD_PATH}/internal/version.Date=${DATE}'"
 
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_linux_amd64 "$MAIN_PKG"
-          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_windows_amd64.exe "$MAIN_PKG"
-          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_darwin_amd64 "$MAIN_PKG"
-          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o dist/demo_darwin_arm64 "$MAIN_PKG"
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_linux_amd64 "$MAIN_PKG"
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_amd64.exe "$MAIN_PKG"
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_amd64 "$MAIN_PKG"
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o dist/city2tabula_${VERSION}_arm64 "$MAIN_PKG"
 
       - name: Upload assets to Github release
         uses: softprops/action-gh-release@v2
