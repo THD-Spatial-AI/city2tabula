@@ -1,9 +1,10 @@
 package process
 
 import (
-	"City2TABULA/internal/config"
 	"fmt"
 	"path/filepath"
+
+	"github.com/THD-Spatial/City2TABULA/internal/config"
 )
 
 // PipelineType represents different types of pipeline operations

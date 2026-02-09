@@ -3,13 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
-	"City2TABULA/internal/config"
-	"City2TABULA/internal/db"
-	"City2TABULA/internal/process"
-	"City2TABULA/internal/utils"
+	"github.com/THD-Spatial/City2TABULA/internal/config"
+	"github.com/THD-Spatial/City2TABULA/internal/db"
+	"github.com/THD-Spatial/City2TABULA/internal/process"
+	"github.com/THD-Spatial/City2TABULA/internal/utils"
+	"github.com/THD-Spatial/City2TABULA/internal/version"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,8 +23,15 @@ func main() {
 	resetCityDB := flag.Bool("reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
 	resetC2T := flag.Bool("reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	extractFeat := flag.Bool("extract-features", false, "Run the feature extraction pipeline")
-
+	showVersion := flag.Bool("version", false, "print version and exit")
+	showV := flag.Bool("v", false, "print version and exit (shorthand)")
 	flag.Parse()
+
+	// Display current version
+	if *showV || *showVersion {
+		fmt.Printf("%s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
+		os.Exit(0)
+	}
 
 	// Start timing
 	startTime := time.Now()
