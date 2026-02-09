@@ -58,8 +58,7 @@ def load_city2tabula_data(engine, config):
         tilt,
         azimuth,
         is_valid,
-        is_planar,
-        ST_AsText(geom) as geom
+        is_planar
     FROM {city2tabula_schema}.{surface_table};
     """
     surface_features_df = pd.read_sql(query_surfaces, engine)

@@ -148,7 +148,7 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, fig_f
 
 def plot_error_distribution(validation_df, attribute_name, save_path=None, fig_format=None):
     """
-    Create histogram and box plot of error distribution.
+    Create histogram of error distribution.
 
     Parameters:
     -----------
@@ -158,8 +158,6 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, fig_f
         Attribute to plot
     save_path : str, optional
         Path to save figure
-    figsize : tuple
-        Figure size (width, height)
 
     Returns:
     --------
@@ -171,33 +169,19 @@ def plot_error_distribution(validation_df, attribute_name, save_path=None, fig_f
         print(f"No data for attribute '{attribute_name}'")
         return None
 
-    fig, axes = plt.subplots(1, 2)
+    fig, ax = plt.subplots()
 
     # Histogram
-    axes[0].hist(df['difference'], bins=30, edgecolor='k', alpha=0.7, color='steelblue')
-    axes[0].axvline(0, color='r', linestyle='--', linewidth=2, label='Zero Error')
-    axes[0].axvline(df['difference'].mean(), color='g', linestyle='--',
+    ax.hist(df['difference'], bins=30, edgecolor='k', alpha=0.7, color='steelblue')
+    ax.axvline(0, color='r', linestyle='--', linewidth=2, label='Zero Error')
+    ax.axvline(df['difference'].mean(), color='g', linestyle='--',
                     linewidth=2, label=f'Mean: {df["difference"].mean():.4f}')
-    axes[0].set_xlabel('Error (Calculated - Thematic)', fontsize=11, fontweight='bold')
-    axes[0].set_ylabel('Frequency', fontsize=11, fontweight='bold')
-    axes[0].set_title('Error Distribution', fontsize=12, fontweight='bold')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3, axis='y')
-
-    # Box plot
-    axes[1].boxplot(df['difference'], vert=True, patch_artist=True,
-                    boxprops=dict(facecolor='lightblue', edgecolor='k'),
-                    medianprops=dict(color='red', linewidth=2),
-                    whiskerprops=dict(color='k'),
-                    capprops=dict(color='k'))
-    axes[1].axhline(0, color='r', linestyle='--', linewidth=2, label='Zero Error')
-    axes[1].set_ylabel('Error (Calculated - Thematic)', fontsize=11, fontweight='bold')
-    axes[1].set_title('Error Box Plot', fontsize=12, fontweight='bold')
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3, axis='y')
-
-    fig.suptitle(f'Error Analysis: {attribute_name.replace("_", " ").title()} (n={len(df)})',
-                 fontsize=14, fontweight='bold', y=1.02)
+    ax.set_xlabel('Error (Calculated - Thematic)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Frequency', fontsize=11, fontweight='bold')
+    ax.set_title(f'Error Distribution: {attribute_name.replace("_", " ").title()} (n={len(df)})',
+                 fontsize=12, fontweight='bold')
+    ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
 
     plt.tight_layout()
 
