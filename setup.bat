@@ -13,6 +13,8 @@ if "%1"=="dev" goto dev
 if "%1"=="create-db" goto create-db
 if "%1"=="extract-features" goto extract-features
 if "%1"=="reset-db" goto reset-db
+if "%1"=="version" goto version
+if "%1"=="v" goto v
 if "%1"=="setup" goto setup
 if "%1"=="quick-start" goto quick-start
 if "%1"=="status" goto status
@@ -41,6 +43,7 @@ echo   dev              Start development environment with shell
 echo   create-db        Create database and setup schemas
 echo   extract-features Extract building features
 echo   reset-db         Reset the entire database
+echo   version (v)      Check City2TABULA version
 echo.
 echo Complete Workflows:
 echo   configure        Interactive setup: select country and enter password
@@ -321,6 +324,17 @@ cd environment
 docker exec -it city2tabula-environment ./city2tabula -reset_all
 cd ..
 goto end
+
+:version
+call :up
+echo Checking City2TABULA version...
+cd environment
+docker exec -it city2tabula-environment ./city2tabula -version
+cd ..
+goto end
+
+:v
+goto version
 
 :setup
 echo Setting up City2TABULA environment...

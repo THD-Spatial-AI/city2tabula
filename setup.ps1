@@ -24,6 +24,7 @@ function Show-Help {
     Write-Host "  create-db        Create database and setup schemas"
     Write-Host "  extract-features Extract building features"
     Write-Host "  reset-db         Reset the entire database"
+    Write-Host "  version (v)      Check City2TABULA version" -ForegroundColor Green
     Write-Host ""
     Write-Host "Complete Workflows:" -ForegroundColor Green
     Write-Host "  configure        Interactive setup: select country and enter password"
@@ -39,6 +40,8 @@ function Show-Help {
     Write-Host "  .\setup.ps1 setup"
     Write-Host "  .\setup.ps1 dev"
     Write-Host "  .\setup.ps1 create-db"
+    Write-Host "  .\setup.ps1 version"
+    Write-Host "  .\setup.ps1 v"
 }
 
 function Invoke-Configure {
@@ -214,6 +217,18 @@ function Invoke-ResetDb {
     Set-Location "environment"
     docker exec -it city2tabula-environment ./city2tabula -reset_all
     Set-Location ".."
+}
+
+function Invoke-Version {
+    Invoke-Up
+    Write-Host "Checking City2TABULA version..." -ForegroundColor Blue
+    Set-Location "environment"
+    docker exec -it city2tabula-environment ./city2tabula -version
+    Set-Location ".."
+}
+
+function Invoke-v {
+    Invoke-Version
 }
 
 function Invoke-Setup {
