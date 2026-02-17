@@ -180,6 +180,14 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
             how='inner'
         )
 
+        # Special handling for azimuth: exclude -1 values (undefined for flat roofs)
+        if computed_column == 'azimuth':
+            before_count = len(merged)
+            merged = merged[(merged[computed_column] != -1) & (merged['thematic_value'] != -1)].copy()
+            excluded_count = before_count - len(merged)
+            if excluded_count > 0:
+                print(f"  Excluded {excluded_count} surfaces with azimuth = -1 (flat roofs/undefined)")
+
         # Calculate differences and errors
         merged['attribute_name'] = computed_column
         merged['calculated_value'] = merged[computed_column]
