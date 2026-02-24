@@ -65,8 +65,6 @@ goto end
 echo Interactive City2TABULA Configuration
 echo ====================================
 echo.
-echo Copying base environment configuration...
-copy environment\docker.env .env
 echo Base configuration copied!
 echo.
 
@@ -236,11 +234,11 @@ echo.
 echo Updating configuration file...
 
 REM Update .env file using PowerShell for reliable text replacement
-powershell -Command "(Get-Content .env) -replace 'COUNTRY=germany', 'COUNTRY=%COUNTRY%' | Set-Content .env"
-powershell -Command "(Get-Content .env) -replace 'CITYDB_SRID=25832', 'CITYDB_SRID=%SRID%' | Set-Content .env"
-powershell -Command "(Get-Content .env) -replace 'CITYDB_SRS_NAME=ETRS89 / UTM zone 32N', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content .env"
-powershell -Command "(Get-Content .env) -replace 'DB_USER=postgres', 'DB_USER=%pg_user%' | Set-Content .env"
-powershell -Command "(Get-Content .env) -replace '<your_pg_password>', '%pg_password%' | Set-Content .env"
+powershell -Command "(Get-Content docker.env) -replace 'COUNTRY=germany', 'COUNTRY=%COUNTRY%' | Set-Content docker.env"
+powershell -Command "(Get-Content docker.env) -replace 'CITYDB_SRID=25832', 'CITYDB_SRID=%SRID%' | Set-Content docker.env"
+powershell -Command "(Get-Content docker.env) -replace 'CITYDB_SRS_NAME=ETRS89 / UTM zone 32N', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content docker.env"
+powershell -Command "(Get-Content docker.env) -replace 'DB_USER=postgres', 'DB_USER=%pg_user%' | Set-Content docker.env"
+powershell -Command "(Get-Content docker.env) -replace '<your_pg_password>', '%pg_password%' | Set-Content docker.env"
 
 echo Configuration completed!
 echo.
@@ -269,7 +267,8 @@ echo    - Set CITYDB_SRS_NAME to the appropriate SRS name
 echo    - Replace '^<your_pg_password^>' with your PostgreSQL password
 echo.
 echo You can edit the file with:
-echo   notepad .env
+echo   notepad docker.env
+echo.
 goto end
 
 :build
