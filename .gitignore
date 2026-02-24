@@ -47,3 +47,6 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 obsidian_vault/
+
+# MkDocs build output
+site/
