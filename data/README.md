@@ -36,8 +36,8 @@ data/
 
 ```bash
 # Use example data for testing
-./city2tabula -create_db  # Creates database with example data
-./city2tabula -extract_features  # Processes example datasets
+./city2tabula --create-db  # Creates database with example data
+./city2tabula --extract-features  # Processes example datasets
 ```
 
 ### For Production
