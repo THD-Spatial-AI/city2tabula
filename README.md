@@ -364,11 +364,10 @@ This project is licensed under the Apache License Version 2.0 - see the [LICENSE
 
 ## Acknowledgments
 
-This project is being developed in the context of the research project RENvolveIT (https://projekte.ffg.at/projekt/5127011).
+This project is being developed in the context of the research project RENvolveIT (<https://projekte.ffg.at/projekt/5127011>).
+This research was funded by CETPartnership, the Clean Energy Transition Partnership under the 2023 joint call for research proposals, co-funded by the European Commission (GA N°101069750) and with the funding organizations detailed on <https://cetpartnership.eu/funding-agencies-and-call-modules>.​
 
-This research was funded by CETPartnership, the Clean Energy Transition Partnership under the 2023 joint call for research proposals, co-funded by the European Commission (GA N°101069750) and with the funding organizations detailed on https://cetpartnership.eu/funding-agencies-and-call-mod-ules.​
-
- <img src="docs/source/img/CETP-logo.svg" alt="CETPartnership" width="144" height="72">  <img src="docs/source/img/EN_Co-fundedbytheEU_RGB_POS.png" alt="EU" width="180" height="40">
+![CETPartnership](docs/assets/sponsors/CETP-logo.svg) ![EU](docs/assets/sponsors/EN_Co-fundedbytheEU_RGB_POS.png)
 
 - **3DCityDB**: For providing the foundation for 3D spatial data management. (accessed 13.11.2025, [https://www.3dcitydb.org/](https://github.com/3dcitydb))
 - TABULA & EPISCOPE (IEE Projects): building-characteristic data (accessed 13.11.2025, [https://episcope.eu/iee-project/tabula/](https://episcope.eu/iee-project/tabula/)
