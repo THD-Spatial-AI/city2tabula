@@ -1,6 +1,3 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -8,11 +5,12 @@
 *.so
 *.dylib
 
-# Project binaries
+# Project binaries / build artefacts
 city2tabula
 city2tabula-*
 /cmd/city2tabula
 build/
+bin/
 
 # Test binary, built with `go test -c`
 *.test
@@ -23,30 +21,51 @@ coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
+# Dependency directories (enable if you vendor)
 # vendor/
 
 # Go workspace file
 go.work
 go.work.sum
 
-# env file
+# Environment / secrets
 .env
 
+# Common generated / data artefacts
 *.pkl
 *.xsd
 *.gfs
+*.log
 
+# Datasets (avoid committing large or licensed data)
+data/lod2/
+data/lod3/
+environment/data/
+
+# Local / scratch directories
 examples/
+obsidian_vault/
 
+# Editor / IDE
+.vscode/
+.idea/
 settings.json
 
-bin/
-
-__pycache__/
+# Python
+**/__pycache__/
+**/*.py[cod]
 venv/
 .ipynb_checkpoints/
-obsidian_vault/
+.pytest_cache/
+
+# Validation outputs
+validation/outputs/
+
+# Logs
+logs/
 
 # MkDocs build output
 site/
+
+# OS
+.DS_Store
