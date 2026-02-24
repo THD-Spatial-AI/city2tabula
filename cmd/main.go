@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,9 +38,9 @@ func main() {
 	startTime := time.Now()
 	defer func() {
 		duration := time.Since(startTime)
-		utils.Info.Println("==================================")
+		utils.Info.Println(strings.Repeat("=", 40))
 		utils.Info.Printf("Total runtime: %v", duration)
-		utils.Info.Println("==================================")
+		utils.Info.Println(strings.Repeat("=", 40))
 	}()
 
 	// Initialize logger and config

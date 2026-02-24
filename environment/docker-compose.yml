@@ -4,7 +4,7 @@ services:
     build:
       context: ./..
       dockerfile: environment/Dockerfile
-    env_file: ./../.env        # load environment variables into container
+    env_file: docker.env        # load environment variables into container
     stdin_open: true
     tty: true
     working_dir: /app

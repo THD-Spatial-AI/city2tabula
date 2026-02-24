@@ -49,11 +49,6 @@ function Invoke-Configure {
     Write-Host "=====================================" -ForegroundColor Magenta
     Write-Host ""
 
-    Write-Host "Copying base environment configuration..." -ForegroundColor Blue
-    Copy-Item "environment\docker.env" ".env"
-    Write-Host "Base configuration copied!" -ForegroundColor Green
-    Write-Host ""
-
     # Country selection with mapping
     $countries = @{
         1 = @{Name="austria"; SRID="31256"; SRS="MGI / Austria GK East"}
@@ -126,14 +121,14 @@ function Invoke-Configure {
     Write-Host ""
     Write-Host "Updating configuration file..." -ForegroundColor Blue
 
-    # Update .env file
-    $content = Get-Content ".env"
+    # Update docker.env file
+    $content = Get-Content "docker.env"
     $content = $content -replace "COUNTRY=germany", "COUNTRY=$($selectedCountry.Name)"
     $content = $content -replace "CITYDB_SRID=25832", "CITYDB_SRID=$($selectedCountry.SRID)"
     $content = $content -replace "CITYDB_SRS_NAME=ETRS89 / UTM zone 32N", "CITYDB_SRS_NAME=$($selectedCountry.SRS)"
     $content = $content -replace "DB_USER=postgres", "DB_USER=$pgUser"
     $content = $content -replace "<your_pg_password>", $pgPasswordPlain
-    $content | Set-Content ".env"
+    $content | Set-Content "docker.env"
 
     Write-Host "Configuration completed!" -ForegroundColor Green
     Write-Host ""
@@ -152,18 +147,15 @@ function Invoke-Configure {
 
 function Invoke-ConfigureManual {
     Write-Host "Manual configuration mode..." -ForegroundColor Blue
-    Write-Host "Copying environment configuration..." -ForegroundColor Blue
-    Copy-Item "environment\docker.env" ".env"
-    Write-Host ".env file created!" -ForegroundColor Green
-    Write-Host "Please edit .env manually:" -ForegroundColor Yellow
+    Write-Host "Please edit docker.env manually:" -ForegroundColor Yellow
     Write-Host "   - Set COUNTRY to your target country" -ForegroundColor Yellow
     Write-Host "   - Set CITYDB_SRID to the appropriate SRID" -ForegroundColor Yellow
     Write-Host "   - Set CITYDB_SRS_NAME to the appropriate SRS name" -ForegroundColor Yellow
     Write-Host "   - Replace '<your_pg_password>' with your PostgreSQL password" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "You can edit the file with:" -ForegroundColor Cyan
-    Write-Host "  notepad .env" -ForegroundColor White
-    Write-Host "  code .env" -ForegroundColor White
+    Write-Host "  notepad docker.env" -ForegroundColor White
+    Write-Host "  code docker.env" -ForegroundColor White
 }
 
 function Invoke-Build {
