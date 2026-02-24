@@ -1,10 +1,10 @@
+# City2TABULA
+
 [![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml)
 &nbsp;
 [![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)](https://city2tabula.readthedocs.io/en/latest/)
 &nbsp;
 [![GitHub release](https://img.shields.io/github/v/release/THD-Spatial/City2TABULA.svg)](https://github.com/THD-Spatial/City2TABULA/releases)
-
-# City2TABULA
 
 City2TABULA is a high-performance, Go-based data preparation tool for 3D building datasets stored in PostgreSQL/PostGIS using CityDB schemas. Its primary purpose is to extract, normalise, and enrich geometric and spatial attributes from LoD2 and LoD3 building models, enabling downstream tasks such as building typology classification and heating demand estimation.
 
@@ -101,7 +101,7 @@ setup.bat help
 
 ### Complete Docker Workflow
 
-**Step 1: Complete interactive setup**
+#### Step 1: Complete interactive setup
 
 ```bash
 # Linux/macOS
@@ -113,7 +113,7 @@ setup.bat setup
 .\setup.ps1 setup
 ```
 
-**Step 2: Access development shell**
+#### Step 2: Access development shell
 
 ```bash
 # Linux/macOS
@@ -125,7 +125,7 @@ setup.bat dev
 .\setup.ps1 dev
 ```
 
-**Step 3: Inside the container, run the pipeline**
+#### Step 3: Inside the container, run the pipeline
 
 ```bash
 # Setup database
@@ -138,7 +138,7 @@ setup.bat dev
 ./city2tabula -help
 ```
 
-### Data Management with Docker
+##### Data Management with Docker
 
 Place your 3D data files in the `data` directory before starting:
 
@@ -151,7 +151,7 @@ data/
 
 The data directory is automatically mounted into the container.
 
-### Docker Configuration
+##### Docker Configuration
 
 The Docker environment provides intelligent configuration management through an interactive setup wizard that:
 
@@ -178,7 +178,7 @@ CITYDB_TOOL_PATH=/usr/local/citydb-tool/citydb-tool-1.1.0/bin/citydb
 
 If you prefer to install dependencies manually or need a custom setup for development purpose, follow these steps:
 
-> [!NOTE]
+> [!IMPORTANT]
 > Current version of City2TABULA only supports Linux environments. Windows users are encouraged to use the Docker setup for a seamless experience.
 
 ### Software Dependencies
@@ -186,13 +186,18 @@ If you prefer to install dependencies manually or need a custom setup for develo
 **Required:**
 
 - **Go**: 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
+
 - **PostgreSQL**: 17+ with PostGIS 3.5+ (Download from [postgresql.org](https://www.postgresql.org/download/))
+
 - **PostGIS**: 3.5+ (Download from [postgis.net](https://postgis.net/install/))
+
 - **Java**: 17+ for CityDB Tool (Download from [oracle.com](https://www.oracle.com/java/technologies/downloads/))
+
 - **Git**: 2.25+ for source management (Download from [git-scm.com](https://git-scm.com/downloads))
+
 - **CityDB Importer/Exporter**: v1.0.0 (Download from [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.0.0))
 
-  - Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` or `C:\Program Files\citydb-tool`).
+  - Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` on Linux or `C:\Program Files\citydb-tool` on Windows).
 
 ### Installation Steps
 
@@ -217,7 +222,7 @@ nano .env
 
 ```bash
 # Global Configuration
-COUNTRY=germany # Specify the country you want to train from the list of available countries
+COUNTRY=germany
 # Available countries: austria, belgium, cyprus, czechia, denmark, france, germany,
 # greece, hungary, ireland, italy, netherlands, norway, poland, serbia, slovenia,
 # spain, sweden, united_kingdom
