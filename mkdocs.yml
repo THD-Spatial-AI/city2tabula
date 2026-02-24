@@ -110,8 +110,7 @@ markdown_extensions:
 # Page tree
 nav:
   - Home: index.md
-  - Checklist: getting-started/open-source-checklist.md
-  - Repository Naming: getting-started/repository-naming.md
+  - Setup & Installation: installation/setup.md
 
 # Copyright
 copyright: |

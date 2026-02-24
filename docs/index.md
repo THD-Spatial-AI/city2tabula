@@ -43,6 +43,45 @@ The City2TABULA pipeline consists of several key components:
 
 ![City2TABULA Pipeline Workflow](assets/img/City2TABULA_complete_pipeline_stages.png)
 
+## CLI Flags Workflow
+
+The CLI entrypoint is `cmd/main.go`. The workflow below shows the common startup path and which internal packages/functions are touched by each flag.
+
+!!! info
+    Flags are independent and can be combined. If you pass multiple flags, the corresponding actions run sequentially in the order they appear in `main()`.
+
+```mermaid
+flowchart TD
+    A["Start: main()"] --> B["Parse flags (std: flag)"]
+
+    B -->|--version / -v| V["Print version (fmt + internal/version)\nExit (os.Exit)"]
+
+    B -->|otherwise| T["Start timer + defer runtime log (time + internal/utils)"]
+    T --> L["Init logger (internal/utils)"]
+    L --> C["Load config (internal/config)"]
+    C --> CV["Validate config (internal/config)"]
+    CV --> D["Connect DB pool (internal/db + pgxpool)"]
+    D --> F{Flags set?}
+
+    F -->|--create-db| CD[Create complete DB\ninternal/db.CreateCompleteDatabase]
+    F -->|--reset-all| RA[Reset complete DB\ninternal/db.ResetCompleteDatabase]
+    F -->|--reset-citydb| RC[Reset CityDB only\ninternal/db.ResetCityDBOnly]
+    F -->|--reset-city2tabula| R2[Reset City2TABULA schemas\ninternal/db.DropSchemaIfExists\ninternal/db.RunCity2TabulaDBSetup]
+
+    F -->|--extract-features| EF["Run feature extraction\n(runFeatureExtraction)"]
+    EF --> EF1[Fetch building IDs\ninternal/utils.GetBuildingIDsFromCityDB]
+    EF1 --> EF2[Batch IDs\ninternal/utils.CreateBatches]
+    EF2 --> EF3[Build pipeline queue\ninternal/process.BuildFeatureExtractionQueue]
+    EF3 --> EF4["Run workers\ninternal/process.NewWorker + Worker.Start\n(sync.WaitGroup)"]
+
+    CD --> Z["Close pool (internal/db.ClosePool)"]
+    RA --> Z
+    RC --> Z
+    R2 --> Z
+    EF4 --> Z
+    D --> Z
+```
+
 ## Support
 
 For issues and questions, please refer to the troubleshooting section or create an issue in the project repository.
