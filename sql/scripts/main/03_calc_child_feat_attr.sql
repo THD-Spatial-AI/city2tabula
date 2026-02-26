@@ -180,7 +180,7 @@ SELECT
     END AS azimuth,
     'degrees' AS azimuth_unit,
     ST_IsValid(valid_geom) AS is_valid,
-    true AS is_planar,
+    ST_IsPlanar(valid_geom) AS is_planar,
     child_row_id,
       (ST_ZMax(valid_geom) - ST_ZMin(valid_geom)) AS height,
     'm',
