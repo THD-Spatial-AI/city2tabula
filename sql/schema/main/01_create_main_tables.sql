@@ -76,8 +76,9 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_surface_idx
   ON {city2tabula_schema}.{lod_schema}_child_feature_surface (surface_feature_id);
 
 
--- Resolved mapping table (fixed)
+-- Resolved mapping table
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_resolved CASCADE;
+
 CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -92,30 +93,72 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_resolved (
 
   -- resolution metadata
   score DOUBLE PRECISION,
-  scoring_method VARCHAR(64),       -- e.g. 'ground_wall_shared_edge_len'
+  scoring_method VARCHAR(64),
   resolved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  -- party wall support (optional; works for wall surfaces)
+  -- party wall support (mainly for WallSurface)
   is_party_wall BOOLEAN NOT NULL DEFAULT FALSE,
   party_with_building_id BIGINT,
 
-  -- store original surface geometry (from stage 1 candidate table)
-  -- keep generic GEOMETRY if you want to avoid type issues; MultiPolygonZ is OK if your source is consistent
+  -- original surface geometry (keep generic MultiPolygonZ)
   geom geometry(MultiPolygonZ, {srid})
 );
 
--- one row per surface per LoD
-CREATE UNIQUE INDEX IF NOT EXISTS ux_{lod_schema}_child_feature_resolved_surface
+-- ------------------------------------------------------------
+-- Constraints / Keys
+-- ------------------------------------------------------------
+
+-- One row per surface per LoD (this is the ON CONFLICT target)
+CREATE UNIQUE INDEX ux_{lod_schema}_resolved_lod_surface
   ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (lod, surface_feature_id);
 
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_building_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (building_feature_id);
+-- ------------------------------------------------------------
+-- Lookup indexes used by the pipeline
+-- ------------------------------------------------------------
 
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_geom_idx
+-- Common lookup: (lod, classname, building_feature_id)
+CREATE INDEX idx_{lod_schema}_resolved_by_building_class
+  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (lod, classname, building_feature_id);
+
+-- Common lookup: (lod, classname, surface_feature_id)
+CREATE INDEX idx_{lod_schema}_resolved_by_surface_class
+  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (lod, classname, surface_feature_id);
+
+-- Fast GroundSurface lookup for resolvers (small partial index)
+CREATE INDEX idx_{lod_schema}_resolved_ground_by_building
+  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (lod, building_feature_id)
+  WHERE classname = 'GroundSurface';
+
+-- Party-wall queries
+CREATE INDEX idx_{lod_schema}_resolved_party
+  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (is_party_wall, party_with_building_id);
+
+-- Optional: spatial queries on resolved output (not needed for resolving itself)
+CREATE INDEX gix_{lod_schema}_resolved_geom
   ON {city2tabula_schema}.{lod_schema}_child_feature_resolved USING GIST (geom);
 
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_party_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (is_party_wall, party_with_building_id);
+-- ============================================================
+-- Core indexes on source tables (needed for wall/roof resolving)
+-- ============================================================
+
+-- Stage-1 mapping: candidate surfaces per building
+CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_feat_by_lod_class_building
+  ON {city2tabula_schema}.{lod_schema}_child_feature (lod, classname, building_feature_id);
+
+-- Stage-1 mapping: reverse lookup / claims per surface
+CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_feat_by_lod_class_surface
+  ON {city2tabula_schema}.{lod_schema}_child_feature (lod, classname, surface_feature_id);
+
+-- Stage-3 surfaces: geometry lookup by (classname, surface_feature_id)
+CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_surface_by_class_surface
+  ON {city2tabula_schema}.{lod_schema}_child_feature_surface (classname, surface_feature_id);
+
+-- ------------------------------------------------------------
+-- Refresh planner stats (recommended after creating indexes)
+-- ------------------------------------------------------------
+ANALYSE {city2tabula_schema}.{lod_schema}_child_feature_resolved;
+ANALYSE {city2tabula_schema}.{lod_schema}_child_feature;
+ANALYSE {city2tabula_schema}.{lod_schema}_child_feature_surface;
 
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_feature CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building_feature (
