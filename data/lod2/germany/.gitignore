@@ -1,3 +1,7 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:4eb4b6afe8f62903e5acc39ef667fa019306f1dbba52f40d44b7d69ed26059e3
-size 97
+# ignore everything in this directory
+*
+
+# except the following files
+!.gitignore
+!.gitkeep
+!*.md
