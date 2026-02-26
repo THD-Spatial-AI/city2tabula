@@ -34,27 +34,16 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     geom geometry(POLYGONZ, {srid})
 );
 
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_geom_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump USING GIST (geom);
-
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_building_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (building_feature_id);
-
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_surface_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (surface_feature_id);
-
-
-
--- ============================================================
--- 3) Computed surface attributes table (per dumped polygon)
--- ============================================================
+-- Evidence table (unchanged)
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_surface CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
   building_feature_id BIGINT,
-  surface_feature_id BIGINT,
+  surface_feature_id  BIGINT,
+
   objectclass_id INT,
-  classname VARCHAR(255),
+  classname      VARCHAR(255),
 
   height DOUBLE PRECISION,
   height_unit VARCHAR CHECK (height_unit IN ('m')),
@@ -68,7 +57,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface (
   azimuth DOUBLE PRECISION,
   azimuth_unit VARCHAR CHECK (azimuth_unit IN ('degrees')),
 
-  is_valid BOOLEAN,
+  is_valid  BOOLEAN,
   is_planar BOOLEAN,
 
   child_row_id UUID,
@@ -86,40 +75,36 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_building_idx
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_surface_idx
   ON {city2tabula_schema}.{lod_schema}_child_feature_surface (surface_feature_id);
 
-CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_childrow_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature_surface (child_row_id);
 
-
-
--- ============================================================
--- 4) RESOLVED mapping table (clean / one owner per surface_feature_id)
---    This is what downstream analysis should use.
--- ============================================================
+-- Resolved mapping table (fixed)
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_resolved CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   lod INT NOT NULL,
 
-  -- surface is unique at this stage
-  surface_feature_id BIGINT NOT NULL,
-
-  -- chosen owner building
+  -- resolved ownership
   building_feature_id BIGINT NOT NULL,
+  surface_feature_id  BIGINT NOT NULL,
 
   objectclass_id INT,
-  classname TEXT,
+  classname      VARCHAR(255),
 
-  -- assignment confidence
+  -- resolution metadata
   score DOUBLE PRECISION,
-  scoring_method VARCHAR(30),  -- e.g. 'wall_3d_ratio', 'roof_2d_ratio'
+  scoring_method VARCHAR(64),       -- e.g. 'ground_wall_shared_edge_len'
+  resolved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  -- convenience flag: true if this surface participates in a party-wall relation
-  is_party_wall BOOLEAN DEFAULT FALSE,
+  -- party wall support (optional; works for wall surfaces)
+  is_party_wall BOOLEAN NOT NULL DEFAULT FALSE,
+  party_with_building_id BIGINT,
 
-  geom GEOMETRY(MultiPolygonZ, {srid})
+  -- store original surface geometry (from stage 1 candidate table)
+  -- keep generic GEOMETRY if you want to avoid type issues; MultiPolygonZ is OK if your source is consistent
+  geom geometry(MultiPolygonZ, {srid})
 );
 
+-- one row per surface per LoD
 CREATE UNIQUE INDEX IF NOT EXISTS ux_{lod_schema}_child_feature_resolved_surface
   ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (lod, surface_feature_id);
 
@@ -129,52 +114,9 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_building_idx
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_geom_idx
   ON {city2tabula_schema}.{lod_schema}_child_feature_resolved USING GIST (geom);
 
+CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_resolved_party_idx
+  ON {city2tabula_schema}.{lod_schema}_child_feature_resolved (is_party_wall, party_with_building_id);
 
-
--- ============================================================
--- 5) PARTY WALL RELATION table (A <-> B link)
---    Stores which buildings share walls and the shared area.
--- ============================================================
-DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_party_wall CASCADE;
-CREATE TABLE {city2tabula_schema}.{lod_schema}_party_wall (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  lod INT NOT NULL,
-
-  -- building pair (ordered to avoid duplicates)
-  building_a_id BIGINT NOT NULL,
-  building_b_id BIGINT NOT NULL,
-
-  -- surface ids involved (optional but useful for debugging)
-  surface_a_id BIGINT,
-  surface_b_id BIGINT,
-
-  -- shared geometry/area
-  shared_area DOUBLE PRECISION,
-  shared_area_unit VARCHAR CHECK (shared_area_unit IN ('sqm')) DEFAULT 'sqm',
-
-  -- optional: store intersection geometry for QA (can be heavy)
-shared_geom GEOMETRY
-);
-
--- Ensure pair uniqueness at building-level
-CREATE UNIQUE INDEX IF NOT EXISTS ux_{lod_schema}_party_wall_pair
-  ON {city2tabula_schema}.{lod_schema}_party_wall (lod, building_a_id, building_b_id, surface_a_id, surface_b_id);
-
-CREATE INDEX IF NOT EXISTS {lod_schema}_party_wall_building_a_idx
-  ON {city2tabula_schema}.{lod_schema}_party_wall (building_a_id);
-
-CREATE INDEX IF NOT EXISTS {lod_schema}_party_wall_building_b_idx
-  ON {city2tabula_schema}.{lod_schema}_party_wall (building_b_id);
-
-CREATE INDEX IF NOT EXISTS {lod_schema}_party_wall_geom_idx
-  ON {city2tabula_schema}.{lod_schema}_party_wall USING GIST (shared_geom);
-
-
-
--- ============================================================
--- 6) Building feature table (unchanged, but keep your indexes)
--- ============================================================
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_feature CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building_feature (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -213,7 +155,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building_feature (
   surface_count_roof INTEGER,
   surface_count_wall INTEGER,
   building_centroid_geom GEOMETRY(Point, {srid}),
-  building_footprint_geom GEOMETRY(MultiPolygonZ, {srid})
+  building_footprint_geom GEOMETRY(MultiPolygon, {srid})
 );
 
 CREATE INDEX IF NOT EXISTS {lod_schema}_building_centroid_geometry_idx
