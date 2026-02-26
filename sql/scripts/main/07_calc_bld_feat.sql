@@ -5,18 +5,24 @@ WITH batch_buildings AS (
     AND building_feature_id IN {building_ids}
 ),
 
--- resolved ground geometry per building (should be one row per building after your resolver)
 resolved_ground AS (
   SELECT
     r.building_feature_id,
-    r.geom AS ground_geom_mpz
+    ST_Multi(
+      ST_UnaryUnion(
+        ST_Collect(
+          ST_Buffer(ST_Force2D(r.geom), 0)
+        )
+      )
+    )::geometry(MultiPolygon, {srid}) AS ground_geom_mp
   FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved r
   WHERE r.lod = {lod_level}
     AND r.classname = 'GroundSurface'
     AND r.building_feature_id IN {building_ids}
+  GROUP BY r.building_feature_id
 ),
 
--- aggregate surface attributes per building, but only for resolved surfaces
+-- surface aggregates + HEIGHTS (fixed)
 resolved_attr AS (
   SELECT
     r.building_feature_id,
@@ -30,9 +36,19 @@ resolved_attr AS (
     COUNT(*) FILTER (WHERE r.classname = 'WallSurface')   AS surface_count_wall,
     COUNT(*) FILTER (WHERE r.classname = 'GroundSurface') AS surface_count_floor,
 
-    -- pick wall height stats from resolved wall parts (Stage 3 stores per polygon)
-    MIN(s.height) FILTER (WHERE r.classname = 'WallSurface') AS min_height,
-    MAX(s.height) FILTER (WHERE r.classname = 'WallSurface') AS max_height_wall
+    -- Robust "max" wall height (eaves height proxy)
+    COALESCE(
+      percentile_cont(0.95) WITHIN GROUP (ORDER BY s.height)
+        FILTER (WHERE r.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0),
+      MAX(s.height) FILTER (WHERE r.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0)
+    ) AS wall_height_eaves,
+
+    -- Robust "max" roof height (roof add-on above walls)
+    COALESCE(
+      percentile_cont(0.95) WITHIN GROUP (ORDER BY s.height)
+        FILTER (WHERE r.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0),
+      MAX(s.height) FILTER (WHERE r.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0)
+    ) AS roof_height
 
   FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved r
   JOIN {city2tabula_schema}.{lod_schema}_child_feature_surface s
@@ -44,22 +60,12 @@ resolved_attr AS (
   GROUP BY r.building_feature_id
 ),
 
--- build footprint geometry + centroid from resolved ground geometry
 footprint_geom AS (
   SELECT
     g.building_feature_id,
-
-    -- footprint as 2D multipolygon (keep in target SRID)
-    ST_Multi(ST_Buffer(ST_Force2D(g.ground_geom_mpz), 0))::geometry(MultiPolygon, {srid}) AS footprint_2d,
-
-    ST_Centroid(
-      ST_Multi(ST_Buffer(ST_Force2D(g.ground_geom_mpz), 0))
-    )::geometry(Point, {srid}) AS centroid_2d,
-
-    ST_NPoints(
-      ST_Boundary(ST_Multi(ST_Buffer(ST_Force2D(g.ground_geom_mpz), 0)))
-    ) AS footprint_boundary_npoints
-
+    g.ground_geom_mp AS footprint_2d,
+    ST_Centroid(g.ground_geom_mp)::geometry(Point, {srid}) AS centroid_2d,
+    ST_NPoints(ST_Boundary(g.ground_geom_mp)) AS footprint_boundary_npoints
   FROM resolved_ground g
 ),
 
@@ -70,8 +76,8 @@ building_data AS (
     COALESCE(a.footprint_area, 0) AS footprint_area,
 
     CASE
-      WHEN f.footprint_boundary_npoints <= 4 THEN 0
-      WHEN f.footprint_boundary_npoints BETWEEN 5 AND 10 THEN 1
+      WHEN COALESCE(f.footprint_boundary_npoints, 0) <= 4 THEN 0
+      WHEN COALESCE(f.footprint_boundary_npoints, 0) BETWEEN 5 AND 10 THEN 1
       ELSE 2
     END AS footprint_complexity,
 
@@ -98,18 +104,21 @@ building_data AS (
     COALESCE(a.surface_count_wall, 0) AS surface_count_wall,
     COALESCE(a.surface_count_floor, 0) AS surface_count_floor,
 
-    COALESCE(a.min_height, 0) AS min_height,
+    -- Your definition:
+    -- min_height = wall height (to eaves)
+    COALESCE(a.wall_height_eaves, 0) AS min_height,
     'm' AS min_height_unit,
 
-    -- wall height + roof height is dataset-dependent; keep simple
-    COALESCE(a.max_height_wall, 0) AS max_height,
+    -- max_height = wall height + roof height
+    (COALESCE(a.wall_height_eaves, 0) + COALESCE(a.roof_height, 0)) AS max_height,
     'm' AS max_height_unit,
 
     2.5 AS room_height,
     'm' AS room_height_unit,
 
     CASE
-      WHEN COALESCE(a.max_height_wall, 0) > 0 THEN GREATEST(1, FLOOR(a.max_height_wall / 2.5))::int
+      WHEN (COALESCE(a.wall_height_eaves, 0) + COALESCE(a.roof_height, 0)) > 0
+      THEN GREATEST(1, FLOOR((COALESCE(a.wall_height_eaves, 0) + COALESCE(a.roof_height, 0)) / 2.5))::int
       ELSE 1
     END AS number_of_storeys,
 
