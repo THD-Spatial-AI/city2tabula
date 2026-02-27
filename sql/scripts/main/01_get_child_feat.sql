@@ -1,5 +1,5 @@
 WITH buildings AS (
-  SELECT f.id AS building_feature_id, g.geometry AS building_geom
+  SELECT f.id AS building_feature_id, f.objectid AS building_objectid, g.geometry AS building_geom
   FROM {lod_schema}.feature f
   JOIN {lod_schema}.geometry_data g ON f.id = g.feature_id
   JOIN {lod_schema}.property p ON f.id = p.feature_id
@@ -13,8 +13,9 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature (
     id,
     lod,
     building_feature_id,
+    building_objectid,
     surface_feature_id,
-    objectid,
+    surface_objectid,
     objectclass_id,
     classname,
     geom
@@ -23,8 +24,9 @@ SELECT
     gen_random_uuid(),
     {lod_level},
     b.building_feature_id,
+    b.building_objectid,
     f.id AS surface_feature_id,
-    f.objectid,
+    f.objectid AS surface_objectid,
     f.objectclass_id,
     oc.classname,
     g.geometry AS geometry

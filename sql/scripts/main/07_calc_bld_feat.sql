@@ -1,7 +1,8 @@
 WITH batch_buildings AS (
-  SELECT DISTINCT building_feature_id
+  SELECT DISTINCT ON (building_feature_id) building_feature_id, building_objectid
   FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
   WHERE building_feature_id IN {building_ids}
+  ORDER BY building_feature_id
 ),
 
 resolved_ground AS (
@@ -67,6 +68,7 @@ footprint_geom AS (
 building_data AS (
   SELECT
     b.building_feature_id,
+    b.building_objectid,
 
     COALESCE(a.footprint_area, 0) AS footprint_area,
 
@@ -128,6 +130,7 @@ building_data AS (
 INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
   id,
   building_feature_id,
+  building_objectid,
   footprint_area,
   footprint_complexity,
   roof_complexity,
@@ -156,6 +159,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
 SELECT
   gen_random_uuid(),
   building_feature_id,
+  building_objectid,
   footprint_area,
   footprint_complexity,
   roof_complexity,
@@ -182,7 +186,8 @@ SELECT
   building_footprint_geom
 FROM building_data
 ON CONFLICT (building_feature_id) DO UPDATE
-SET footprint_area          = EXCLUDED.footprint_area,
+SET building_objectid       = EXCLUDED.building_objectid,
+    footprint_area          = EXCLUDED.footprint_area,
     footprint_complexity    = EXCLUDED.footprint_complexity,
     roof_complexity         = EXCLUDED.roof_complexity,
     area_total_roof         = EXCLUDED.area_total_roof,
