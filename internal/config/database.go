@@ -1,7 +1,5 @@
 package config
 
-import "fmt"
-
 // Table name constants
 const (
 	Tabula        = "tabula"
@@ -55,11 +53,10 @@ type DBConfig struct {
 
 // loadDBConfig loads database configuration from environment
 func loadDBConfig() *DBConfig {
-	country := normalizeCountryName(GetEnv("COUNTRY", ""))
 	return &DBConfig{
 		Host:     GetEnv("DB_HOST", "localhost"),
 		Port:     GetEnv("DB_PORT", "5432"),
-		Name:     fmt.Sprintf("city2tabula_%s", country),
+		Name:     GetEnv("DB_NAME", ""),
 		User:     GetEnv("DB_USER", "postgres"),
 		Password: GetEnv("DB_PASSWORD", ""),
 		SSLMode:  GetEnv("DB_SSL_MODE", ""),
