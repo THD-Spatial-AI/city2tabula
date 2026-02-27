@@ -15,7 +15,7 @@ w AS (
   SELECT DISTINCT ON (s.surface_feature_id)
     s.surface_feature_id AS wall_id,
     ST_Boundary(ST_Force2D(s.geom)) AS wall_bnd_2d
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   WHERE s.classname = 'WallSurface'
     AND s.surface_feature_id IN (
       SELECT DISTINCT c.surface_feature_id
@@ -114,7 +114,7 @@ SELECT
 FROM final_walls fw
 JOIN LATERAL (
   SELECT s.geom
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   WHERE s.classname = 'WallSurface'
     AND s.surface_feature_id = fw.wall_id
   ORDER BY s.surface_feature_id

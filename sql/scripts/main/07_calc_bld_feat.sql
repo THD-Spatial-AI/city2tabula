@@ -1,63 +1,58 @@
 WITH batch_buildings AS (
   SELECT DISTINCT building_feature_id
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved
-  WHERE lod = {lod_level}
-    AND building_feature_id IN {building_ids}
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+  WHERE building_feature_id IN {building_ids}
 ),
 
 resolved_ground AS (
   SELECT
-    r.building_feature_id,
+    s.building_feature_id,
     ST_Multi(
       ST_UnaryUnion(
         ST_Collect(
-          ST_Buffer(ST_Force2D(r.geom), 0)
+          ST_Buffer(ST_Force2D(s.geom), 0)
         )
       )
     )::geometry(MultiPolygon, {srid}) AS ground_geom_mp
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved r
-  WHERE r.lod = {lod_level}
-    AND r.classname = 'GroundSurface'
-    AND r.building_feature_id IN {building_ids}
-  GROUP BY r.building_feature_id
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  WHERE s.classname = 'GroundSurface'
+    AND s.building_feature_id IN {building_ids}
+  GROUP BY s.building_feature_id
 ),
 
--- surface aggregates + HEIGHTS (fixed)
+-- surface aggregates + HEIGHTS
+-- child_feature_surface now contains only resolved surfaces with attributes
 resolved_attr AS (
   SELECT
-    r.building_feature_id,
+    s.building_feature_id,
 
-    SUM(s.surface_area) FILTER (WHERE r.classname = 'GroundSurface') AS footprint_area,
-    SUM(s.surface_area) FILTER (WHERE r.classname = 'RoofSurface')   AS area_total_roof,
-    SUM(s.surface_area) FILTER (WHERE r.classname = 'WallSurface')   AS area_total_wall,
-    SUM(s.surface_area) FILTER (WHERE r.classname = 'GroundSurface') AS area_total_floor,
+    SUM(s.surface_area) FILTER (WHERE s.classname = 'GroundSurface') AS footprint_area,
+    SUM(s.surface_area) FILTER (WHERE s.classname = 'RoofSurface')   AS area_total_roof,
+    SUM(s.surface_area) FILTER (WHERE s.classname = 'WallSurface')   AS area_total_wall,
+    SUM(s.surface_area) FILTER (WHERE s.classname = 'GroundSurface') AS area_total_floor,
 
-    COUNT(*) FILTER (WHERE r.classname = 'RoofSurface')   AS surface_count_roof,
-    COUNT(*) FILTER (WHERE r.classname = 'WallSurface')   AS surface_count_wall,
-    COUNT(*) FILTER (WHERE r.classname = 'GroundSurface') AS surface_count_floor,
+    COUNT(*) FILTER (WHERE s.classname = 'RoofSurface')   AS surface_count_roof,
+    COUNT(*) FILTER (WHERE s.classname = 'WallSurface')   AS surface_count_wall,
+    COUNT(*) FILTER (WHERE s.classname = 'GroundSurface') AS surface_count_floor,
 
     -- Robust "max" wall height (eaves height proxy)
     COALESCE(
       percentile_cont(0.95) WITHIN GROUP (ORDER BY s.height)
-        FILTER (WHERE r.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0),
-      MAX(s.height) FILTER (WHERE r.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0)
+        FILTER (WHERE s.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0),
+      MAX(s.height) FILTER (WHERE s.classname = 'WallSurface' AND s.height IS NOT NULL AND s.height > 0)
     ) AS wall_height_eaves,
 
     -- Robust "max" roof height (roof add-on above walls)
     COALESCE(
       percentile_cont(0.95) WITHIN GROUP (ORDER BY s.height)
-        FILTER (WHERE r.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0),
-      MAX(s.height) FILTER (WHERE r.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0)
+        FILTER (WHERE s.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0),
+      MAX(s.height) FILTER (WHERE s.classname = 'RoofSurface' AND s.height IS NOT NULL AND s.height > 0)
     ) AS roof_height
 
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved r
-  JOIN {city2tabula_schema}.{lod_schema}_child_feature_surface s
-    ON s.building_feature_id = r.building_feature_id
-   AND s.surface_feature_id  = r.surface_feature_id
-  WHERE r.lod = {lod_level}
-    AND r.building_feature_id IN {building_ids}
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  WHERE s.building_feature_id IN {building_ids}
     AND s.is_planar = true
-  GROUP BY r.building_feature_id
+  GROUP BY s.building_feature_id
 ),
 
 footprint_geom AS (

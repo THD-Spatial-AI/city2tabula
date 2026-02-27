@@ -4,7 +4,7 @@ ground_counts AS (
   SELECT
     building_feature_id,
     COUNT(*) AS ground_cnt
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE classname = 'GroundSurface'
     AND building_feature_id IN {building_ids}
   GROUP BY building_feature_id
@@ -21,7 +21,7 @@ single_ground AS (
     s.building_feature_id,
     s.surface_feature_id AS ground_id,
     s.geom
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   JOIN ground_counts gc
     ON gc.building_feature_id = s.building_feature_id
   WHERE s.classname = 'GroundSurface'
@@ -31,14 +31,14 @@ single_ground AS (
 
 walls AS (
   SELECT building_feature_id, surface_feature_id, geom
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE classname = 'WallSurface'
     AND building_feature_id IN (SELECT building_feature_id FROM multi_ground_buildings)
 ),
 
 grounds AS (
   SELECT building_feature_id, surface_feature_id, geom
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE classname = 'GroundSurface'
     AND building_feature_id IN (SELECT building_feature_id FROM multi_ground_buildings)
 ),

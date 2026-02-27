@@ -34,6 +34,22 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     geom geometry(POLYGONZ, {srid})
 );
 
+-- Indexes on geom_dump for surface resolvers (ground/wall/roof read from here)
+CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_geom_idx
+  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump USING GIST (geom);
+
+CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_building_idx
+  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (building_feature_id);
+
+CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_dump_surface_idx
+  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (surface_feature_id);
+
+CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_geom_dump_by_class_building
+  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (classname, building_feature_id);
+
+CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_geom_dump_by_class_surface
+  ON {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (classname, surface_feature_id);
+
 -- Evidence table (unchanged)
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_surface CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface (

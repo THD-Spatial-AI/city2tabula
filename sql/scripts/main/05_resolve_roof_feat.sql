@@ -1,6 +1,6 @@
 WITH
 -- 1) Roof ids involved in this batch (from stage-1 mapping)
-roof_ids AS (
+roof_ids AS MATERIALIZED (
   SELECT DISTINCT c.surface_feature_id AS roof_id
   FROM {city2tabula_schema}.{lod_schema}_child_feature c
   WHERE c.lod = {lod_level}
@@ -9,7 +9,7 @@ roof_ids AS (
 ),
 
 -- 2) Candidate (roof -> building) links from dirty mapping (DEDUPED)
-roof_candidates AS (
+roof_candidates AS MATERIALIZED (
   SELECT DISTINCT c.surface_feature_id AS roof_id, c.building_feature_id
   FROM {city2tabula_schema}.{lod_schema}_child_feature c
   JOIN roof_ids r ON r.roof_id = c.surface_feature_id
@@ -19,7 +19,7 @@ roof_candidates AS (
 ),
 
 -- 3) Ground polygons for candidate buildings (2D)
-b AS (
+b AS MATERIALIZED (
   SELECT
     building_feature_id,
     ST_Buffer(ST_Force2D(geom), 0) AS ground_2d
@@ -30,31 +30,51 @@ b AS (
 ),
 
 -- 4) Roof polygons (2D) + original 3D geom
-r AS (
+r AS MATERIALIZED (
   SELECT DISTINCT ON (s.surface_feature_id)
     s.surface_feature_id AS roof_id,
     ST_Buffer(ST_Force2D(s.geom), 0) AS roof_2d,
     s.geom AS roof_geom_3d
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface s
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   JOIN roof_ids ids ON ids.roof_id = s.surface_feature_id
   WHERE s.classname = 'RoofSurface'
   ORDER BY s.surface_feature_id
 ),
 
--- 5) Score only candidate pairs (roof -> buildings that claim it)
-scores AS (
+-- 5) Pre-limit candidates per roof before doing expensive intersections.
+--    This prevents pathological runtimes when dirty mapping makes a roof
+--    "claimed" by many buildings.
+nearest_candidates AS (
   SELECT
-    rc.roof_id,
-    rc.building_feature_id,
-    ST_Area(ST_Intersection(r.roof_2d, b.ground_2d)) AS overlap_m2
-  FROM roof_candidates rc
-  JOIN r ON r.roof_id = rc.roof_id
-  JOIN b ON b.building_feature_id = rc.building_feature_id
-  WHERE r.roof_2d && b.ground_2d
-    AND ST_Intersects(r.roof_2d, b.ground_2d)
+    r.roof_id,
+    nb.building_feature_id,
+    nb.ground_2d
+  FROM r
+  JOIN LATERAL (
+    SELECT
+      rc.building_feature_id,
+      b.ground_2d
+    FROM roof_candidates rc
+    JOIN b ON b.building_feature_id = rc.building_feature_id
+    WHERE rc.roof_id = r.roof_id
+    ORDER BY r.roof_2d <-> b.ground_2d
+    LIMIT 5
+  ) nb ON TRUE
 ),
 
--- 6) Pick best building per roof
+-- 6) Score only the reduced candidate pairs (roof -> nearby candidate buildings)
+scores AS (
+  SELECT
+    nc.roof_id,
+    nc.building_feature_id,
+    ST_Area(ST_Intersection(r.roof_2d, nc.ground_2d)) AS overlap_m2
+  FROM nearest_candidates nc
+  JOIN r ON r.roof_id = nc.roof_id
+  WHERE r.roof_2d && nc.ground_2d
+    AND ST_Intersects(r.roof_2d, nc.ground_2d)
+),
+
+-- 7) Pick best building per roof
 ranked AS (
   SELECT
     s.*,
@@ -74,7 +94,7 @@ picked AS (
   WHERE rn = 1
 ),
 
--- 7) Fallback for roofs with no score at all (keep deterministic owner from mapping)
+-- 8) Fallback for roofs with no score at all (keep deterministic owner from mapping)
 fallback AS (
   SELECT
     rc.roof_id,
@@ -109,7 +129,7 @@ SELECT DISTINCT ON (fr.roof_id)
   {lod_level} AS lod,
   fr.roof_id AS surface_feature_id,
   fr.building_feature_id,
-  708 AS objectclass_id,  -- VERIFY in your CityDB; change if needed
+  712 AS objectclass_id,  -- VERIFY in your CityDB; change if needed
   'RoofSurface' AS classname,
   fr.overlap_m2 AS score,
   'roof_ground_overlap_area_2d_candidates'::varchar AS scoring_method,

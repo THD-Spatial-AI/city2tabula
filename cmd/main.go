@@ -156,7 +156,7 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	}
 
 	if pipQueue.Len() > 0 {
-		utils.PrintPipelineQueueInfo(pipQueue.Len(), len(pipQueue.Peek().Jobs))
+		utils.PrintPipelineQueueInfo(pipQueue.Len(), len(pipQueue.Peek().Jobs), config.Batch)
 	} else {
 		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found. Check batch creation logic.")
 		// Continue anyway - workers will just have no work to do
