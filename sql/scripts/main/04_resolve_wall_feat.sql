@@ -86,6 +86,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   lod,
   surface_feature_id,
   building_feature_id,
+  objectid,
   objectclass_id,
   classname,
   score,
@@ -98,6 +99,7 @@ SELECT
   {lod_level} AS lod,
   fw.wall_id AS surface_feature_id,
   fw.building_feature_id,
+  s.objectid,
   709 AS objectclass_id,
   'WallSurface' AS classname,
 
@@ -113,7 +115,7 @@ SELECT
   s.geom
 FROM final_walls fw
 JOIN LATERAL (
-  SELECT s.geom
+  SELECT s.objectid, s.geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   WHERE s.classname = 'WallSurface'
     AND s.surface_feature_id = fw.wall_id
@@ -123,6 +125,7 @@ JOIN LATERAL (
 
 ON CONFLICT (lod, surface_feature_id) DO UPDATE
 SET building_feature_id    = EXCLUDED.building_feature_id,
+    objectid               = EXCLUDED.objectid,
     objectclass_id         = EXCLUDED.objectclass_id,
     classname              = EXCLUDED.classname,
     score                  = EXCLUDED.score,

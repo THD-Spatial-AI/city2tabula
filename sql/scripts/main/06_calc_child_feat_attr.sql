@@ -5,7 +5,7 @@
 -- Flow: resolved table (ownership) + geom_dump (polygon parts) → attributes → child_feature_surface
 
 WITH resolved AS MATERIALIZED (
-  SELECT surface_feature_id, building_feature_id, classname, objectclass_id
+  SELECT surface_feature_id, building_feature_id, objectid, classname, objectclass_id
   FROM {city2tabula_schema}.{lod_schema}_child_feature_resolved
   WHERE lod = {lod_level}
     AND building_feature_id IN {building_ids}
@@ -19,6 +19,7 @@ target_rows AS (
     gd.child_row_id,
     r.building_feature_id,
     gd.surface_feature_id,
+    r.objectid,
     r.objectclass_id,
     r.classname,
     gd.geom AS valid_geom
@@ -42,13 +43,14 @@ all_points AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     valid_geom,
     ARRAY_AGG(point_geom ORDER BY pt_idx) AS all_pts
   FROM points
   GROUP BY dump_id, child_row_id, building_feature_id, surface_feature_id,
-           objectclass_id, classname, valid_geom
+           objectid, objectclass_id, classname, valid_geom
   HAVING COUNT(*) >= 3
 ),
 
@@ -59,6 +61,7 @@ point_combinations AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     valid_geom,
@@ -101,6 +104,7 @@ normals AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     valid_geom,
@@ -121,6 +125,7 @@ final AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     valid_geom,
@@ -149,6 +154,7 @@ computed AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     valid_geom,
@@ -171,6 +177,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_surface (
     id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     surface_area,
@@ -191,6 +198,7 @@ SELECT
     gen_random_uuid() AS id,
     c.building_feature_id,
     c.surface_feature_id,
+    c.objectid,
     c.objectclass_id,
     c.classname,
     c.surface_area,

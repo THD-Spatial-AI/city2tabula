@@ -33,6 +33,7 @@ b AS MATERIALIZED (
 r AS MATERIALIZED (
   SELECT DISTINCT ON (s.surface_feature_id)
     s.surface_feature_id AS roof_id,
+    s.objectid,
     ST_Buffer(ST_Force2D(s.geom), 0) AS roof_2d,
     s.geom AS roof_geom_3d
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
@@ -117,6 +118,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   lod,
   surface_feature_id,
   building_feature_id,
+  objectid,
   objectclass_id,
   classname,
   score,
@@ -129,6 +131,7 @@ SELECT DISTINCT ON (fr.roof_id)
   {lod_level} AS lod,
   fr.roof_id AS surface_feature_id,
   fr.building_feature_id,
+  r.objectid,
   712 AS objectclass_id,  -- VERIFY in your CityDB; change if needed
   'RoofSurface' AS classname,
   fr.overlap_m2 AS score,
@@ -141,6 +144,7 @@ JOIN r ON r.roof_id = fr.roof_id
 ORDER BY fr.roof_id, fr.overlap_m2 DESC
 ON CONFLICT (lod, surface_feature_id) DO UPDATE
 SET building_feature_id    = EXCLUDED.building_feature_id,
+    objectid               = EXCLUDED.objectid,
     objectclass_id         = EXCLUDED.objectclass_id,
     classname              = EXCLUDED.classname,
     score                  = EXCLUDED.score,

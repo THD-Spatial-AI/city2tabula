@@ -13,6 +13,7 @@ dumped AS (
     c.id AS child_row_id,
     c.building_feature_id,
     c.surface_feature_id,
+    c.objectid,
     c.objectclass_id,
     c.classname AS classname,
     (ST_Dump(c.geom)).geom AS geom
@@ -24,6 +25,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     coord_dim,
@@ -35,6 +37,7 @@ SELECT
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     ST_CoordDim(geom) AS coord_dim,

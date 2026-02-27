@@ -14,6 +14,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature (
     lod,
     building_feature_id,
     surface_feature_id,
+    objectid,
     objectclass_id,
     classname,
     geom
@@ -23,6 +24,7 @@ SELECT
     {lod_level},
     b.building_feature_id,
     f.id AS surface_feature_id,
+    f.objectid,
     f.objectclass_id,
     oc.classname,
     g.geometry AS geometry

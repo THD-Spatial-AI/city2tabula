@@ -7,8 +7,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature (
     lod INT NOT NULL,
     building_feature_id BIGINT NOT NULL,
     surface_feature_id BIGINT NOT NULL,
+    objectid TEXT,
     objectclass_id INT,
-    classname TEXT,
+    classname  VARCHAR(255),
     geom GEOMETRY(MultiPolygonZ, {srid})
 );
 
@@ -27,8 +28,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     child_row_id UUID,
     building_feature_id BIGINT NOT NULL,
     surface_feature_id BIGINT NOT NULL,
+    objectid TEXT,
     objectclass_id INT,
-    classname TEXT,
+    classname  VARCHAR(255),
     coord_dim INT,
     has_z BOOLEAN,
     geom geometry(POLYGONZ, {srid})
@@ -58,6 +60,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface (
   building_feature_id BIGINT,
   surface_feature_id  BIGINT,
 
+  objectid TEXT,
   objectclass_id INT,
   classname      VARCHAR(255),
 
@@ -104,6 +107,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   building_feature_id BIGINT NOT NULL,
   surface_feature_id  BIGINT NOT NULL,
 
+  objectid TEXT,
   objectclass_id INT,
   classname      VARCHAR(255),
 
@@ -180,6 +184,7 @@ DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_feature CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building_feature (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   building_feature_id BIGINT UNIQUE,
+  objectid TEXT,
   tabula_variant_code_id INTEGER,
   tabula_variant_code VARCHAR,
   construction_year INTEGER,

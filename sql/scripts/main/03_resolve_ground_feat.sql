@@ -20,6 +20,7 @@ single_ground AS (
   SELECT
     s.building_feature_id,
     s.surface_feature_id AS ground_id,
+    s.objectid,
     s.geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump s
   JOIN ground_counts gc
@@ -30,14 +31,14 @@ single_ground AS (
 ),
 
 walls AS (
-  SELECT building_feature_id, surface_feature_id, geom
+  SELECT building_feature_id, surface_feature_id, objectid, geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE classname = 'WallSurface'
     AND building_feature_id IN (SELECT building_feature_id FROM multi_ground_buildings)
 ),
 
 grounds AS (
-  SELECT building_feature_id, surface_feature_id, geom
+  SELECT building_feature_id, surface_feature_id, objectid, geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE classname = 'GroundSurface'
     AND building_feature_id IN (SELECT building_feature_id FROM multi_ground_buildings)
@@ -48,6 +49,8 @@ pairs AS (
   SELECT
     g.building_feature_id,
     g.surface_feature_id AS ground_id,
+    g.objectid,
+      -- compute shared boundary length in 2D (ignore Z to be more robust to minor vertical misalignments)
     ST_Length(
       ST_Intersection(
         ST_Boundary(ST_Buffer(ST_Force2D(g.geom), 0)),
@@ -126,7 +129,7 @@ winner_table AS (
 
 -- any multi-ground building that produced no winner (e.g., score_len never > 0)
 unresolved_multi_grounds AS (
-  SELECT g.building_feature_id, g.surface_feature_id AS ground_id, g.geom
+  SELECT g.building_feature_id, g.surface_feature_id AS ground_id, g.objectid, g.geom
   FROM grounds g
   LEFT JOIN winner_table w
     ON w.building_feature_id = g.building_feature_id
@@ -140,6 +143,7 @@ to_insert AS (
   SELECT
     w.building_feature_id,
     w.ground_id,
+    g.objectid,
     g.geom,
     w.score_len AS score,
     'ground_wall_shared_edge_len_2d' AS scoring_method
@@ -154,6 +158,7 @@ to_insert AS (
   SELECT
     sg.building_feature_id,
     sg.ground_id,
+    sg.objectid,
     sg.geom,
     NULL::double precision AS score,
     'only_ground_surface' AS scoring_method
@@ -165,6 +170,7 @@ to_insert AS (
   SELECT
     umg.building_feature_id,
     umg.ground_id,
+    umg.objectid,
     umg.geom,
     NULL::double precision AS score,
     'unresolved_no_positive_shared_len' AS scoring_method
@@ -176,6 +182,7 @@ to_insert_dedup AS (
   SELECT DISTINCT ON (ground_id)
     building_feature_id,
     ground_id,
+    objectid,
     geom,
     score,
     scoring_method
@@ -198,6 +205,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_resolved (
   lod,
   surface_feature_id,
   building_feature_id,
+  objectid,
   objectclass_id,
   classname,
   score,
@@ -208,6 +216,7 @@ SELECT
   {lod_level} AS lod,
   tid.ground_id AS surface_feature_id,
   tid.building_feature_id,
+  tid.objectid,
   710 AS objectclass_id,
   'GroundSurface' AS classname,
   tid.score,
@@ -218,6 +227,7 @@ ON CONFLICT (lod, surface_feature_id) DO UPDATE
 SET building_feature_id = EXCLUDED.building_feature_id,
     objectclass_id      = EXCLUDED.objectclass_id,
     classname           = EXCLUDED.classname,
+    objectid            = EXCLUDED.objectid,
     score               = EXCLUDED.score,
     scoring_method      = EXCLUDED.scoring_method,
     geom                = EXCLUDED.geom;
