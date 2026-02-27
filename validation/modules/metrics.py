@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 """
 Metrics module for calculating statistical measures on validation results.
 

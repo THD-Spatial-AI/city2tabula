@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 """
 Utility functions for loading data from City2TABULA and CityDB databases.
 

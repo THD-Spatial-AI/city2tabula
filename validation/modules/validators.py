@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 """
 Validators module for comparing City2TABULA calculated values with thematic data.
 
