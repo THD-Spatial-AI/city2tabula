@@ -3,6 +3,8 @@ package utils
 import (
 	"strings"
 	"time"
+
+	"github.com/THD-Spatial/City2TABULA/internal/config"
 )
 
 // PrintJobInfo prints detailed information about a job using basic types
@@ -39,13 +41,14 @@ func PrintPipelineInfo(pipelineID string, buildingIDs []int64, jobCount int) {
 	Info.Printf("")
 }
 
-func PrintPipelineQueueInfo(totalPipelines int, totalJobsInPipeline int) {
+func PrintPipelineQueueInfo(totalPipelines int, totalJobsInPipeline int, batchConfig *config.BatchConfig) {
 	Info.Printf("") // extra spacing before block
 	Info.Printf("Pipeline Queue Details:")
 	Info.Printf("%s", strings.Repeat("-", 40))
-	Info.Printf("Total Pipelines        : %d", totalPipelines)
-	Info.Printf("Total Jobs per Pipeline: %d", totalJobsInPipeline)
-	Info.Printf("Total Jobs             : %d", totalPipelines*totalJobsInPipeline)
+	Info.Printf("Total Pipelines         : %d", totalPipelines)
+	Info.Printf("Total Jobs per Pipeline : %d", totalJobsInPipeline)
+	Info.Printf("Total Jobs              : %d", totalPipelines*totalJobsInPipeline)
+	Info.Printf("Total Workers           : %d", batchConfig.Threads)
 	Info.Printf("%s", strings.Repeat("-", 40))
 	Info.Printf("")
 	Info.Printf("Extracting Features, this may take a while...")
