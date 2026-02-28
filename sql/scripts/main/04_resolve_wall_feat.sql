@@ -19,7 +19,7 @@ w AS (
   WHERE s.classname = 'WallSurface'
     AND s.surface_feature_id IN (
       SELECT DISTINCT c.surface_feature_id
-      FROM {city2tabula_schema}.{lod_schema}_child_feature c
+      FROM {city2tabula_schema}.{lod_schema}_child_feature_raw c
       WHERE c.lod = {lod_level}
         AND c.classname = 'WallSurface'
         AND c.building_feature_id IN {building_ids}

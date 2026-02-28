@@ -1,7 +1,7 @@
 WITH new_buildings AS (
   -- Select only buildings that haven't been processed yet
   SELECT DISTINCT building_feature_id
-  FROM {city2tabula_schema}.{lod_schema}_child_feature
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_raw
   WHERE building_feature_id IN {building_ids}
     AND building_feature_id NOT IN (
       SELECT DISTINCT building_feature_id
@@ -18,7 +18,7 @@ dumped AS (
     c.objectclass_id,
     c.classname AS classname,
     (ST_Dump(c.geom)).geom AS geom
-  FROM {city2tabula_schema}.{lod_schema}_child_feature c
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_raw c
   INNER JOIN new_buildings nb ON c.building_feature_id = nb.building_feature_id
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
