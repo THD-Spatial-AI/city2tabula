@@ -2,7 +2,7 @@ WITH
 -- 1) Roof ids involved in this batch (from stage-1 mapping)
 roof_ids AS MATERIALIZED (
   SELECT DISTINCT c.surface_feature_id AS roof_id
-  FROM {city2tabula_schema}.{lod_schema}_child_feature c
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_raw c
   WHERE c.lod = {lod_level}
     AND c.classname = 'RoofSurface'
     AND c.building_feature_id IN {building_ids}
@@ -11,8 +11,8 @@ roof_ids AS MATERIALIZED (
 -- 2) Candidate (roof -> building) links from dirty mapping (DEDUPED)
 roof_candidates AS MATERIALIZED (
   SELECT DISTINCT c.surface_feature_id AS roof_id, c.building_feature_id
-  FROM {city2tabula_schema}.{lod_schema}_child_feature c
-  JOIN roof_ids ri ON ri.roof_id = c.surface_feature_id
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_raw c
+  JOIN roof_ids r ON r.roof_id = c.surface_feature_id
   WHERE c.lod = {lod_level}
     AND c.classname = 'RoofSurface'
     AND c.building_feature_id IN {building_ids}

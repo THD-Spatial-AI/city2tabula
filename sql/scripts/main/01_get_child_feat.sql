@@ -5,11 +5,11 @@ WITH buildings AS (
   JOIN {lod_schema}.property p ON f.id = p.feature_id
     AND p.name = 'lod' || {lod_level} || 'Solid'
   WHERE objectclass_id  BETWEEN 900 AND 999 AND f.id NOT IN (
-    SELECT building_feature_id FROM {city2tabula_schema}.{lod_schema}_child_feature
+    SELECT building_feature_id FROM {city2tabula_schema}.{lod_schema}_child_feature_raw
   ) -- Exclude already processed buildings
   AND f.id IN {building_ids}
 )
-INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature (
+INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_raw (
     id,
     lod,
     building_feature_id,

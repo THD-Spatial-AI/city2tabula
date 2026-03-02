@@ -1,8 +1,8 @@
 -- ============================================================
 -- 1) Candidate mapping table (dirty / many-to-many)
 -- ============================================================
-DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature CASCADE;
-CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature (
+DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_raw CASCADE;
+CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_raw (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lod INT NOT NULL,
     building_feature_id BIGINT NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature (
 
 -- Prevent duplicate candidate edges
 CREATE UNIQUE INDEX IF NOT EXISTS ux_{lod_schema}_child_feature_pair
-  ON {city2tabula_schema}.{lod_schema}_child_feature (lod, building_feature_id, surface_feature_id);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw (lod, building_feature_id, surface_feature_id);
 
 
 
@@ -167,11 +167,11 @@ CREATE INDEX gix_{lod_schema}_resolved_geom
 
 -- Stage-1 mapping: candidate surfaces per building
 CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_feat_by_lod_class_building
-  ON {city2tabula_schema}.{lod_schema}_child_feature (lod, classname, building_feature_id);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw (lod, classname, building_feature_id);
 
 -- Stage-1 mapping: reverse lookup / claims per surface
 CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_feat_by_lod_class_surface
-  ON {city2tabula_schema}.{lod_schema}_child_feature (lod, classname, surface_feature_id);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw (lod, classname, surface_feature_id);
 
 -- Stage-3 surfaces: geometry lookup by (classname, surface_feature_id)
 CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_surface_by_class_surface
@@ -181,7 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_{lod_schema}_child_surface_by_class_surface
 -- Refresh planner stats (recommended after creating indexes)
 -- ------------------------------------------------------------
 ANALYSE {city2tabula_schema}.{lod_schema}_child_feature_resolved;
-ANALYSE {city2tabula_schema}.{lod_schema}_child_feature;
+ANALYSE {city2tabula_schema}.{lod_schema}_child_feature_raw;
 ANALYSE {city2tabula_schema}.{lod_schema}_child_feature_surface;
 
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_feature CASCADE;
@@ -238,11 +238,11 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_building_footprint_geometry_idx
 -- 7) Candidate table indexes (fix the ones you had)
 -- ============================================================
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_geom_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature USING GIST (geom);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw USING GIST (geom);
 
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_building_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature (building_feature_id);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw (building_feature_id);
 
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_idx
-  ON {city2tabula_schema}.{lod_schema}_child_feature (surface_feature_id);
+  ON {city2tabula_schema}.{lod_schema}_child_feature_raw (surface_feature_id);
 
