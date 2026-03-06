@@ -1,5 +1,7 @@
 # City2TABULA
 
+![logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
+
 [![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml)
 &nbsp;
 [![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)](https://city2tabula.readthedocs.io/en/latest/)
