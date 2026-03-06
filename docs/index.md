@@ -1,4 +1,10 @@
-# City2TABULA Documentation
+![city2tabula logo](assets/logo/svg/city2tabula_logo_complete.svg)
+
+[![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml)
+&nbsp;
+[![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)](https://city2tabula.readthedocs.io/en/latest/)
+&nbsp;
+[![GitHub release](https://img.shields.io/github/v/release/THD-Spatial/City2TABULA.svg)](https://github.com/THD-Spatial/City2TABULA/releases)
 
 !!! note
     This project is under active development and will be updated regularly.

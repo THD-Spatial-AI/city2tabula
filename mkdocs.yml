@@ -1,12 +1,10 @@
 # Project information
-site_name: THD-Spatial GitHub Template
-site_author: THD-Spatial Group
-site_description: >-
-  Template repository for open source projects in the THD-Spatial organization
-site_url: https://THD-Spatial.github.io/city2tabula
+site_name: THD-Spatial
+site_author: THD-Spatial
+site_url: https://github.com/thd-spatial
 
 # Repository
-repo_name: THD-Spatial/GitHub-Template
+repo_name: THD-Spatial/city2tabula
 repo_url: https://github.com/THD-Spatial/city2tabula
 edit_uri: edit/main/docs/
 
@@ -40,7 +38,7 @@ theme:
         name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
+      primary: black
       accent: indigo
       toggle:
         icon: material/toggle-switch
@@ -55,7 +53,7 @@ theme:
   font:
     text: Roboto
     code: Roboto Mono
-
+  logo: assets/logo/svg/city2tabula_logo_icon.svg
 # Plugins
 plugins:
   - search:
@@ -114,4 +112,4 @@ nav:
 
 # Copyright
 copyright: |
-  &copy; 2026 <a href="https://github.com/THD-Spatial"  target="_blank" rel="noopener">THD-Spatial Group</a>
+  &copy; 2026 <a href="https://github.com/thd-spatial"  target="_blank" rel="noopener">THD-Spatial</a>
