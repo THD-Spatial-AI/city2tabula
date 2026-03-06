@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 """
 Plots module for visualizing validation results.
 

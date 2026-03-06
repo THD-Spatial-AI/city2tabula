@@ -47,6 +47,9 @@ func normalizeCountryName(name string) string {
 func (c Config) Validate() error {
 	missing := []string{}
 
+	if strings.TrimSpace(c.DB.Name) == "" {
+		missing = append(missing, "DB_NAME")
+	}
 	if strings.TrimSpace(c.DB.Host) == "" {
 		missing = append(missing, "DB_HOST")
 	}

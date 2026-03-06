@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 """
 Generate LaTeX table rows (or full table) for Bavarian LoD2 descriptive stats,
 computed from the `thematic_value` column.

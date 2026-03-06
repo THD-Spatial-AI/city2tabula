@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 

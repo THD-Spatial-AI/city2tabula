@@ -1,3 +1,6 @@
+# Algorithm and validation methodology by the author.
+# Code implementation assisted by GitHub Copilot.
+
 import os
 import yaml
 from dotenv import load_dotenv

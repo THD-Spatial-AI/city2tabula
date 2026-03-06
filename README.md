@@ -1,4 +1,4 @@
-# City2TABULA
+![city2tabula logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
 
 [![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/city2tabula/actions/workflows/go.yml)
 &nbsp;
@@ -8,9 +8,9 @@
 
 City2TABULA is a high-performance, Go-based data preparation tool for 3D building datasets stored in PostgreSQL/PostGIS using CityDB schemas. Its primary purpose is to extract, normalise, and enrich geometric and spatial attributes from LoD2 and LoD3 building models, enabling downstream tasks such as building typology classification and heating demand estimation.
 
-The tool is designed as an upstream component within a larger research and modelling pipeline, where prepared building-level features are later consumed by machine learning models or energy calculation services (for example, TABULA-based workflows).
+The tool is designed as an upstream component within a larger research and modelling pipeline, where prepared building-level features are later consumed by machine learning models or energy calculation services, for example TABULA-based workflows.
 
-City2TABULA focuses on scalable, database-centric processing of large national or city-scale datasets, avoiding country-specific assumptions and minimising manual intervention.
+City2TABULA focuses on scalable, database-centric processing of large national- or city-scale datasets, avoiding country-specific assumptions and minimising manual intervention.
 
 ---
 
