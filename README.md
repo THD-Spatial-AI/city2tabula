@@ -16,8 +16,7 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 ## Getting started
 
-- Setup & installation guide (Docker + manual): [docs/getting-started/setup.md](docs/installation/setup.md)
-- Full documentation: [city2tabula docs](https://thd-spatial.github.io/city2tabula)
+For setup and installation guide, please refer to [docs/getting-started/setup.md](https://thd-spatial.github.io/city2tabula/installation/setup/)
 
 Local docs preview (MkDocs):
 
