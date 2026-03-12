@@ -7,44 +7,48 @@ help: ## Show this help message
 	@echo "City2TABULA Make Commands"
 	@echo "========================"
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "Recommended Workflow:"
+	@echo "  1. make configure        - Set country, DB credentials in environment/docker.env"
+	@echo "  2. make build            - Build the Docker image"
+	@echo "  3. make create-db        - Create database schemas and import CityDB data"
+	@echo "     (If database already exists, run: make reset-db)"
+	@echo "  4. make extract-features - Run the feature extraction pipeline"
+	@echo ""
 
 ##@ Docker Environment
 build: ## Build the Docker environment
-	cd environment && docker compose build --no-cache
+	cd environment && docker compose --env-file docker.env build --no-cache
 
 up: ## Start the Docker environment
-	cd environment && docker compose up -d
+	cd environment && docker compose --env-file docker.env up -d
 
 down: ## Stop the Docker environment
-	cd environment && docker compose down
+	cd environment && docker compose --env-file docker.env down
 
 logs: ## View Docker logs
-	cd environment && docker compose logs -f
+	cd environment && docker compose --env-file docker.env logs -f
 
 status: ## Check container status
-	cd environment && docker compose ps
+	cd environment && docker compose --env-file docker.env ps
 
 ##@ Application Commands
 dev: ## Start development environment with shell
-	cd environment && docker compose up -d && docker exec -it city2tabula-environment bash
+	cd environment && docker compose --env-file docker.env up -d && docker exec -it city2tabula-environment bash
 
 create-db: up ## Create database and setup schemas
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -create_db
+	cd environment && docker exec -it city2tabula-environment ./city2tabula -create-db
 
 extract-features: up ## Extract building features
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -extract_features
+	cd environment && docker exec -it city2tabula-environment ./city2tabula -extract-features
 
 reset-db: up ## Reset the entire database
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset_all
+	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset-all
 
 ##@ Complete Workflows
 configure: ## Interactive configuration: select country and enter password
 	@echo "City2TABULA Interactive Configuration"
 	@echo "========================================"
-	@echo ""
-	@echo "Copying base environment configuration..."
-	@cp environment/docker.env .env
-	@echo "Base configuration copied!"
 	@echo ""
 	@echo "Available Countries:"
 	@echo "======================"
@@ -68,7 +72,7 @@ configure: ## Interactive configuration: select country and enter password
 	@echo "18) sweden        - SRID: 3006  (SWEREF99 TM)"
 	@echo "19) united_kingdom - SRID: 27700 (OSGB 1936 / British National Grid)"
 	@echo ""
-	@read -p "Select country (1-19): " choice; \
+	@read -p "For which country would you like to configure City2TABULA? Enter a number (1-19): " choice; \
 	case $$choice in \
 		1) COUNTRY="austria"; SRID="31256"; SRS_NAME="MGI / Austria GK East" ;; \
 		2) COUNTRY="belgium"; SRID="31370"; SRS_NAME="Belgian Lambert 72" ;; \
@@ -96,8 +100,7 @@ configure: ## Interactive configuration: select country and enter password
 	echo ""; \
 	echo "Database Configuration:"; \
 	echo "========================="; \
-	echo -n "Enter PostgreSQL username [default: postgres]: "; \
-	read pg_user; \
+	read -p "Enter PostgreSQL username [default: postgres]: " pg_user; \
 	if [ -z "$$pg_user" ]; then pg_user="postgres"; fi; \
 	echo -n "Enter PostgreSQL password: "; \
 	stty -echo; \
@@ -105,19 +108,19 @@ configure: ## Interactive configuration: select country and enter password
 	stty echo; \
 	echo ""; \
 	echo ""; \
-	echo "Updating configuration file..."; \
+	echo "Updating environment/docker.env..."; \
 	if [ "$$(uname)" = "Darwin" ]; then \
-		sed -i '' "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" .env; \
-		sed -i '' "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" .env; \
-		sed -i '' "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" .env; \
-		sed -i '' "s/^DB_USER=.*/DB_USER=$$pg_user/" .env; \
-		sed -i '' "s/<your_pg_password>/$$pg_password/" .env; \
+		sed -i '' "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" environment/docker.env; \
+		sed -i '' "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" environment/docker.env; \
+		sed -i '' "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" environment/docker.env; \
+		sed -i '' "s/^DB_USER=.*/DB_USER=$$pg_user/" environment/docker.env; \
+		sed -i '' "s/^DB_PASSWORD=.*/DB_PASSWORD=$$pg_password/" environment/docker.env; \
 	else \
-		sed -i "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" .env; \
-		sed -i "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" .env; \
-		sed -i "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" .env; \
-		sed -i "s/^DB_USER=.*/DB_USER=$$pg_user/" .env; \
-		sed -i "s/<your_pg_password>/$$pg_password/" .env; \
+		sed -i "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" environment/docker.env; \
+		sed -i "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" environment/docker.env; \
+		sed -i "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" environment/docker.env; \
+		sed -i "s/^DB_USER=.*/DB_USER=$$pg_user/" environment/docker.env; \
+		sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$$pg_password/" environment/docker.env; \
 	fi; \
 	echo "Configuration completed!"; \
 	echo ""; \
@@ -129,22 +132,21 @@ configure: ## Interactive configuration: select country and enter password
 	echo "Database: Configured"; \
 	echo ""; \
 	echo "Next steps:"; \
-	echo "- Place your data in data/lod2/$$COUNTRY/ and data/lod3/$$COUNTRY/"
+	echo "- Place your data in data/lod2/$$COUNTRY/ and data/lod3/$$COUNTRY/"; \
 	echo "- Run 'make up' to start containers"; \
-	echo "- Run 'make dev' to access development shell"; \
+	echo "- Run 'make dev' to access development shell"
 
 
-setup: build configure ## Build environment, copy .env, and start containers
+setup: build configure ## Build environment, configure, and start containers
 	@$(MAKE) up
 	@echo "Environment is ready! Run 'make dev' to access the shell"
-	@echo "Don't forget to edit .env with your PostgreSQL password if you haven't already"
 
 quick-start: setup create-db extract-features ## Complete setup and processing
 	@echo "Quick start complete!"
 
 ##@ Cleanup
 clean: ## Stop containers and remove volumes
-	cd environment && docker compose down -v
+	cd environment && docker compose --env-file docker.env down -v
 
 clean-all: ## Remove containers, volumes, and images
-	cd environment && docker compose down -v --rmi all
+	cd environment && docker compose --env-file docker.env down -v --rmi all
