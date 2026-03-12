@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/THD-Spatial/City2TABULA/internal/config"
@@ -63,6 +62,14 @@ func main() {
 	if *createDB {
 		utils.Info.Println("Creating complete City2TABULA database...")
 		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				utils.Error.Println("Failed to create database:", err)
+				utils.Info.Println("")
+				utils.Info.Println("The database appears to have been set up already.")
+				utils.Info.Println("To start fresh, run:  ./city2tabula --reset-all  (or 'make reset-db')")
+				utils.Info.Println("To re-extract only:   ./city2tabula -extract-features  (or 'make extract-features')")
+				os.Exit(1)
+			}
 			utils.Error.Fatalf("Failed to create database: %v", err)
 		}
 		utils.Info.Println("Database creation completed successfully")
@@ -132,8 +139,7 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	}
 
 	// Check if there are any buildings to process
-	totalBuildings := len(lod2BldIDs) + len(lod3BldIDs)
-	if totalBuildings == 0 {
+	if len(lod2BldIDs)+len(lod3BldIDs) == 0 {
 		utils.Warn.Println("No buildings found in either LOD2 or LOD3 schemas. Nothing to extract.")
 		return nil
 	}
@@ -158,29 +164,8 @@ func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	if pipQueue.Len() > 0 {
 		utils.PrintPipelineQueueInfo(pipQueue.Len(), len(pipQueue.Peek().Jobs), config.Batch)
 	} else {
-		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found. Check batch creation logic.")
-		// Continue anyway - workers will just have no work to do
+		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found.")
 	}
 
-	// Create pipeline channel
-	pipChan := make(chan *process.Pipeline, pipQueue.Len())
-	for !pipQueue.IsEmpty() {
-		pipeline := pipQueue.Dequeue()
-		if pipeline != nil {
-			pipChan <- pipeline
-		}
-	}
-	close(pipChan)
-
-	// Start workers
-	numWorkers := config.Batch.Threads
-	var wg sync.WaitGroup
-	for i := 1; i <= numWorkers; i++ {
-		wg.Add(1)
-		worker := process.NewWorker(i)
-		go worker.Start(pipChan, pool, &wg, config)
-	}
-	wg.Wait()
-
-	return nil
+	return process.RunPipelineQueue(pipQueue, pool, config)
 }

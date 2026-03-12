@@ -108,5 +108,11 @@ func ExecuteCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) err
 	if len(out) > 0 {
 		Debug.Printf("psql output:\n%s", string(out))
 	}
-	return err
+	if err != nil {
+		if strings.Contains(string(out), "already exists") {
+			return fmt.Errorf("schema already exists (psql output: %s): %w", strings.TrimSpace(string(out)), err)
+		}
+		return fmt.Errorf("failed to execute CityDB script %s: %w", sqlFilePath, err)
+	}
+	return nil
 }

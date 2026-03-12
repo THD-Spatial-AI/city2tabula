@@ -31,6 +31,13 @@ echo ============================
 echo.
 echo Usage: setup.bat ^<command^>
 echo.
+echo Recommended Workflow:
+echo   1. setup.bat configure        - Set country, DB credentials in environment\docker.env
+echo   2. setup.bat build            - Build the Docker image
+echo   3. setup.bat create-db        - Create database schemas and import CityDB data
+echo      (If database already exists, run: setup.bat reset-db)
+echo   4. setup.bat extract-features - Run the feature extraction pipeline
+echo.
 echo Docker Environment:
 echo   build            Build the Docker environment
 echo   up               Start the Docker environment
@@ -47,7 +54,7 @@ echo   version (v)      Check City2TABULA version
 echo.
 echo Complete Workflows:
 echo   configure        Interactive setup: select country and enter password
-echo   configure-manual Copy docker.env to .env for manual editing
+echo   configure-manual Instructions for manual editing of docker.env
 echo   setup            Build environment, configure, and start containers
 echo   quick-start      Complete setup and processing
 echo.
@@ -56,8 +63,9 @@ echo   clean            Stop containers and remove volumes
 echo   clean-all        Remove containers, volumes, and images
 echo.
 echo Examples:
-echo   setup.bat setup
-echo   setup.bat dev
+echo   setup.bat configure
+echo   setup.bat build
+echo   setup.bat create-db
 echo   setup.bat create-db
 goto end
 
@@ -92,7 +100,7 @@ echo 19) united_kingdom - SRID: 27700 (OSGB 1936 / British National Grid)
 echo.
 
 :country_loop
-set /p country_choice="Select country (1-19): "
+set /p country_choice="For which country would you like to configure City2TABULA? Enter a number (1-19): "
 
 if "%country_choice%"=="1" (
     set COUNTRY=austria
@@ -231,14 +239,14 @@ set /p pg_password=<temp_password.txt
 del temp_password.txt
 
 echo.
-echo Updating configuration file...
+echo Updating environment\docker.env...
 
-REM Update .env file using PowerShell for reliable text replacement
-powershell -Command "(Get-Content docker.env) -replace 'COUNTRY=germany', 'COUNTRY=%COUNTRY%' | Set-Content docker.env"
-powershell -Command "(Get-Content docker.env) -replace 'CITYDB_SRID=25832', 'CITYDB_SRID=%SRID%' | Set-Content docker.env"
-powershell -Command "(Get-Content docker.env) -replace 'CITYDB_SRS_NAME=ETRS89 / UTM zone 32N', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content docker.env"
-powershell -Command "(Get-Content docker.env) -replace 'DB_USER=postgres', 'DB_USER=%pg_user%' | Set-Content docker.env"
-powershell -Command "(Get-Content docker.env) -replace '<your_pg_password>', '%pg_password%' | Set-Content docker.env"
+REM Update docker.env file using PowerShell for reliable text replacement
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^COUNTRY=.*', 'COUNTRY=%COUNTRY%' | Set-Content 'environment\docker.env'"
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SRID=.*', 'CITYDB_SRID=%SRID%' | Set-Content 'environment\docker.env'"
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SRS_NAME=.*', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content 'environment\docker.env'"
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_USER=.*', 'DB_USER=%pg_user%' | Set-Content 'environment\docker.env'"
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=%pg_password%' | Set-Content 'environment\docker.env'"
 
 echo Configuration completed!
 echo.
@@ -251,13 +259,14 @@ echo Database: Configured
 echo.
 echo Next steps:
 echo - Place your data in data\lod2\%COUNTRY%\ and data\lod3\%COUNTRY%\
-echo - Run 'setup.bat up' to start containers
-echo - Run 'setup.bat dev' to access development shell
+echo - Run 'setup.bat build' to build the Docker image
+echo - Run 'setup.bat create-db' to create database and import data
+echo - Run 'setup.bat extract-features' to extract building features
 goto end
 
 :configure-manual
 echo Manual configuration mode...
-echo Copying environment configuration...
+echo Please edit environment\docker.env manually:
 copy environment\docker.env .env
 echo .env file created!
 echo Please edit .env manually:
@@ -274,28 +283,28 @@ goto end
 :build
 echo Building Docker environment...
 cd environment
-docker compose build --no-cache
+docker compose --env-file docker.env build --no-cache
 cd ..
 goto end
 
 :up
 echo Starting Docker environment...
 cd environment
-docker compose up -d
+docker compose --env-file docker.env up -d
 cd ..
 goto end
 
 :down
 echo Stopping Docker environment...
 cd environment
-docker compose down
+docker compose --env-file docker.env down
 cd ..
 goto end
 
 :dev
 echo Starting development environment...
 cd environment
-docker compose up -d
+docker compose --env-file docker.env up -d
 docker exec -it city2tabula-environment bash
 cd ..
 goto end
@@ -304,7 +313,7 @@ goto end
 call :up
 echo Creating database and setting up schemas...
 cd environment
-docker exec -it city2tabula-environment ./city2tabula -create_db
+docker exec -it city2tabula-environment ./city2tabula -create-db
 cd ..
 goto end
 
@@ -312,7 +321,7 @@ goto end
 call :up
 echo Extracting building features...
 cd environment
-docker exec -it city2tabula-environment ./city2tabula -extract_features
+docker exec -it city2tabula-environment ./city2tabula -extract-features
 cd ..
 goto end
 
@@ -320,7 +329,7 @@ goto end
 call :up
 echo Resetting the entire database...
 cd environment
-docker exec -it city2tabula-environment ./city2tabula -reset_all
+docker exec -it city2tabula-environment ./city2tabula -reset-all
 cd ..
 goto end
 
@@ -354,28 +363,28 @@ goto end
 :status
 echo Checking container status...
 cd environment
-docker compose ps
+docker compose --env-file docker.env ps
 cd ..
 goto end
 
 :logs
 echo Viewing Docker logs...
 cd environment
-docker compose logs -f
+docker compose --env-file docker.env logs -f
 cd ..
 goto end
 
 :clean
 echo Stopping containers and removing volumes...
 cd environment
-docker compose down -v
+docker compose --env-file docker.env down -v
 cd ..
 goto end
 
 :clean-all
 echo Removing containers, volumes, and images...
 cd environment
-docker compose down -v --rmi all
+docker compose --env-file docker.env down -v --rmi all
 cd ..
 goto end
 

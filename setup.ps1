@@ -12,6 +12,13 @@ function Show-Help {
     Write-Host ""
     Write-Host "Usage: .\setup.ps1 <command>" -ForegroundColor Yellow
     Write-Host ""
+    Write-Host "Recommended Workflow:" -ForegroundColor Magenta
+    Write-Host "  1. .\setup.ps1 configure        - Set country, DB credentials in environment\docker.env"
+    Write-Host "  2. .\setup.ps1 build            - Build the Docker image"
+    Write-Host "  3. .\setup.ps1 create-db        - Create database schemas and import CityDB data"
+    Write-Host "     (If database already exists, run: .\setup.ps1 reset-db)"
+    Write-Host "  4. .\setup.ps1 extract-features - Run the feature extraction pipeline"
+    Write-Host ""
     Write-Host "Docker Environment:" -ForegroundColor Green
     Write-Host "  build            Build the Docker environment"
     Write-Host "  up               Start the Docker environment"
@@ -24,11 +31,11 @@ function Show-Help {
     Write-Host "  create-db        Create database and setup schemas"
     Write-Host "  extract-features Extract building features"
     Write-Host "  reset-db         Reset the entire database"
-    Write-Host "  version (v)      Check City2TABULA version" -ForegroundColor Green
+    Write-Host "  version (v)      Check City2TABULA version"
     Write-Host ""
     Write-Host "Complete Workflows:" -ForegroundColor Green
     Write-Host "  configure        Interactive setup: select country and enter password"
-    Write-Host "  configure-manual Copy docker.env to .env for manual editing"
+    Write-Host "  configure-manual Instructions for manual editing of docker.env"
     Write-Host "  setup            Build environment, configure, and start containers"
     Write-Host "  quick-start      Complete setup and processing"
     Write-Host ""
@@ -37,8 +44,8 @@ function Show-Help {
     Write-Host "  clean-all        Remove containers, volumes, and images"
     Write-Host ""
     Write-Host "Examples:" -ForegroundColor Yellow
-    Write-Host "  .\setup.ps1 setup"
-    Write-Host "  .\setup.ps1 dev"
+    Write-Host "  .\setup.ps1 configure"
+    Write-Host "  .\setup.ps1 build"
     Write-Host "  .\setup.ps1 create-db"
     Write-Host "  .\setup.ps1 version"
     Write-Host "  .\setup.ps1 v"
@@ -81,7 +88,7 @@ function Invoke-Configure {
     Write-Host ""
 
     do {
-        $countryChoice = Read-Host "Select country (1-19)"
+        $countryChoice = Read-Host "For which country would you like to configure City2TABULA? Enter a number (1-19):"
         $countryChoice = [int]$countryChoice -as [int]
 
         if ($countries.ContainsKey($countryChoice)) {
@@ -121,14 +128,14 @@ function Invoke-Configure {
     Write-Host ""
     Write-Host "Updating configuration file..." -ForegroundColor Blue
 
-    # Update docker.env file
-    $content = Get-Content "docker.env"
-    $content = $content -replace "COUNTRY=germany", "COUNTRY=$($selectedCountry.Name)"
-    $content = $content -replace "CITYDB_SRID=25832", "CITYDB_SRID=$($selectedCountry.SRID)"
-    $content = $content -replace "CITYDB_SRS_NAME=ETRS89 / UTM zone 32N", "CITYDB_SRS_NAME=$($selectedCountry.SRS)"
-    $content = $content -replace "DB_USER=postgres", "DB_USER=$pgUser"
-    $content = $content -replace "<your_pg_password>", $pgPasswordPlain
-    $content | Set-Content "docker.env"
+    # Update environment/docker.env file
+    $content = Get-Content "environment\docker.env"
+    $content = $content -replace "^COUNTRY=.*", "COUNTRY=$($selectedCountry.Name)"
+    $content = $content -replace "^CITYDB_SRID=.*", "CITYDB_SRID=$($selectedCountry.SRID)"
+    $content = $content -replace "^CITYDB_SRS_NAME=.*", "CITYDB_SRS_NAME=$($selectedCountry.SRS)"
+    $content = $content -replace "^DB_USER=.*", "DB_USER=$pgUser"
+    $content = $content -replace "^DB_PASSWORD=.*", "DB_PASSWORD=$pgPasswordPlain"
+    $content | Set-Content "environment\docker.env"
 
     Write-Host "Configuration completed!" -ForegroundColor Green
     Write-Host ""
@@ -141,8 +148,9 @@ function Invoke-Configure {
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "- Place your data in data\lod2\$($selectedCountry.Name)\ and data\lod3\$($selectedCountry.Name)\"
-    Write-Host "- Run '.\setup.ps1 up' to start containers"
-    Write-Host "- Run '.\setup.ps1 dev' to access development shell"
+    Write-Host "- Run '.\setup.ps1 build' to build the Docker image"
+    Write-Host "- Run '.\setup.ps1 create-db' to create database and import data"
+    Write-Host "- Run '.\setup.ps1 extract-features' to extract building features"
 }
 
 function Invoke-ConfigureManual {
@@ -161,28 +169,28 @@ function Invoke-ConfigureManual {
 function Invoke-Build {
     Write-Host "Building Docker environment..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose build --no-cache
+    docker compose --env-file docker.env build --no-cache
     Set-Location ".."
 }
 
 function Invoke-Up {
     Write-Host "Starting Docker environment..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose up -d
+    docker compose --env-file docker.env up -d
     Set-Location ".."
 }
 
 function Invoke-Down {
     Write-Host "Stopping Docker environment..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose down
+    docker compose --env-file docker.env down
     Set-Location ".."
 }
 
 function Invoke-Dev {
     Write-Host "Starting development environment..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose up -d
+    docker compose --env-file docker.env up -d
     docker exec -it city2tabula-environment bash
     Set-Location ".."
 }
@@ -191,7 +199,7 @@ function Invoke-CreateDb {
     Invoke-Up
     Write-Host "Creating database and setting up schemas..." -ForegroundColor Blue
     Set-Location "environment"
-    docker exec -it city2tabula-environment ./city2tabula -create_db
+    docker exec -it city2tabula-environment ./city2tabula -create-db
     Set-Location ".."
 }
 
@@ -199,7 +207,7 @@ function Invoke-ExtractFeatures {
     Invoke-Up
     Write-Host "Extracting building features..." -ForegroundColor Blue
     Set-Location "environment"
-    docker exec -it city2tabula-environment ./city2tabula -extract_features
+    docker exec -it city2tabula-environment ./city2tabula -extract-features
     Set-Location ".."
 }
 
@@ -207,7 +215,7 @@ function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
     Set-Location "environment"
-    docker exec -it city2tabula-environment ./city2tabula -reset_all
+    docker exec -it city2tabula-environment ./city2tabula -reset-all
     Set-Location ".."
 }
 
@@ -242,28 +250,28 @@ function Invoke-QuickStart {
 function Invoke-Status {
     Write-Host "Checking container status..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose ps
+    docker compose --env-file docker.env ps
     Set-Location ".."
 }
 
 function Invoke-Logs {
     Write-Host "Viewing Docker logs..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose logs -f
+    docker compose --env-file docker.env logs -f
     Set-Location ".."
 }
 
 function Invoke-Clean {
     Write-Host "Stopping containers and removing volumes..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose down -v
+    docker compose --env-file docker.env down -v
     Set-Location ".."
 }
 
 function Invoke-CleanAll {
     Write-Host "Removing containers, volumes, and images..." -ForegroundColor Blue
     Set-Location "environment"
-    docker compose down -v --rmi all
+    docker compose --env-file docker.env down -v --rmi all
     Set-Location ".."
 }
 
