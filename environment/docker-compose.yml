@@ -13,5 +13,5 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Linux compatibility
     ports:
-      - "8080:8080"        # map port 8080 for application access
+      - "${HOST_PORT}:5000"        # map host port (configurable) to container port 8080
     command: bash         # start an interactive shell for development
