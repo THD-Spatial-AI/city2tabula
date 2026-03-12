@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/THD-Spatial/City2TABULA/internal/config"
 	"github.com/THD-Spatial/City2TABULA/internal/importer"
@@ -23,7 +22,6 @@ type SetupOperation struct {
 
 // CreateCompleteDatabase creates the complete City2TABULA database with CityDB infrastructure
 func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
-	utils.Info.Println("Creating complete City2TABULA database...")
 
 	// Step 1: Create CityDB infrastructure
 	if err := CreateCityDB(config); err != nil {
@@ -40,7 +38,6 @@ func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to import data: %w", err)
 	}
 
-	utils.Debug.Println("Complete database created successfully")
 	return nil
 }
 
@@ -99,23 +96,9 @@ func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to setup main DB queue: %w", err)
 	}
 
-	mainPipelineChan := make(chan *process.Pipeline, mainPipelineQueue.Len())
-	for !mainPipelineQueue.IsEmpty() {
-		pipeline := mainPipelineQueue.Dequeue()
-		if pipeline != nil {
-			mainPipelineChan <- pipeline
-		}
+	if err := process.RunPipelineQueue(mainPipelineQueue, conn, config); err != nil {
+		return fmt.Errorf("main DB setup failed: %w", err)
 	}
-	close(mainPipelineChan)
-
-	numWorkers := config.Batch.Threads
-	var wg sync.WaitGroup
-	for i := 1; i <= numWorkers; i++ {
-		wg.Add(1)
-		worker := process.NewWorker(i)
-		go worker.Start(mainPipelineChan, conn, &wg, config)
-	}
-	wg.Wait()
 
 	utils.Info.Println("Main database setup completed")
 
@@ -125,21 +108,9 @@ func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to setup supplementary DB queue: %w", err)
 	}
 
-	supplementaryPipelineChan := make(chan *process.Pipeline, supplementaryPipelineQueue.Len())
-	for !supplementaryPipelineQueue.IsEmpty() {
-		pipeline := supplementaryPipelineQueue.Dequeue()
-		if pipeline != nil {
-			supplementaryPipelineChan <- pipeline
-		}
+	if err := process.RunPipelineQueue(supplementaryPipelineQueue, conn, config); err != nil {
+		return fmt.Errorf("supplementary DB setup failed: %w", err)
 	}
-	close(supplementaryPipelineChan)
-
-	for i := 1; i <= numWorkers; i++ {
-		wg.Add(1)
-		worker := process.NewWorker(i)
-		go worker.Start(supplementaryPipelineChan, conn, &wg, config)
-	}
-	wg.Wait()
 
 	utils.Info.Println("Supplementary database setup completed")
 
