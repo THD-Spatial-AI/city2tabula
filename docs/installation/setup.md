@@ -1,15 +1,15 @@
-# Setup & Installation
+# Setup and Usage
 
 For using the City2TABULA tool, you have two main options: the recommended Docker-based setup for ease of use and consistency, or a manual installation for advanced users who prefer direct control over the environment for development purposes.
 
-## Docker (recommended)
+## Docker Setup (recommended)
 
-### Prerequisites
+### Prerequisites (Docker)
 
-- Docker 20.10+
-- Docker Compose 2.0+
-- Linux/macOS: `make` (usually pre-installed)
-- Windows: use `setup.bat` for Command Prompt or `setup.ps1` for PowerShell
+| Requirement         | Version | Notes | Download Link |
+| ------------------- | ------- | ----- | ------------- |
+| Docker              | 20.10+  |       | [docker.com](https://www.docker.com/get-started) |
+| Docker Compose      | 2.0+    |       | [docs.docker.com](https://docs.docker.com/compose/install/) |
 
 ### Step 1. Download release
 
@@ -24,12 +24,23 @@ cd city2tabula-<version>
 Place your 3D city data file (.gml or .json) under `data/` directory before starting the containers:
 
 
-```text
+```bash
 data/
 ├── lod2/<country>/*(.gml | .json)
-├── lod3/<country>/*(.gml | .json)
-└── tabula/<country>.csv
+└── lod3/<country>/*(.gml | .json)
 ```
+!!! example
+    For example, if you have a LoD2 CityGML file for Germany, you would place it in `data/lod2/germany/` directory. If you have a corresponding LoD3 file, it would go in `data/lod3/germany/`. The directory structure should look like this:
+
+    ```bash
+    data/
+    ├── lod2/
+    │   └── germany/
+    │       └── germany_lod2.gml
+    └── lod3/
+        └── germany/
+            └── germany_lod3.gml
+    ```
 
 !!! note
     If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
@@ -51,47 +62,79 @@ setup.bat setup
 ./setup.ps1 setup
 ```
 
-
-## Option B: Development Setup (manual installation)
-
-> [!WARNING]
-> This setup is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended. Local installation on Windows might require additional configuration (e.g., WSL2, manual Java setup) and is not covered in this guide.
-
-### Dependencies
-
-- **Go**: 1.21 or later (Download from [golang.org](https://go.dev/doc/install))
-
-- **PostgreSQL**: 17+ with PostGIS 3.5+ (Download from [postgresql.org](https://www.postgresql.org/download/))
-
-- **PostGIS**: 3.5+ (Download from [postgis.net](https://postgis.net/install/))
-
-- **Java**: 17+ for CityDB Tool (Download from [oracle.com](https://www.oracle.com/java/technologies/downloads/))
-
-- **Git**: 2.25+ for source management (Download from [git-scm.com](https://git-scm.com/downloads))
-
-- **CityDB Importer/Exporter**: v1.1.0 (Download from [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.1.0))
-    - Unzip the downloaded file and place the `citydb-tool` directory in a known location (e.g., `/opt/citydb-tool` on Linux or `C:\Program Files\citydb-tool` on Windows).
-
-### Build
-
-Navigate to the project directory and build the Go application:
+### Step 4. Create database
+After the setup is complete, you can create the database with:
 
 ```bash
-go build -o city2tabula ./cmd
-./city2tabula -help
+# Linux/macOS
+make create-db
+
+# Windows (Command Prompt)
+setup.bat create-db
+
+# Windows (PowerShell)
+./setup.ps1 create-db
 ```
 
-### Configuration
+!!! note
+    If you have already created the database, you will need to change the database name or reset the existing database before running the above command again.
+    To change the database name update environment configuration in `docker.env` file. To reset the database, use the following command:
 
-Create a `.env` in the project root directory and set at least:
+    ```bash
+    # Linux/macOS
+    make configure
 
-- `COUNTRY`
-- DB connection settings (`DB_NAME`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`)
-- CityDB tool location + CRS settings (`CITYDB_TOOL_PATH`, `CITYDB_SRID`, `CITYDB_SRS_NAME`)
+    # Windows (Command Prompt)
+    setup.bat configure
 
-### Run
+    # Windows (PowerShell)
+    ./setup.ps1 configure
+    ```
+
+    To reset the database, use:
+
+    ```bash
+    # Linux/macOS
+    make reset-db
+
+    # Windows (Command Prompt)
+    setup.bat reset-db
+
+    # Windows (PowerShell)
+    ./setup.ps1 reset-db
+    ```
+
+### Step 5. Run feature extraction
+
+Final step is to run the feature extraction process, which will execute the full City2TABULA pipeline and generate the output data in the database. Use the following command:
 
 ```bash
-./city2tabula --create-db
-./city2tabula --extract-features
+
+# Linux/macOS
+make extract-features
+
+# Windows (Command Prompt)
+setup.bat extract-features
+
+# Windows (PowerShell)
+./setup.ps1 extract-features
 ```
+
+## Development Setup
+
+!!! warning
+    This setup is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended. Local installation on Windows might require additional configuration (e.g., WSL2, manual Java setup) and is not covered in this guide.
+
+### Prerequisites (dev)
+
+| Requirement | Version | Notes | Download Link |
+| ----------- | ------- | ----- | ------------- |
+| Go          | 1.21+   | required for City2TABULA | [golang.org](https://go.dev/doc/install)                                                           |
+| PostgreSQL                 | 17+     | required for City2TABULA & CityDB Tool     | [postgresql.org](https://www.postgresql.org/download/)                                             |
+| PostGIS                    | 3.5+    | required for working with spatial data | [postgis.net](https://postgis.net/install/)                                                        |
+| Java                       | 17+  | required for CityDB Tool| [oracle.com](https://www.oracle.com/java/technologies/downloads/)                                  |
+| Git                        | 2.25+   | required for City2TABULA | [git-scm.com](https://git-scm.com/downloads)                                                       |
+| CityDB Importer/Exporter   | v1.1.0 | Unzip and place the `citydb-tool` directory at your preferred location. | [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.1.0)                          |
+
+!!! note
+    Steps for local development setup will be added in future updates. For now, refer to the Docker setup instructions for a streamlined installation process.

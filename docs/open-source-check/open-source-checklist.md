@@ -162,8 +162,8 @@ These files are not always required, but they improve project quality, collabora
 
 Once all required items are completed, the repository meets the THD-Spatial minimum readiness standard for public release.
 
-- **Date completed:** `DD.MM.YYYY`
-- **Reviewed by:** `Name(s)`
+- **Date completed:** `14.03.2026`
+- **Reviewed by:** `Jay Ravani` (THD-Spatial Maintainer)
 
 ---
 
