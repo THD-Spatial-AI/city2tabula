@@ -1,3 +1,164 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f2274ed5b4ebfc2401df230ad3a84f5860b6e4196f13486423aa5e161472fa6c
-size 4760
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Go Binary",
+      "type": "shell",
+      "command": "go",
+      "args": ["build", "-o", "city2tabula", "./cmd"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"],
+      "detail": "Compiles the Go program into an executable binary."
+    },
+    {
+      "label": "Get Help for City2TABULA",
+      "type": "shell",
+      "command": "go",
+      "args": ["run", "./cmd", "-help"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"],
+      "detail": "Compiles the Go program into an executable binary."
+    },
+    {
+      "label": "Create Complete Database",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula -create-db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Creates the complete City2TABULA database (CityDB infrastructure + schemas + data import)."
+    },
+    {
+      "label": "Reset Complete Database",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Reset everything: drop all schemas and recreate the complete database."
+    },
+    {
+      "label": "Reset CityDB Only",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-citydb",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)."
+    },
+    {
+      "label": "Reset City2TABULA Schemas Only",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-city2tabula",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Reset only City2TABULA schemas (preserve CityDB infrastructure)."
+    },
+    {
+      "label": "Extract Features",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula -extract-features",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Run the feature extraction pipeline."
+    },
+    {
+      "label": "Legacy: Reset City2TABULA DB",
+      "type": "shell",
+      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-db",
+      "group": "test",
+      "dependsOn": "Build Go Binary",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Legacy command: same as 'Reset Complete Database'."
+    },
+    {
+      "label": "Run rtd server",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/docs && sphinx-autobuild source build/html",
+      "problemMatcher": [],
+      "group": {
+          "kind": "build",
+          "isDefault": true
+      },
+      "detail": "Start the Read the Docs development server with auto-rebuild."
+    },
+    {
+      "label": "Run MkDocs server",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "python -m pip install -r docs/requirements.txt && python -m mkdocs serve"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "detail": "Start the MkDocs development server with live reload."
+    }
+  ]
+}
