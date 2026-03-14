@@ -15,7 +15,10 @@ City2TABULA is a Go-based CLI tool for processing raw 3D city model data and gen
 
 The tool is designed for scalable processing of LoD2 and LoD3 building data stored through CityDB-based database structures. It automates key steps such as data setup, import, and feature extraction within a single pipeline.
 
-![City2TABULA System Context](assets/diagrams/architecture/system-context/system-context.svg)
+<picture>
+    <source type="image/svg+xml" srcset="assets/diagrams/architecture/system-context/system-context.svg">
+    <img src="assets/diagrams/architecture/system-context/system-context.png" alt="City2TABULA System Context">
+</picture>
 
 ## Key Capabilities
 
@@ -26,12 +29,6 @@ The tool is designed for scalable processing of LoD2 and LoD3 building data stor
 - Scalable batch-based and parallel processing
 - Outputs for downstream research and energy-modelling workflows
 
-## Documentation Guide
-
-To get started, see the installation and setup section.
-For a deeper technical understanding, refer to the architecture and processing workflow pages.
-For practical usage, see the CLI and pipeline documentation.
-
 ## Support
 
-If you encounter a problem or would like to suggest an improvement, please open an issue in the project repository.
+If you encounter a problem or would like to suggest an improvement, please open an issue in the project repository using relevant [Issue Template](https://github.com/THD-Spatial/city2tabula/issues/new/choose).
