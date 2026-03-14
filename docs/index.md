@@ -1,4 +1,4 @@
-<img src="assets/logo/svg/city2tabula_logo_complete.svg" alt="city2tabula logo" width="300" align="left"/>
+# City2TABULA Documentation
 
 [![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml)
 &nbsp;
