@@ -32,7 +32,7 @@ data/
 ```
 
 > [!NOTE]
-> Refer to this [documentation](../../data/README.md) for example datasets and sources.
+> Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
 
 ### Step 3. Create Docker Container
 
