@@ -6,33 +6,29 @@ import (
 	"github.com/google/uuid"
 )
 
-/////////////////////
-// define the task //
-/////////////////////
+// ///////////////////////////////////////////////////////////////
+// define which tasks have to be executed in a sequence per batch //
+// ///////////////////////////////////////////////////////////////
 
-// All required parameters for any SQL job
-type Params struct {
-	BuildingIDs []int64 `json:"building_ids"`
-}
-
-// Job represents a database job with its parameters and SQL file
+// Job represents a batch of building IDs and the sequence of tasks to execute for them
 type Job struct {
-	JobID     uuid.UUID `json:"job_id"`     // Unique identifier for the job
-	JobType   string    `json:"job_type"`   // e.g. "AGGREGATE_SURFACES"
-	Params    Params    `json:"params"`     // Parameters for the job
-	SQLFile   string    `json:"sql_file"`   // SQL file information
-	Priority  int       `json:"priority"`   // Job priority (lower number = higher priority)
-	CreatedAt time.Time `json:"created_at"` // Creation timestamp
+	JobID       uuid.UUID `json:"job_id"`
+	BuildingIDs []int64   `json:"building_ids"`
+	Tasks       []*Task   `json:"tasks"`
+	EnqueuedAt  time.Time `json:"enqueued_at"` // Timestamp when the job was enqueued
+	CreatedAt   time.Time `json:"created_at"`  // Creation timestamp
 }
 
 // NewJob creates a new Job instance
-func NewJob(jobType string, params Params, SQLFile string, Priority int) *Job {
+func NewJob(buildingIDs []int64, tasks []*Task) *Job {
 	return &Job{
-		JobID:     uuid.New(),
-		JobType:   jobType,
-		Params:    params,
-		SQLFile:   SQLFile,
-		Priority:  Priority,
-		CreatedAt: time.Now(),
+		JobID:       uuid.New(),
+		BuildingIDs: buildingIDs,
+		Tasks:       tasks,
+		CreatedAt:   time.Now(),
 	}
+}
+
+func (j *Job) AddTask(task *Task) {
+	j.Tasks = append(j.Tasks, task)
 }

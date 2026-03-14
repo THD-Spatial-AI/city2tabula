@@ -7,13 +7,13 @@ import (
 	"github.com/THD-Spatial/City2TABULA/internal/config"
 )
 
-// PrintJobInfo prints detailed information about a job using basic types
-func PrintJobInfo(jobID, jobType string, createdAt time.Time, buildingIDs []int64, tableNames, schemaNames []string) {
+// PrintTaskInfo prints detailed information about a task
+func PrintTaskInfo(taskID, taskType string, createdAt time.Time, buildingIDs []int64, tableNames, schemaNames []string) {
 	Info.Printf("") // extra spacing before block
-	Info.Printf("Job Details:")
+	Info.Printf("Task Details:")
 	Info.Printf("%s", strings.Repeat("-", 40))
-	Info.Printf("Job ID               : %s", jobID)
-	Info.Printf("Job Type             : %s", jobType)
+	Info.Printf("Task ID              : %s", taskID)
+	Info.Printf("Task Type            : %s", taskType)
 	Info.Printf("Created At           : %s", createdAt.Format("2006-01-02 15:04:05"))
 	Info.Printf("Total Building IDs   : %d", len(buildingIDs))
 
@@ -30,24 +30,26 @@ func PrintJobInfo(jobID, jobType string, createdAt time.Time, buildingIDs []int6
 	Info.Printf("")
 }
 
-func PrintPipelineInfo(pipelineID string, buildingIDs []int64, jobCount int) {
+// PrintJobInfo prints detailed information about a job
+func PrintJobInfo(jobID string, buildingIDs []int64, taskCount int) {
 	Info.Printf("") // extra spacing before block
-	Info.Printf("Pipeline Details:")
+	Info.Printf("Job Details:")
 	Info.Printf("%s", strings.Repeat("-", 40))
-	Info.Printf("Pipeline ID            : %s", pipelineID)
+	Info.Printf("Job ID                 : %s", jobID)
 	Info.Printf("Total Building IDs     : %d", len(buildingIDs))
-	Info.Printf("Total Jobs             : %d", jobCount)
+	Info.Printf("Total Tasks            : %d", taskCount)
 	Info.Printf("%s", strings.Repeat("-", 40))
 	Info.Printf("")
 }
 
-func PrintPipelineQueueInfo(totalPipelines int, totalJobsInPipeline int, batchConfig *config.BatchConfig) {
+// PrintJobQueueInfo prints summary information about the job queue before processing
+func PrintJobQueueInfo(totalJobs int, totalTasksInJob int, batchConfig *config.BatchConfig) {
 	Info.Printf("") // extra spacing before block
-	Info.Printf("Pipeline Queue Details:")
+	Info.Printf("Job Queue Details:")
 	Info.Printf("%s", strings.Repeat("-", 40))
-	Info.Printf("Total Pipelines         : %d", totalPipelines)
-	Info.Printf("Total Jobs per Pipeline : %d", totalJobsInPipeline)
-	Info.Printf("Total Jobs              : %d", totalPipelines*totalJobsInPipeline)
+	Info.Printf("Total Jobs              : %d", totalJobs)
+	Info.Printf("Total Tasks per Job     : %d", totalTasksInJob)
+	Info.Printf("Total Tasks             : %d", totalJobs*totalTasksInJob)
 	Info.Printf("Total Workers           : %d", batchConfig.Threads)
 	Info.Printf("%s", strings.Repeat("-", 40))
 	Info.Printf("")
@@ -64,13 +66,13 @@ func PrintWorkerInfo(workerID int) {
 	Info.Printf("")
 }
 
-func PrintRunnerInfo(jobID, pipelineID string, totalJobsInPipeline int) {
+func PrintRunnerInfo(taskID, jobID string, totalTasksInJob int) {
 	Info.Printf("") // extra spacing before block
 	Info.Printf("Runner Details:")
 	Info.Printf("%s", strings.Repeat("-", 40))
+	Info.Printf("Task ID:               %s", taskID)
 	Info.Printf("Job ID:                %s", jobID)
-	Info.Printf("Pipeline ID:           %s", pipelineID)
-	Info.Printf("Total Jobs in Pipeline: %d", totalJobsInPipeline)
+	Info.Printf("Total Tasks in Job:    %d", totalTasksInJob)
 	Info.Printf("%s", strings.Repeat("-", 40))
 	Info.Printf("")
 }

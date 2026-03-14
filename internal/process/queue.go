@@ -5,69 +5,69 @@ import (
 	"time"
 )
 
-// PipelineQueue represents a queue for processing pipelines consisting of multiple jobs in chronological order.
-type PipelineQueue struct {
-	pipelines []*Pipeline
-	mutex     sync.RWMutex
+// JobQueue represents a queue of jobs to be processed by the worker pool.
+type JobQueue struct {
+	jobs  []*Job
+	mutex sync.RWMutex
 }
 
-// NewPipelineQueue initializes an empty queue
-func NewPipelineQueue() *PipelineQueue {
-	return &PipelineQueue{
-		pipelines: make([]*Pipeline, 0),
+// NewJobQueue initializes an empty queue
+func NewJobQueue() *JobQueue {
+	return &JobQueue{
+		jobs: make([]*Job, 0),
 	}
 }
 
-// Enqueue adds a pipeline to the queue
-func (pq *PipelineQueue) Enqueue(pipeline *Pipeline) {
-	pq.mutex.Lock()
-	defer pq.mutex.Unlock()
+// Enqueue adds a job to the queue
+func (q *JobQueue) Enqueue(job *Job) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
 
-	pipeline.EnqueuedAt = time.Now()
-	pq.pipelines = append(pq.pipelines, pipeline)
+	job.EnqueuedAt = time.Now()
+	q.jobs = append(q.jobs, job)
 }
 
-// Dequeue removes and returns the first pipeline
-func (pq *PipelineQueue) Dequeue() *Pipeline {
-	pq.mutex.Lock()
-	defer pq.mutex.Unlock()
+// Dequeue removes and returns the first job
+func (q *JobQueue) Dequeue() *Job {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
 
-	if len(pq.pipelines) == 0 {
+	if len(q.jobs) == 0 {
 		return nil
 	}
 
-	pipeline := pq.pipelines[0]
-	pq.pipelines = pq.pipelines[1:]
-	return pipeline
+	job := q.jobs[0]
+	q.jobs = q.jobs[1:]
+	return job
 }
 
-// Len returns the number of pipelines
-func (pq *PipelineQueue) Len() int {
-	pq.mutex.RLock()
-	defer pq.mutex.RUnlock()
-	return len(pq.pipelines)
+// Len returns the number of jobs in the queue
+func (q *JobQueue) Len() int {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	return len(q.jobs)
 }
 
-// IsEmpty checks if the pipeline queue is empty
-func (pq *PipelineQueue) IsEmpty() bool {
-	return pq.Len() == 0
+// IsEmpty checks if the job queue is empty
+func (q *JobQueue) IsEmpty() bool {
+	return q.Len() == 0
 }
 
-// Peek returns the first pipeline without removing it
-func (pq *PipelineQueue) Peek() *Pipeline {
-	pq.mutex.RLock()
-	defer pq.mutex.RUnlock()
+// Peek returns the first job without removing it
+func (q *JobQueue) Peek() *Job {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
 
-	if len(pq.pipelines) == 0 {
+	if len(q.jobs) == 0 {
 		return nil
 	}
 
-	return pq.pipelines[0]
+	return q.jobs[0]
 }
 
-// Clear removes all pipelines from the queue
-func (pq *PipelineQueue) Clear() {
-	pq.mutex.Lock()
-	defer pq.mutex.Unlock()
-	pq.pipelines = pq.pipelines[:0]
+// Clear removes all jobs from the queue
+func (q *JobQueue) Clear() {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+	q.jobs = q.jobs[:0]
 }

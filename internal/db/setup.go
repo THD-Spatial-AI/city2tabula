@@ -90,25 +90,25 @@ func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create schemas: %w", err)
 	}
 
-	// Step 1: Run main database setup pipeline
-	mainPipelineQueue, err := process.MainDBSetupPipelineQueue(config)
+	// Step 1: Run main database setup jobs
+	mainJobQueue, err := process.MainDBSetupJobQueue(config)
 	if err != nil {
 		return fmt.Errorf("failed to setup main DB queue: %w", err)
 	}
 
-	if err := process.RunPipelineQueue(mainPipelineQueue, conn, config); err != nil {
+	if err := process.RunJobQueue(mainJobQueue, conn, config); err != nil {
 		return fmt.Errorf("main DB setup failed: %w", err)
 	}
 
 	utils.Info.Println("Main database setup completed")
 
-	// Step 2: Run supplementary database setup pipeline
-	supplementaryPipelineQueue, err := process.SupplementaryDBSetupPipelineQueue(config)
+	// Step 2: Run supplementary database setup jobs
+	supplementaryJobQueue, err := process.SupplementaryDBSetupJobQueue(config)
 	if err != nil {
 		return fmt.Errorf("failed to setup supplementary DB queue: %w", err)
 	}
 
-	if err := process.RunPipelineQueue(supplementaryPipelineQueue, conn, config); err != nil {
+	if err := process.RunJobQueue(supplementaryJobQueue, conn, config); err != nil {
 		return fmt.Errorf("supplementary DB setup failed: %w", err)
 	}
 

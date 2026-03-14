@@ -49,17 +49,17 @@ func RunFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 		utils.Debug.Printf("Created %d batches for LOD3", len(batchesLOD3))
 	}
 
-	// Build feature extraction queue
-	pipQueue, err := BuildFeatureExtractionQueue(config, batchesLOD2, batchesLOD3)
+	// Build feature extraction job queue
+	jobQueue, err := BuildFeatureExtractionQueue(config, batchesLOD2, batchesLOD3)
 	if err != nil {
 		return fmt.Errorf("failed to build feature extraction queue: %w", err)
 	}
 
-	if pipQueue.Len() > 0 {
-		utils.PrintPipelineQueueInfo(pipQueue.Len(), len(pipQueue.Peek().Jobs), config.Batch)
+	if jobQueue.Len() > 0 {
+		utils.PrintJobQueueInfo(jobQueue.Len(), len(jobQueue.Peek().Tasks), config.Batch)
 	} else {
-		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found.")
+		utils.Warn.Printf("Job queue is empty - this shouldn't happen if buildings were found.")
 	}
 
-	return RunPipelineQueue(pipQueue, pool, config)
+	return RunJobQueue(jobQueue, pool, config)
 }
