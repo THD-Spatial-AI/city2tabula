@@ -23,12 +23,12 @@ cd city2tabula-<version>
 
 Place your 3D city data file (.gml or .json) under `data/` directory before starting the containers:
 
-
 ```bash
 data/
 ├── lod2/<country>/*(.gml | .json)
 └── lod3/<country>/*(.gml | .json)
 ```
+
 !!! example
     For example, if you have a LoD2 CityGML file for Germany, you would place it in `data/lod2/germany/` directory. If you have a corresponding LoD3 file, it would go in `data/lod3/germany/`. The directory structure should look like this:
 
@@ -42,7 +42,7 @@ data/
             └── germany_lod3.gml
     ```
 
-!!! note
+!!! tip
     If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
 
 ### Step 3. Create Docker Container

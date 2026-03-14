@@ -113,6 +113,11 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
+  - Data: example/example.md
+
+extra:
+  version:
+    provider: mike
 
 extra_css:
   - stylesheets/extra.css
