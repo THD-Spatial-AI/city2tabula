@@ -9,16 +9,32 @@ This page covers the recommended Docker workflow and an advanced manual installa
 - Docker 20.10+
 - Docker Compose 2.0+
 - Linux/macOS: `make` (usually pre-installed)
-- Windows: use `setup.bat` or `setup.ps1`
+- Windows: use `setup.bat` for Command Prompt or `setup.ps1` for PowerShell
 
-### Step 1. Clone the repository
+### Step 1. Download release
+
+Download the latest release from [GitHub](https://github.com/THD-Spatial/city2tabula/releases). Unzip the downloaded file and navigate to the project directory:
 
 ```bash
-git clone https://github.com/THD-Spatial/City2TABULA.git
-cd City2TABULA
+cd city2tabula-<version>
 ```
 
-### Step 2. Run interactive setup
+### Step 2. Download data
+
+Place your 3D city data file (.gml or .json) under `data/` before starting the containers:
+
+```text
+data/
+├── lod2/<country>/*(.gml | .json)
+├── lod3/<country>/*(.gml | .json)
+└── tabula/<country>.csv
+```
+
+### Step 3. Create Docker Container
+
+This will build the Docker images, start the containers, and run the interactive setup script to configure environment variables and database connection settings. Follow the prompts to complete the setup.
+
+Choose and run the appropriate command for your operating system:
 
 ```bash
 # Linux/macOS
@@ -31,36 +47,6 @@ setup.bat setup
 ./setup.ps1 setup
 ```
 
-### Step 3. Enter the dev shell
-
-```bash
-# Linux/macOS
-make dev
-
-# Windows (Command Prompt)
-setup.bat dev
-
-# Windows (PowerShell)
-./setup.ps1 dev
-```
-
-### Step 4. Run the pipeline (inside the container)
-
-```bash
-./city2tabula --create-db
-./city2tabula --extract-features
-```
-
-### Step 5. Data layout
-
-Place your data under `data/` before starting the containers:
-
-```text
-data/
-├── lod2/<country>/*.(gml|json)
-├── lod3/<country>/*.(gml|json)
-└── tabula/<country>.csv
-```
 
 ## Option B: Manual installation (advanced)
 
