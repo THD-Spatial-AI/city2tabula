@@ -70,11 +70,11 @@ flowchart TD
     D --> F{Flags set?}
 
     F -->|--create-db| CD[Create complete DB\ninternal/db.CreateCompleteDatabase]
-    F -->|--reset-all| RA[Reset complete DB\ninternal/db.ResetCompleteDatabase]
-    F -->|--reset-citydb| RC[Reset CityDB only\ninternal/db.ResetCityDBOnly]
-    F -->|--reset-city2tabula| R2[Reset City2TABULA schemas\ninternal/db.DropSchemaIfExists\ninternal/db.RunCity2TabulaDBSetup]
+    F -->|-reset-db| RA[Reset complete DB\ninternal/db.ResetCompleteDatabase]
+    F -->|-reset-citydb| RC[Reset CityDB only\ninternal/db.ResetCityDBOnly]
+    F -->|-reset-city2tabula| R2[Reset City2TABULA schemas\ninternal/db.DropSchemaIfExists\ninternal/db.RunCity2TabulaDBSetup]
 
-    F -->|--extract-features| EF["Run feature extraction\n(runFeatureExtraction)"]
+    F -->|-extract-features| EF["Run feature extraction\n(runFeatureExtraction)"]
     EF --> EF1[Fetch building IDs\ninternal/utils.GetBuildingIDsFromCityDB]
     EF1 --> EF2[Batch IDs\ninternal/utils.CreateBatches]
     EF2 --> EF3[Build pipeline queue\ninternal/process.BuildFeatureExtractionQueue]
