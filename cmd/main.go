@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -9,26 +8,18 @@ import (
 
 	"github.com/THD-Spatial/City2TABULA/internal/config"
 	"github.com/THD-Spatial/City2TABULA/internal/db"
+	"github.com/THD-Spatial/City2TABULA/internal/flags"
 	"github.com/THD-Spatial/City2TABULA/internal/process"
 	"github.com/THD-Spatial/City2TABULA/internal/utils"
 	"github.com/THD-Spatial/City2TABULA/internal/version"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	// Define clear and simple flags
-	createDB := flag.Bool("create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
-	resetAll := flag.Bool("reset-all", false, "Reset everything: drop all schemas and recreate the complete database")
-	resetCityDB := flag.Bool("reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
-	resetC2T := flag.Bool("reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
-	extractFeat := flag.Bool("extract-features", false, "Run the feature extraction pipeline")
-	showVersion := flag.Bool("version", false, "print version and exit")
-	showV := flag.Bool("v", false, "print version and exit (shorthand)")
-	flag.Parse()
-
+	// Parse command-line flags
+	f := flags.ParseFlags()
+	flagMessages := flags.AllMessages
 	// Display current version
-	if *showV || *showVersion {
+	if f.ShowV || f.ShowVersion {
 		fmt.Printf("%s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
 		os.Exit(0)
 	}
@@ -59,40 +50,42 @@ func main() {
 	utils.Info.Println("Database connection established")
 
 	// Execute commands based on flags
-	if *createDB {
-		utils.Info.Println("Creating complete City2TABULA database...")
+	if f.CreateDB {
+		utils.Info.Println(flagMessages.CreateDB.Progress)
 		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
-				utils.Error.Println("Failed to create database:", err)
-				utils.Info.Println("")
-				utils.Info.Println("The database appears to have been set up already.")
-				utils.Info.Println("To start fresh, run:  ./city2tabula --reset-all  (or 'make reset-db')")
-				utils.Info.Println("To re-extract only:   ./city2tabula -extract-features  (or 'make extract-features')")
-				os.Exit(1)
+				utils.Error.Println(err)
+				if strings.Contains(config.DB.Host, "docker") {
+					utils.Error.Println(flagMessages.CreateDB.Error)
+					utils.Info.Println(flagMessages.CreateDB.Custom)
+					utils.Info.Println(flagMessages.ResetDB.Custom)
+					os.Exit(1)
+				}
 			}
-			utils.Error.Fatalf("Failed to create database: %v", err)
+			utils.Error.Fatalf(flagMessages.CreateDB.Error+": %v", err)
 		}
-		utils.Info.Println("Database creation completed successfully")
+		utils.Info.Println(flagMessages.CreateDB.Success)
 	}
 
-	if *resetAll {
-		utils.Info.Println("Resetting complete database (everything)...")
+	if f.ResetDB {
+		utils.Info.Println(flagMessages.ResetDB.Progress)
 		if err := db.ResetCompleteDatabase(&config, pool); err != nil {
-			utils.Error.Fatalf("Failed to reset complete database: %v", err)
+			utils.Error.Fatalf(flagMessages.ResetDB.Error+": %v", err)
 		}
-		utils.Info.Println("Database reset completed successfully.")
+		utils.Info.Println(flagMessages.ResetDB.Success)
+		return
 	}
 
-	if *resetCityDB {
-		utils.Info.Println("Resetting CityDB infrastructure only...")
+	if f.ResetCityDB {
+		utils.Info.Println(flagMessages.ResetCityDB.Progress)
 		if err := db.ResetCityDBOnly(&config, pool); err != nil {
-			utils.Error.Fatalf("Failed to reset CityDB: %v", err)
+			utils.Error.Fatalf(flagMessages.ResetCityDB.Error+": %v", err)
 		}
-		utils.Info.Println("CityDB reset completed successfully")
+		utils.Info.Println(flagMessages.ResetCityDB.Success)
 	}
 
-	if *resetC2T {
-		utils.Info.Println("Resetting City2TABULA schemas only...")
+	if f.ResetC2T {
+		utils.Info.Println(flagMessages.ResetC2T.Progress)
 		// Drop City2TABULA schemas
 		c2tSchemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
 		for _, schema := range c2tSchemas {
@@ -101,71 +94,14 @@ func main() {
 			}
 		}
 		db.RunCity2TabulaDBSetup(&config, pool)
-		utils.Info.Println("City2TABULA schemas reset completed successfully")
+		utils.Info.Println(flagMessages.ResetC2T.Success)
 	}
 
-	if *extractFeat {
-		utils.Info.Println("Running feature extraction pipeline...")
-		if err := runFeatureExtraction(&config, pool); err != nil {
-			utils.Error.Fatalf("Failed to run feature extraction: %v", err)
+	if f.ExtractFeatures {
+		utils.Info.Println(flagMessages.ExtractFeatures.Progress)
+		if err := process.RunFeatureExtraction(&config, pool); err != nil {
+			utils.Error.Fatalf(flagMessages.ExtractFeatures.Error+": %v", err)
 		}
-		utils.Info.Println("Feature extraction completed successfully")
+		utils.Info.Println(flagMessages.ExtractFeatures.Success)
 	}
-}
-
-// runFeatureExtraction handles the feature extraction pipeline
-func runFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
-	// Get building IDs from CityDB
-	lod2BldIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod2)
-	if err != nil {
-		return fmt.Errorf("failed to get LOD2 building IDs: %w", err)
-	}
-
-	if len(lod2BldIDs) == 0 {
-		utils.Warn.Println("No LOD2 buildings found in CityDB. Skipping LOD2 feature extraction.")
-	} else {
-		utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BldIDs))
-	}
-
-	lod3BldIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod3)
-	if err != nil {
-		return fmt.Errorf("failed to get LOD3 building IDs: %w", err)
-	}
-
-	if len(lod3BldIDs) == 0 {
-		utils.Warn.Println("No LOD3 buildings found in CityDB. Skipping LOD3 feature extraction.")
-	} else {
-		utils.Info.Printf("Found %d buildings for LOD3 in CityDB", len(lod3BldIDs))
-	}
-
-	// Check if there are any buildings to process
-	if len(lod2BldIDs)+len(lod3BldIDs) == 0 {
-		utils.Warn.Println("No buildings found in either LOD2 or LOD3 schemas. Nothing to extract.")
-		return nil
-	}
-
-	// Create batches
-	batchesLOD2 := utils.CreateBatches(lod2BldIDs, config.Batch.Size)
-	batchesLOD3 := utils.CreateBatches(lod3BldIDs, config.Batch.Size)
-
-	if batchesLOD2 != nil {
-		utils.Debug.Printf("Created %d batches for LOD2", len(batchesLOD2))
-	}
-	if batchesLOD3 != nil {
-		utils.Debug.Printf("Created %d batches for LOD3", len(batchesLOD3))
-	}
-
-	// Build feature extraction queue
-	pipQueue, err := process.BuildFeatureExtractionQueue(config, batchesLOD2, batchesLOD3)
-	if err != nil {
-		return fmt.Errorf("failed to build feature extraction queue: %w", err)
-	}
-
-	if pipQueue.Len() > 0 {
-		utils.PrintPipelineQueueInfo(pipQueue.Len(), len(pipQueue.Peek().Jobs), config.Batch)
-	} else {
-		utils.Warn.Printf("Pipeline queue is empty - this shouldn't happen if buildings were found.")
-	}
-
-	return process.RunPipelineQueue(pipQueue, pool, config)
 }
