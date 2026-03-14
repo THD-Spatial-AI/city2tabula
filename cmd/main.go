@@ -54,15 +54,15 @@ func main() {
 		utils.Info.Println(flagMessages.CreateDB.Progress)
 		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
-				utils.Error.Println(err)
 				if strings.Contains(config.DB.Host, "docker") {
 					utils.Error.Println(flagMessages.CreateDB.Error)
 					utils.Info.Println(flagMessages.CreateDB.Custom)
-					utils.Info.Println(flagMessages.ResetDB.Custom)
 					os.Exit(1)
 				}
 			}
+			utils.Info.Println("Consider changing the database name in .env file or reset the existing database using the -reset-db flag.")
 			utils.Error.Fatalf(flagMessages.CreateDB.Error+": %v", err)
+
 		}
 		utils.Info.Println(flagMessages.CreateDB.Success)
 	}
