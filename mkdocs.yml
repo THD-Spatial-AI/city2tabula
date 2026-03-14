@@ -24,32 +24,36 @@ theme:
     - navigation.instant
     - navigation.prune
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
+    - navigation.path
     - navigation.tracking
+    - navigation.sections
     - search.highlight
     - search.share
     - search.suggest
     - toc.follow
+    - toc.integrate
   language: en
   palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
+      - media: "(prefers-color-scheme)"
+        toggle:
+          icon: material/link
+          name: Switch to light mode
+      - media: "(prefers-color-scheme: light)"
+        scheme: default
+        primary: black
+        accent: indigo
+        toggle:
+          icon: material/toggle-switch
+          name: Switch to dark mode
+      - media: "(prefers-color-scheme: dark)"
+        scheme: slate
+        primary: black
+        accent: black
+        toggle:
+          icon: material/toggle-switch-off
+          name: Switch to system preference
   font:
     text: Roboto
     code: Roboto Mono
@@ -109,6 +113,9 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
+
+extra_css:
+  - stylesheets/extra.css
 
 # Copyright
 copyright: |
