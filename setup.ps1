@@ -125,6 +125,11 @@ function Invoke-Configure {
         }
     } while ($true)
 
+    # Get database name with default
+    $pgName = Read-Host "Enter Database name [default: c2t_$($selectedCountry.Name)]"
+    if ([string]::IsNullOrWhiteSpace($pgName)) {
+        $pgName = "c2t_$($selectedCountry.Name)"
+    }
     Write-Host ""
     Write-Host "Updating configuration file..." -ForegroundColor Blue
 
@@ -135,6 +140,8 @@ function Invoke-Configure {
     $content = $content -replace "^CITYDB_SRS_NAME=.*", "CITYDB_SRS_NAME=$($selectedCountry.SRS)"
     $content = $content -replace "^DB_USER=.*", "DB_USER=$pgUser"
     $content = $content -replace "^DB_PASSWORD=.*", "DB_PASSWORD=$pgPasswordPlain"
+    $content = $content -replace "^DB_NAME=.*", "DB_NAME=$pgName"
+
     $content | Set-Content "environment\docker.env"
 
     Write-Host "Configuration completed!" -ForegroundColor Green
@@ -215,7 +222,7 @@ function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
     Set-Location "environment"
-    docker exec -it city2tabula-environment ./city2tabula -reset-all
+    docker exec -it city2tabula-environment ./city2tabula -reset-db
     Set-Location ".."
 }
 
