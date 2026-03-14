@@ -31,8 +31,8 @@ data/
 └── tabula/<country>.csv
 ```
 
-> [!NOTE]
-> Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
+!!! note
+    If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
 
 ### Step 3. Create Docker Container
 
