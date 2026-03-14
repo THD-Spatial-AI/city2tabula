@@ -37,7 +37,7 @@ go build -o city2tabula ./cmd
 Common flags:
 
 - `--create-db`
-- `--reset-all`
+- `--reset-db`
 - `--reset-citydb`
 - `--reset-city2tabula`
 - `--extract-features`

@@ -215,7 +215,7 @@ function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
     Set-Location "environment"
-    docker exec -it city2tabula-environment ./city2tabula -reset-all
+    docker exec -it city2tabula-environment ./city2tabula -reset-db
     Set-Location ".."
 }
 

@@ -19,8 +19,9 @@ import (
 func main() {
 	// Define clear and simple flags
 	createDB := flag.Bool("create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
-	resetAll := flag.Bool("reset-all", false, "Reset everything: drop all schemas and recreate the complete database")
+	resetDB := flag.Bool("reset-db", false, "Reset everything: drop all schemas and recreate the complete database")
 	resetCityDB := flag.Bool("reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
+	// importData := flag.Bool("import-data", false, "Import data into existing CityDB schemas (useful if you want to keep existing City2TABULA schemas and import new 3D city data)")
 	resetC2T := flag.Bool("reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	extractFeat := flag.Bool("extract-features", false, "Run the feature extraction pipeline")
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -63,24 +64,52 @@ func main() {
 		utils.Info.Println("Creating complete City2TABULA database...")
 		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
-				utils.Error.Println("Failed to create database:", err)
-				utils.Info.Println("")
-				utils.Info.Println("The database appears to have been set up already.")
-				utils.Info.Println("To start fresh, run:  ./city2tabula --reset-all  (or 'make reset-db')")
-				utils.Info.Println("To re-extract only:   ./city2tabula -extract-features  (or 'make extract-features')")
-				os.Exit(1)
+				if strings.Contains(config.DB.Host, "docker") {
+					utils.Error.Println("Failed to create database:", err)
+					utils.Info.Println("Database already exists!")
+					utils.Info.Println("To reset the database, use ONE of the following commands based on your environment and operating system:")
+					utils.Info.Println("----------------------------")
+					utils.Info.Println("Docker environment:")
+					utils.Info.Println()
+					utils.Info.Println("For Linux: make reset-db")
+					utils.Info.Println()
+					utils.Info.Println("For Windows: setup.bat reset-db")
+					utils.Info.Println()
+					utils.Info.Println("For PowerShell: .\\setup.ps1 reset-db")
+					utils.Info.Println()
+					utils.Info.Println("----------------------------")
+
+					os.Exit(1)
+				} else {
+					utils.Error.Println("Failed to create database:", err)
+					utils.Info.Println("Database already exists!")
+					utils.Info.Println("To reset the database, use ONE of the following commands based on your environment and operating system:")
+					utils.Info.Println("----------------------------")
+					utils.Info.Println("Local environment:")
+					utils.Info.Println()
+					utils.Info.Println("For Linux/Mac: ./city2tabula -reset-db")
+					utils.Info.Println()
+					utils.Info.Println("For Windows: .\\city2tabula -reset-db")
+					utils.Info.Println()
+					utils.Info.Println("For PowerShell: .\\city2tabula -reset-db")
+					utils.Info.Println()
+					utils.Info.Println("----------------------------")
+
+					os.Exit(1)
+				}
 			}
 			utils.Error.Fatalf("Failed to create database: %v", err)
 		}
 		utils.Info.Println("Database creation completed successfully")
 	}
 
-	if *resetAll {
+	if *resetDB {
 		utils.Info.Println("Resetting complete database (everything)...")
 		if err := db.ResetCompleteDatabase(&config, pool); err != nil {
 			utils.Error.Fatalf("Failed to reset complete database: %v", err)
 		}
 		utils.Info.Println("Database reset completed successfully.")
+		return
 	}
 
 	if *resetCityDB {

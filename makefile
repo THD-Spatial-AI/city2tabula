@@ -43,7 +43,7 @@ extract-features: up ## Extract building features
 	cd environment && docker exec -it city2tabula-environment ./city2tabula -extract-features
 
 reset-db: up ## Reset the entire database
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset-all
+	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset-db
 
 ##@ Complete Workflows
 configure: ## Interactive configuration: select country and enter password

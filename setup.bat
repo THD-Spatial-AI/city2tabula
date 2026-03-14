@@ -329,7 +329,7 @@ goto end
 call :up
 echo Resetting the entire database...
 cd environment
-docker exec -it city2tabula-environment ./city2tabula -reset-all
+docker exec -it city2tabula-environment ./city2tabula -reset-db
 cd ..
 goto end
 
