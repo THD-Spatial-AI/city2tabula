@@ -1,8 +1,8 @@
 # Setup & Installation
 
-This page covers the recommended Docker workflow and an advanced manual installation.
+For using the City2TABULA tool, you have two main options: the recommended Docker-based setup for ease of use and consistency, or a manual installation for advanced users who prefer direct control over the environment for development purposes.
 
-## Option A: Docker (recommended)
+## Docker (recommended)
 
 ### Prerequisites
 
@@ -21,7 +21,8 @@ cd city2tabula-<version>
 
 ### Step 2. Download data
 
-Place your 3D city data file (.gml or .json) under `data/` before starting the containers:
+Place your 3D city data file (.gml or .json) under `data/` directory before starting the containers:
+
 
 ```text
 data/
@@ -29,6 +30,9 @@ data/
 ├── lod3/<country>/*(.gml | .json)
 └── tabula/<country>.csv
 ```
+
+> [!NOTE]
+> Refer to this [documentation](../../data/README.md) for example datasets and sources.
 
 ### Step 3. Create Docker Container
 
@@ -48,9 +52,10 @@ setup.bat setup
 ```
 
 
-## Option B: Manual installation (advanced)
+## Option B: Development Setup (manual installation)
 
-> This is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended.
+> [!WARNING]
+> This setup is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended. Local installation on Windows might require additional configuration (e.g., WSL2, manual Java setup) and is not covered in this guide.
 
 ### Dependencies
 
@@ -69,17 +74,19 @@ setup.bat setup
 
 ### Build
 
+Navigate to the project directory and build the Go application:
+
 ```bash
 go build -o city2tabula ./cmd
-./city2tabula --help
+./city2tabula -help
 ```
 
 ### Configuration
 
-Create a `.env` (or use your preferred config mechanism used by the project) and set at least:
+Create a `.env` in the project root directory and set at least:
 
 - `COUNTRY`
-- DB connection settings (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`)
+- DB connection settings (`DB_NAME`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`)
 - CityDB tool location + CRS settings (`CITYDB_TOOL_PATH`, `CITYDB_SRID`, `CITYDB_SRS_NAME`)
 
 ### Run

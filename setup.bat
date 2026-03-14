@@ -65,8 +65,8 @@ echo.
 echo Examples:
 echo   setup.bat configure
 echo   setup.bat build
-echo   setup.bat create-db
-echo   setup.bat create-db
+echo   setup.bat create-db (or) setup.bat reset-db \if DB already exists
+echo   setup.bat extract-features
 goto end
 
 :configure
@@ -238,6 +238,10 @@ powershell -Command "$password = Read-Host -AsSecureString; $BSTR = [System.Runt
 set /p pg_password=<temp_password.txt
 del temp_password.txt
 
+REM Get database name with default
+set /p pg_name="Enter Database name [default: c2t_%COUNTRY%]: "
+if "%pg_name%"=="" set pg_name=c2t_%COUNTRY%
+
 echo.
 echo Updating environment\docker.env...
 
@@ -247,7 +251,7 @@ powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SR
 powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SRS_NAME=.*', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content 'environment\docker.env'"
 powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_USER=.*', 'DB_USER=%pg_user%' | Set-Content 'environment\docker.env'"
 powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=%pg_password%' | Set-Content 'environment\docker.env'"
-
+powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_NAME=.*', 'DB_NAME=%pg_name%' | Set-Content 'environment\docker.env'"
 echo Configuration completed!
 echo.
 echo Summary:

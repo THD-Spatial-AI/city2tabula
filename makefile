@@ -107,18 +107,23 @@ configure: ## Interactive configuration: select country and enter password
 	read pg_password; \
 	stty echo; \
 	echo ""; \
+	read -p "Enter Database name [default: c2t_<country>]": pg_name; \
+	if [ -z "$$pg_name" ]; then pg_name="c2t_$${COUNTRY}"; fi; \
+	echo ""; \
 	echo ""; \
 	echo "Updating environment/docker.env..."; \
 	if [ "$$(uname)" = "Darwin" ]; then \
 		sed -i '' "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" environment/docker.env; \
 		sed -i '' "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" environment/docker.env; \
 		sed -i '' "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" environment/docker.env; \
+		sed -i '' "s/^DB_NAME=.*/DB_NAME=$$pg_name/" environment/docker.env; \
 		sed -i '' "s/^DB_USER=.*/DB_USER=$$pg_user/" environment/docker.env; \
 		sed -i '' "s/^DB_PASSWORD=.*/DB_PASSWORD=$$pg_password/" environment/docker.env; \
 	else \
 		sed -i "s/^COUNTRY=.*/COUNTRY=$$COUNTRY/" environment/docker.env; \
 		sed -i "s/^CITYDB_SRID=.*/CITYDB_SRID=$$SRID/" environment/docker.env; \
 		sed -i "s|^CITYDB_SRS_NAME=.*|CITYDB_SRS_NAME=$$SRS_NAME|" environment/docker.env; \
+		sed -i "s/^DB_NAME=.*/DB_NAME=$$pg_name/" environment/docker.env; \
 		sed -i "s/^DB_USER=.*/DB_USER=$$pg_user/" environment/docker.env; \
 		sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$$pg_password/" environment/docker.env; \
 	fi; \
