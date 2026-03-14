@@ -43,13 +43,23 @@ type ImportDataMsg Msg
 // Define messages for each flag
 var (
 	CreateDBMessages = CreateDBMsg{
-		Custom:   "Database already exists!",
-		Progress: "Creating the complete database...",
-		Success:  "Database created successfully",
-		Error:    "Failed to create database",
-	}
-	ResetDBMessages = ResetDBMsg{
-		Custom: `To reset the database, use ONE of the following commands based on your operating system:
+		Custom: `Database already exists!
+
+		Please consider changing the database name using if you are processing different data, or reset the database if you want to overwrite existing data.
+
+		# To change the database name, use ONE of the following commands based on your operating system:
+
+		----------------------------
+
+		1) For Linux: make configure
+
+		2) For Windows: setup.bat configure
+
+		3) For PowerShell: .\setup.ps1 configure
+
+		----------------------------
+
+		# To reset the database, use ONE of the following commands based on your operating system:
 
 		----------------------------
 
@@ -61,6 +71,11 @@ var (
 
 		----------------------------
 		`,
+		Progress: "Creating the database...",
+		Success:  "Database created successfully",
+		Error:    "Failed to create database",
+	}
+	ResetDBMessages = ResetDBMsg{
 		Progress: "Resetting the database...",
 		Success:  "Database reset successfully",
 		Error:    "Failed to reset database",
