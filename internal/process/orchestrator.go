@@ -7,55 +7,55 @@ import (
 	"github.com/THD-Spatial/City2TABULA/internal/config"
 )
 
-// PipelineType represents different types of pipeline operations
-type PipelineType string
+// JobType represents the category of a job
+type JobType string
 
 const (
-	LOD2               PipelineType = "lod2"
-	LOD3               PipelineType = "lod3"
-	Function           PipelineType = "function"
-	MainTable          PipelineType = "main_table"
-	Supplementary      PipelineType = "supplementary"
-	SupplementaryTable PipelineType = "supplementary_table"
+	LOD2               JobType = "lod2"
+	LOD3               JobType = "lod3"
+	Function           JobType = "function"
+	MainTable          JobType = "main_table"
+	Supplementary      JobType = "supplementary"
+	SupplementaryTable JobType = "supplementary_table"
 )
 
-// BuildFeatureExtractionQueue creates a queue of pipelines (one per batch)
+// BuildFeatureExtractionQueue creates a queue of jobs (one per batch)
 // for both LOD2 and LOD3 building IDs.
 func BuildFeatureExtractionQueue(
 	config *config.Config,
 	lod2Batches [][]int64,
 	lod3Batches [][]int64,
-) (*PipelineQueue, error) {
+) (*JobQueue, error) {
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
 	}
 
-	pipelineQueue := NewPipelineQueue()
+	jobQueue := NewJobQueue()
 
-	// Build LOD2 pipelines
+	// Build LOD2 jobs
 	for _, batch := range lod2Batches {
-		pipeline := createPipeline(batch, sqlScripts.MainScripts, LOD2, 2)
-		pipelineQueue.Enqueue(pipeline)
+		job := createJob(batch, sqlScripts.MainScripts, LOD2)
+		jobQueue.Enqueue(job)
 	}
 
-	// Build LOD3 pipelines
+	// Build LOD3 jobs
 	for _, batch := range lod3Batches {
-		pipeline := createPipeline(batch, sqlScripts.MainScripts, LOD3, 3)
-		pipelineQueue.Enqueue(pipeline)
+		job := createJob(batch, sqlScripts.MainScripts, LOD3)
+		jobQueue.Enqueue(job)
 	}
 
-	return pipelineQueue, nil
+	return jobQueue, nil
 }
 
-// createPipeline is a helper function to create a pipeline with jobs
-func createPipeline(batch []int64, scripts []string, pipelineType PipelineType, lod int) *Pipeline {
+// createJob is a helper function to create a job with tasks
+func createJob(batch []int64, scripts []string, jobType JobType) *Job {
 	params := Params{BuildingIDs: batch}
-	pipeline := NewPipeline(batch, nil)
+	job := NewJob(batch, nil)
 
-	// Determine job name prefix based on pipeline type
+	// Determine task name prefix based on job type
 	var prefix string
-	switch pipelineType {
+	switch jobType {
 	case LOD2:
 		prefix = "LOD2"
 	case LOD3:
@@ -70,66 +70,66 @@ func createPipeline(batch []int64, scripts []string, pipelineType PipelineType, 
 		prefix = "SUPPLEMENTARY_TABLE"
 	}
 
-	// Add jobs to pipeline
+	// Add tasks to job
 	for i, file := range scripts {
 		filename := filepath.Base(file)
-		jobName := fmt.Sprintf("%s: %s", prefix, filename)
-		pipeline.AddJob(NewJob(jobName, params, file, i+1))
+		taskName := fmt.Sprintf("%s: %s", prefix, filename)
+		job.AddTask(NewTask(taskName, params, file, i+1))
 	}
 
-	return pipeline
+	return job
 }
 
-// MainDBSetupPipelineQueue creates a queue with function scripts and main table scripts
-func MainDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
+// MainDBSetupJobQueue creates a queue with function scripts and main table scripts
+func MainDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
 	}
 
-	pipelineQueue := NewPipelineQueue()
+	jobQueue := NewJobQueue()
 
-	// Add function scripts pipeline
-	functionPipeline := createPipeline([]int64{}, sqlScripts.FunctionScripts, Function, 0)
-	pipelineQueue.Enqueue(functionPipeline)
+	// Add function scripts job
+	functionJob := createJob([]int64{}, sqlScripts.FunctionScripts, Function)
+	jobQueue.Enqueue(functionJob)
 
-	// Add LOD2 main table scripts pipeline
-	lod2Pipeline := createPipeline([]int64{}, sqlScripts.MainTableScripts, LOD2, 2)
-	pipelineQueue.Enqueue(lod2Pipeline)
+	// Add LOD2 main table scripts job
+	lod2Job := createJob([]int64{}, sqlScripts.MainTableScripts, LOD2)
+	jobQueue.Enqueue(lod2Job)
 
-	// Add LOD3 main table scripts pipeline
-	lod3Pipeline := createPipeline([]int64{}, sqlScripts.MainTableScripts, LOD3, 3)
-	pipelineQueue.Enqueue(lod3Pipeline)
+	// Add LOD3 main table scripts job
+	lod3Job := createJob([]int64{}, sqlScripts.MainTableScripts, LOD3)
+	jobQueue.Enqueue(lod3Job)
 
-	return pipelineQueue, nil
+	return jobQueue, nil
 }
 
-// SupplementaryDBSetupPipelineQueue creates a queue with supplementary table scripts
-func SupplementaryDBSetupPipelineQueue(config *config.Config) (*PipelineQueue, error) {
+// SupplementaryDBSetupJobQueue creates a queue with supplementary table scripts
+func SupplementaryDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
 	}
 
-	pipelineQueue := NewPipelineQueue()
+	jobQueue := NewJobQueue()
 
-	pipeline := createPipeline([]int64{}, sqlScripts.SupplementaryTableScripts, SupplementaryTable, 0)
-	pipelineQueue.Enqueue(pipeline)
+	job := createJob([]int64{}, sqlScripts.SupplementaryTableScripts, SupplementaryTable)
+	jobQueue.Enqueue(job)
 
-	return pipelineQueue, nil
+	return jobQueue, nil
 }
 
-// SupplementaryPipelineQueue creates a queue with supplementary processing scripts
-func SupplementaryPipelineQueue(config *config.Config) (*PipelineQueue, error) {
+// SupplementaryJobQueue creates a queue with supplementary processing scripts
+func SupplementaryJobQueue(config *config.Config) (*JobQueue, error) {
 	sqlScripts, err := config.LoadSQLScripts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
 	}
 
-	pipelineQueue := NewPipelineQueue()
+	jobQueue := NewJobQueue()
 
-	pipeline := createPipeline([]int64{}, sqlScripts.SupplementaryScripts, Supplementary, 0)
-	pipelineQueue.Enqueue(pipeline)
+	job := createJob([]int64{}, sqlScripts.SupplementaryScripts, Supplementary)
+	jobQueue.Enqueue(job)
 
-	return pipelineQueue, nil
+	return jobQueue, nil
 }

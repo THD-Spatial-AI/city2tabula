@@ -21,29 +21,28 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 	}
 
 	// Import Supplementary SQL Scripts
-	pipelineQueue, err := process.SupplementaryPipelineQueue(config)
+	jobQueue, err := process.SupplementaryJobQueue(config)
 	if err != nil {
 		return fmt.Errorf("failed to setup DB queue: %w", err)
 	}
 
-	pipelineChan := make(chan *process.Pipeline, pipelineQueue.Len())
-	// enqueue pipelines into the channel
-	for !pipelineQueue.IsEmpty() {
-		pipeline := pipelineQueue.Dequeue()
-		if pipeline != nil {
-			pipelineChan <- pipeline
+	jobChan := make(chan *process.Job, jobQueue.Len())
+	for !jobQueue.IsEmpty() {
+		job := jobQueue.Dequeue()
+		if job != nil {
+			jobChan <- job
 		}
 	}
-	close(pipelineChan)
+	close(jobChan)
 
-	// Actually process the pipelines with workers
-	numWorkers := 1 // Use single worker for supplementary data import
+	// Process jobs with a single worker for supplementary data import
+	numWorkers := 1
 	var wg sync.WaitGroup
 
 	for i := 1; i <= numWorkers; i++ {
 		wg.Add(1)
 		worker := process.NewWorker(i)
-		go worker.Start(pipelineChan, conn, &wg, config)
+		go worker.Start(jobChan, conn, &wg, config)
 	}
 
 	wg.Wait()

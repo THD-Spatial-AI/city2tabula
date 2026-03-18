@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Runner handles execution of jobs and pipelines
+// Runner handles execution of tasks and jobs
 type Runner struct {
 	config *config.Config
 }
@@ -28,41 +28,35 @@ func NewRunner(config *config.Config) *Runner {
 	}
 }
 
-// RunPipeline executes all jobs in a pipeline in priority order
-func (r *Runner) RunPipeline(pipeline *Pipeline, conn *pgxpool.Pool, workerID int) error {
-	// Sort jobs in pipeline based on priority
-	sort.Slice(pipeline.Jobs, func(i, j int) bool {
-		return pipeline.Jobs[i].Priority < pipeline.Jobs[j].Priority
+// RunJob executes all tasks in a job in priority order
+func (r *Runner) RunJob(job *Job, conn *pgxpool.Pool, workerID int) error {
+	// Sort tasks in job based on priority
+	sort.Slice(job.Tasks, func(i, j int) bool {
+		return job.Tasks[i].Priority < job.Tasks[j].Priority
 	})
 
-	// Process the sorted jobs
-	for _, job := range pipeline.Jobs {
-		if err := r.RunJobWithRetry(job, conn, r.config, workerID); err != nil {
-			return fmt.Errorf("pipeline failed at job %s: %w", job.JobType, err)
+	// Process the sorted tasks
+	for _, task := range job.Tasks {
+		if err := r.RunTaskWithRetry(task, conn, r.config, workerID); err != nil {
+			return fmt.Errorf("job failed at task %s: %w", task.TaskType, err)
 		}
 	}
 	return nil
 }
 
-// // RunJob executes a single job without retry logic
-// func (r *Runner) RunJob(job *Job, conn *pgxpool.Pool, workerID int) error {
-// 	return r.runSingleJob(job, conn, workerID)
-// }
-
-// RunJobWithRetry executes a single job with retry logic
-func (r *Runner) RunJobWithRetry(job *Job, conn *pgxpool.Pool, config *config.Config, workerID int) error {
+// RunTaskWithRetry executes a single task with retry logic
+func (r *Runner) RunTaskWithRetry(task *Task, conn *pgxpool.Pool, config *config.Config, workerID int) error {
 	var lastErr error
 	retryConfig := config.RetryConfig
 
 	maxRetries := retryConfig.MaxRetries
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		err := r.runSingleJob(job, conn, workerID)
+		err := r.runSingleTask(task, conn, workerID)
 
 		if err == nil {
-			// Success!
 			if attempt > 0 {
-				utils.Info.Printf("Job %s succeeded after %d retries", job.JobType, attempt)
+				utils.Info.Printf("Task %s succeeded after %d retries", task.TaskType, attempt)
 			}
 			return nil
 		}
@@ -71,68 +65,64 @@ func (r *Runner) RunJobWithRetry(job *Job, conn *pgxpool.Pool, config *config.Co
 
 		// Check if this is a deadlock error
 		if isDeadlockError(err) {
-			// Use special deadlock retry logic
 			if attempt < retryConfig.DeadlockRetries {
 				delay := r.calculateDeadlockDelay(attempt)
-				utils.Warn.Printf("Deadlock detected in job %s (attempt %d/%d), retrying in %v: %v",
-					job.JobType, attempt+1, retryConfig.DeadlockRetries+1, delay, err)
+				utils.Warn.Printf("Deadlock detected in task %s (attempt %d/%d), retrying in %v: %v",
+					task.TaskType, attempt+1, retryConfig.DeadlockRetries+1, delay, err)
 				time.Sleep(delay)
 				continue
 			} else {
-				utils.Error.Printf("Job %s failed after %d deadlock retries: %v",
-					job.JobType, retryConfig.DeadlockRetries, err)
-				return fmt.Errorf("job %s failed after %d deadlock retries: %w", job.JobType, retryConfig.DeadlockRetries, err)
+				utils.Error.Printf("Task %s failed after %d deadlock retries: %v",
+					task.TaskType, retryConfig.DeadlockRetries, err)
+				return fmt.Errorf("task %s failed after %d deadlock retries: %w", task.TaskType, retryConfig.DeadlockRetries, err)
 			}
 		}
 
 		// For other errors, use regular retry logic
 		if attempt < maxRetries {
 			delay := r.calculateRetryDelay(attempt, retryConfig)
-			utils.Warn.Printf("Job %s failed (attempt %d/%d), retrying in %v: %v",
-				job.JobType, attempt+1, maxRetries+1, delay, err)
+			utils.Warn.Printf("Task %s failed (attempt %d/%d), retrying in %v: %v",
+				task.TaskType, attempt+1, maxRetries+1, delay, err)
 			time.Sleep(delay)
 		} else {
-			utils.Error.Printf("Job %s failed after %d retries: %v", job.JobType, maxRetries, err)
+			utils.Error.Printf("Task %s failed after %d retries: %v", task.TaskType, maxRetries, err)
 		}
 	}
 
-	return fmt.Errorf("job %s failed after %d retries: %w", job.JobType, maxRetries, lastErr)
+	return fmt.Errorf("task %s failed after %d retries: %w", task.TaskType, maxRetries, lastErr)
 }
 
-// runSingleJob is the internal method that actually executes a job
-func (r *Runner) runSingleJob(job *Job, conn *pgxpool.Pool, workerID int) error {
-	utils.Debug.Printf("[Worker %d] Starting job: %s (SQL file: %s)", workerID, job.JobType, job.SQLFile)
-	sqlScript, err := r.getSQLScript(job.SQLFile)
+// runSingleTask is the internal method that actually executes a task
+func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) error {
+	utils.Debug.Printf("[Worker %d] Starting task: %s (SQL file: %s)", workerID, task.TaskType, task.SQLFile)
+	sqlScript, err := r.getSQLScript(task.SQLFile)
 	if err != nil {
-		return fmt.Errorf("failed to read SQL file %s: %w", job.SQLFile, err)
+		return fmt.Errorf("failed to read SQL file %s: %w", task.SQLFile, err)
 	}
 
-	// Check if this is a LOD2 or LOD3 job
-	if strings.Contains(job.JobType, "LOD2") || strings.Contains(job.JobType, "LOD3") {
+	// Check if this is a LOD2 or LOD3 task
+	if strings.Contains(task.TaskType, "LOD2") || strings.Contains(task.TaskType, "LOD3") {
 		var lod int
-		// Extract LOD level from job type for LOD-specific jobs
-		if strings.Contains(job.JobType, "LOD2") {
+		if strings.Contains(task.TaskType, "LOD2") {
 			lod = 2
 		}
-		if strings.Contains(job.JobType, "LOD3") {
+		if strings.Contains(task.TaskType, "LOD3") {
 			lod = 3
 		}
-		if err := utils.ExecuteSQLScript(sqlScript, r.config, conn, lod, job.Params.BuildingIDs); err != nil {
-			return fmt.Errorf("job %s failed (SQL file: %s): %w", job.JobType, job.SQLFile, err)
+		if err := utils.ExecuteSQLScript(sqlScript, r.config, conn, lod, task.Params.BuildingIDs); err != nil {
+			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
 		}
 	} else {
-		// For other job types, no LOD-specific processing is needed
 		if err := utils.ExecuteSQLScript(sqlScript, r.config, conn, 0, nil); err != nil {
-			return fmt.Errorf("job %s failed (SQL file: %s): %w", job.JobType, job.SQLFile, err)
+			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
 		}
 	}
 
-	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, job.SQLFile)
+	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, task.SQLFile)
 	return nil
 }
 
 func (r *Runner) getSQLScript(path string) (string, error) {
-	// Read the sql script from the file
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -164,14 +154,11 @@ func (r *Runner) calculateRetryDelay(attempt int, config *config.RetryConfig) ti
 
 // calculateDeadlockDelay calculates delay specifically for deadlock retries
 func (r *Runner) calculateDeadlockDelay(attempt int) time.Duration {
-	// Base delay increases with each attempt
 	baseDelay := time.Duration(50+attempt*25) * time.Millisecond
-	// Add random jitter to prevent thundering herd
 	jitter := time.Duration(rand.Intn(100)) * time.Millisecond
 
 	totalDelay := baseDelay + jitter
 
-	// Cap the maximum delay
 	maxDelay := 2 * time.Second
 	if totalDelay > maxDelay {
 		totalDelay = maxDelay

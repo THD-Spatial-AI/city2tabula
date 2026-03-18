@@ -17,36 +17,36 @@ func NewWorker(id int) *Worker {
 	return &Worker{ID: id}
 }
 
-func (w *Worker) Start(pipelineChan <-chan *Pipeline, conn *pgxpool.Pool, wg *sync.WaitGroup, config *config.Config) {
+func (w *Worker) Start(jobChan <-chan *Job, conn *pgxpool.Pool, wg *sync.WaitGroup, config *config.Config) {
 	defer wg.Done()
 
-	for pipeline := range pipelineChan {
+	for job := range jobChan {
 		runner := NewRunner(config)
-		if err := runner.RunPipeline(pipeline, conn, w.ID); err != nil {
-			utils.Error.Printf("[Worker %d] Pipeline failed: %v", w.ID, err)
+		if err := runner.RunJob(job, conn, w.ID); err != nil {
+			utils.Error.Printf("[Worker %d] Job failed: %v", w.ID, err)
 			continue
 		}
 	}
 }
 
-// RunPipelineQueue drains a PipelineQueue into a channel and runs it with workers.
-func RunPipelineQueue(queue *PipelineQueue, conn *pgxpool.Pool, cfg *config.Config) error {
+// RunJobQueue drains a JobQueue into a channel and processes it with workers.
+func RunJobQueue(queue *JobQueue, conn *pgxpool.Pool, cfg *config.Config) error {
 	if queue.IsEmpty() {
 		return nil
 	}
 
-	pipChan := make(chan *Pipeline, queue.Len())
+	jobChan := make(chan *Job, queue.Len())
 	for !queue.IsEmpty() {
-		if p := queue.Dequeue(); p != nil {
-			pipChan <- p
+		if j := queue.Dequeue(); j != nil {
+			jobChan <- j
 		}
 	}
-	close(pipChan)
+	close(jobChan)
 
 	var wg sync.WaitGroup
 	for i := 1; i <= cfg.Batch.Threads; i++ {
 		wg.Add(1)
-		go NewWorker(i).Start(pipChan, conn, &wg, cfg)
+		go NewWorker(i).Start(jobChan, conn, &wg, cfg)
 	}
 	wg.Wait()
 	return nil

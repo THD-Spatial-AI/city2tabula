@@ -114,6 +114,8 @@ nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
   - Data: example/example.md
+  - Code:
+    - Job Queue & Worker Pipeline: code/job-queue.md
 
 extra:
   version:
