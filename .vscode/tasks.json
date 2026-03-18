@@ -28,7 +28,8 @@
     {
       "label": "Create Complete Database",
       "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula -create-db",
+      "command": "go",
+      "args": ["run", "./cmd", "-create-db"],
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -45,7 +46,8 @@
     {
       "label": "Reset Complete Database",
       "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-db",
+      "command": "go",
+      "args": ["run", "./cmd", "--reset-db"],
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -62,7 +64,8 @@
     {
       "label": "Reset CityDB Only",
       "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-citydb",
+      "command": "go",
+      "args": ["run", "./cmd", "--reset-citydb"],
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -79,7 +82,8 @@
     {
       "label": "Reset City2TABULA Schemas Only",
       "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-city2tabula",
+      "command": "go",
+      "args": ["run", "./cmd", "--reset-city2tabula"],
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -96,7 +100,8 @@
     {
       "label": "Extract Features",
       "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula -extract-features",
+      "command": "go",
+      "args": ["run", "./cmd", "-extract-features"],
       "group": "test",
       "dependsOn": "Build Go Binary",
       "problemMatcher": [],
@@ -109,34 +114,6 @@
         "clear": false
       },
       "detail": "Run the feature extraction pipeline."
-    },
-    {
-      "label": "Legacy: Reset City2TABULA DB",
-      "type": "shell",
-      "command": "go build -o city2tabula ./cmd && ./city2tabula --reset-db",
-      "group": "test",
-      "dependsOn": "Build Go Binary",
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      },
-      "detail": "Legacy command: same as 'Reset Complete Database'."
-    },
-    {
-      "label": "Run rtd server",
-      "type": "shell",
-      "command": "cd ${workspaceFolder}/docs && sphinx-autobuild source build/html",
-      "problemMatcher": [],
-      "group": {
-          "kind": "build",
-          "isDefault": true
-      },
-      "detail": "Start the Read the Docs development server with auto-rebuild."
     },
     {
       "label": "Run MkDocs server",
