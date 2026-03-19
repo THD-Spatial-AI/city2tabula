@@ -1,11 +1,11 @@
 # Project information
-site_name: THD-Spatial
-site_author: THD-Spatial
-site_url: https://github.com/thd-spatial
+site_name: THD-Spatial-AI
+site_author: THD-Spatial-AI
+site_url: https://github.com/thd-spatial-au
 
 # Repository
 repo_name: THD-Spatial/city2tabula
-repo_url: https://github.com/THD-Spatial/city2tabula
+repo_url: https://github.com/thd-spatial-ai/city2tabula
 edit_uri: edit/main/docs/
 
 # Theme configuration
