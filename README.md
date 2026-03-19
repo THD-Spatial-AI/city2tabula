@@ -1,10 +1,10 @@
 ![city2tabula logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
 
-[![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/THD-Spatial/city2tabula/actions/workflows/go.yml)
+[![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
 &nbsp;
-[![MkDocs](https://github.com/THD-Spatial/city2tabula/actions/workflows/docs.yml/badge.svg)](https://THD-Spatial.github.io/city2tabula)
+[![MkDocs](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/docs.yml/badge.svg)](https://thd-spatial-ai.github.io/city2tabula)
 &nbsp;
-[![GitHub release](https://img.shields.io/github/v/release/THD-Spatial/City2TABULA.svg)](https://github.com/THD-Spatial/city2tabula/releases)
+[![GitHub release](https://img.shields.io/github/v/release/thd-spatial-ai/City2TABULA.svg)](https://github.com/thd-spatial-ai/city2tabula/releases)
 
 City2TABULA is a high-performance, Go-based data preparation tool for 3D building datasets stored in PostgreSQL/PostGIS using CityDB schemas. Its primary purpose is to extract, normalise, and enrich geometric and spatial attributes from LoD2 and LoD3 building models, enabling downstream tasks such as building typology classification and heating demand estimation.
 
@@ -16,7 +16,7 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 ## Getting started
 
-For setup and installation guide, please refer to [docs/getting-started/setup.md](https://thd-spatial.github.io/city2tabula/installation/setup/)
+For setup and installation guide, please refer to [docs/getting-started/setup.md](https://thd-spatial-ai.github.io/city2tabula/installation/setup/)
 
 Local docs preview (MkDocs):
 
