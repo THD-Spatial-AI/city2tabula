@@ -51,24 +51,24 @@ func testCityDBExecPath(cityDBExecPath string) error {
 	return nil
 }
 
-// importCityDBFiles imports both CityGML and CityJSON files from a directory
+// importCityDBFiles imports CityGML and CityJSON files from a directory into the given schema.
 func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, config *config.Config) error {
-	// Import CityGML files
-	cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, "citygml", config)
-	if cmd == nil {
-		return fmt.Errorf("no CityGML files found in %s for %s", dataPath, lodLevel)
-	}
-	if err := executeCityDBCommand(cmd, fmt.Sprintf("%s CityGML", lodLevel)); err != nil {
-		return err
+	formats := []struct {
+		cmdFlag string // passed to the citydb CLI
+		label   string // used in log messages
+	}{
+		{"citygml", "CityGML"},
+		{"cityjson", "CityJSON"},
 	}
 
-	// Import CityJSON files
-	cmd = getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, "cityjson", config)
-	if cmd == nil {
-		return fmt.Errorf("no CityJSON files found in %s for %s", dataPath, lodLevel)
-	}
-	if err := executeCityDBCommand(cmd, fmt.Sprintf("%s CityJSON", lodLevel)); err != nil {
-		return err
+	for _, f := range formats {
+		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, f.cmdFlag, config)
+		if cmd == nil {
+			return fmt.Errorf("no %s files found in %s for %s", f.label, dataPath, lodLevel)
+		}
+		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", lodLevel, f.label)); err != nil {
+			return err
+		}
 	}
 
 	utils.Info.Printf("%s data imported successfully", lodLevel)

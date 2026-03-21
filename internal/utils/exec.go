@@ -54,61 +54,49 @@ func parseSRID(crs string) (int, error) {
 	return srid, nil
 }
 
-func ExecuteSQLScript(sqlScript string, config *config.Config, conn *pgxpool.Pool, lod int, buildingIDs []int64) error {
-	// Add detailed error logging with stack trace info
-	if config == nil {
-		Error.Printf("ExecuteSQLScript called with nil config")
-		Error.Printf("sqlScript length: %d", len(sqlScript))
-		Error.Printf("conn is nil: %v", conn == nil)
-		Error.Printf("lod: %d", lod)
-		Error.Printf("buildingIDs: %v", buildingIDs)
-		return fmt.Errorf("config parameter cannot be nil - check the calling function")
+// ExecuteSQLScript substitutes template parameters into sqlScript and executes it.
+// Parameters use {param_name} placeholders — see config.SQLParameters for the full list.
+// lod should be 2 or 3 for feature extraction, -1 for non-LOD tasks (schema setup, functions, etc.).
+func ExecuteSQLScript(sqlScript string, cfg *config.Config, conn *pgxpool.Pool, lod int, buildingIDs []int64) error {
+	if cfg == nil {
+		return fmt.Errorf("ExecuteSQLScript: config cannot be nil")
 	}
-	// Get all available parameters
-	sqlParams := config.GetSQLParameters(lod, buildingIDs)
-	params := make(map[string]any)
 
-	// Use reflection to dynamically extract parameters
-	paramMap := getSQLParameterMap(sqlParams)
-
-	// Include all available parameters
-	for key, value := range paramMap {
-		// Special handling for building_ids
-		if key == "building_ids" && value != nil {
-			if ids, ok := value.([]int64); ok {
-				// Only format if there are building IDs
-				if len(ids) > 0 {
-					// Format as "(1,2,3)" for SQL
-					idStrings := make([]string, len(ids))
-					for i, id := range ids {
-						idStrings[i] = fmt.Sprintf("%d", id)
-					}
-					params[key] = fmt.Sprintf("(%s)", strings.Join(idStrings, ","))
-				} else {
-					// Empty slice - use (-1) to prevent syntax error while matching nothing
-					params[key] = "(-1)"
-				}
-			} else {
-				return fmt.Errorf("building_ids parameter is not of type []int64")
-			}
-		} else {
-			params[key] = value
-		}
-	}
+	params := buildParamMap(cfg.GetSQLParameters(lod, buildingIDs))
 
 	replacedScript, err := replaceParameters(sqlScript, params)
 	if err != nil {
 		return err
 	}
 
-	// // Execute with timeout to prevent hanging
-	// ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	// defer cancel()
-	ctx := context.Background()
-	if _, err := conn.Exec(ctx, replacedScript); err != nil {
+	if _, err := conn.Exec(context.Background(), replacedScript); err != nil {
 		return err
 	}
 	return nil
+}
+
+// buildParamMap converts an SQLParameters struct into a map ready for placeholder substitution.
+// Building IDs get special treatment: they're formatted as a SQL tuple "(1,2,3)" for use in IN clauses.
+// An empty slice becomes "(-1)" — a safe value that matches nothing and avoids a syntax error.
+func buildParamMap(sqlParams config.SQLParameters) map[string]any {
+	params := getSQLParameterMap(sqlParams)
+	if ids, ok := params["building_ids"].([]int64); ok {
+		params["building_ids"] = formatBuildingIDs(ids)
+	}
+	return params
+}
+
+// formatBuildingIDs formats a slice of building IDs as a SQL tuple: "(1,2,3)".
+// Returns "(-1)" for an empty slice so IN clauses remain valid SQL but match nothing.
+func formatBuildingIDs(ids []int64) string {
+	if len(ids) == 0 {
+		return "(-1)"
+	}
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = strconv.FormatInt(id, 10)
+	}
+	return "(" + strings.Join(parts, ",") + ")"
 }
 
 // getSQLParameterMap uses reflection to extract parameter mappings
