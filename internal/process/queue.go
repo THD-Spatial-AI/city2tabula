@@ -71,3 +71,16 @@ func (q *JobQueue) Clear() {
 	defer q.mutex.Unlock()
 	q.jobs = q.jobs[:0]
 }
+
+// ToChannel drains all jobs into a buffered channel and closes it.
+// Use this to hand off a queue to a worker pool — the channel is ready to range over immediately.
+func (q *JobQueue) ToChannel() <-chan *Job {
+	ch := make(chan *Job, q.Len())
+	for !q.IsEmpty() {
+		if j := q.Dequeue(); j != nil {
+			ch <- j
+		}
+	}
+	close(ch)
+	return ch
+}

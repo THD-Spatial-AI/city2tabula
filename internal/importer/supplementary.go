@@ -26,25 +26,11 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 		return fmt.Errorf("failed to setup DB queue: %w", err)
 	}
 
-	jobChan := make(chan *process.Job, jobQueue.Len())
-	for !jobQueue.IsEmpty() {
-		job := jobQueue.Dequeue()
-		if job != nil {
-			jobChan <- job
-		}
-	}
-	close(jobChan)
-
-	// Process jobs with a single worker for supplementary data import
-	numWorkers := 1
+	// Supplementary scripts must run in order, so we use a single worker here.
+	jobChan := jobQueue.ToChannel()
 	var wg sync.WaitGroup
-
-	for i := 1; i <= numWorkers; i++ {
-		wg.Add(1)
-		worker := process.NewWorker(i)
-		go worker.Start(jobChan, conn, &wg, config)
-	}
-
+	wg.Add(1)
+	go process.NewWorker(1).Start(jobChan, conn, &wg, config)
 	wg.Wait()
 
 	utils.Info.Println("Supplementary data imported successfully")

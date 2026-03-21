@@ -29,19 +29,15 @@ func (w *Worker) Start(jobChan <-chan *Job, conn *pgxpool.Pool, wg *sync.WaitGro
 	}
 }
 
-// RunJobQueue drains a JobQueue into a channel and processes it with workers.
+// RunJobQueue drains a JobQueue into a channel and processes it with a pool of workers.
+// Worker count is controlled by cfg.Batch.Threads (defaults to CPU count).
+// See docs/code/job-queue.md for a full explanation of the pipeline.
 func RunJobQueue(queue *JobQueue, conn *pgxpool.Pool, cfg *config.Config) error {
 	if queue.IsEmpty() {
 		return nil
 	}
 
-	jobChan := make(chan *Job, queue.Len())
-	for !queue.IsEmpty() {
-		if j := queue.Dequeue(); j != nil {
-			jobChan <- j
-		}
-	}
-	close(jobChan)
+	jobChan := queue.ToChannel()
 
 	var wg sync.WaitGroup
 	for i := 1; i <= cfg.Batch.Threads; i++ {
