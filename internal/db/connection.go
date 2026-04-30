@@ -2,46 +2,44 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/THD-Spatial/City2TABULA/internal/config"
 	"github.com/THD-Spatial/City2TABULA/internal/utils"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/lib/pq"
 )
 
 // Ensure the target database exists by connecting to the bootstrap "postgres" DB
-func EnsureDatabase(config *config.Config) error {
+func EnsureDatabase(cfg *config.Config) error {
 	bootstrapDSN := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
-		config.DB.Host, config.DB.Port, config.DB.User, config.DB.Password, config.DB.SSLMode,
+		cfg.DB.Host, cfg.DB.Port, cfg.DB.User, cfg.DB.Password, cfg.DB.SSLMode,
 	)
 
-	db, err := sql.Open("postgres", bootstrapDSN)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := pgx.Connect(ctx, bootstrapDSN)
 	if err != nil {
 		return fmt.Errorf("connect to bootstrap DB failed: %w", err)
 	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("ping bootstrap DB failed: %w", err)
-	}
+	defer conn.Close(ctx)
 
 	var exists bool
-	if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, config.DB.Name).Scan(&exists); err != nil {
-		return fmt.Errorf("check database %s exists: %w", config.DB.Name, err)
+	if err := conn.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, cfg.DB.Name).Scan(&exists); err != nil {
+		return fmt.Errorf("check database %s exists: %w", cfg.DB.Name, err)
 	}
 
 	if !exists {
-		utils.Info.Printf("Database %s does not exist, creating...", config.DB.Name)
+		utils.Info.Printf("Database %s does not exist, creating...", cfg.DB.Name)
 		// NOTE: requires the connecting role to have CREATEDB or be superuser
-		if _, err := db.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, config.DB.Name)); err != nil {
-			return fmt.Errorf("failed to create database %s: %w", config.DB.Name, err)
+		if _, err := conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, cfg.DB.Name)); err != nil {
+			return fmt.Errorf("failed to create database %s: %w", cfg.DB.Name, err)
 		}
-		utils.Info.Printf("Database %s created successfully", config.DB.Name)
+		utils.Info.Printf("Database %s created successfully", cfg.DB.Name)
 	}
 
 	return nil
