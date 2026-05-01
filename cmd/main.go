@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
-	"github.com/THD-Spatial/City2TABULA/internal/db"
-	"github.com/THD-Spatial/City2TABULA/internal/flags"
-	"github.com/THD-Spatial/City2TABULA/internal/process"
-	"github.com/THD-Spatial/City2TABULA/internal/utils"
-	"github.com/THD-Spatial/City2TABULA/internal/version"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/db"
+	"github.com/thd-spatial-ai/city2tabula/internal/flags"
+	"github.com/thd-spatial-ai/city2tabula/internal/process"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
+	"github.com/thd-spatial-ai/city2tabula/internal/version"
 )
 
 func main() {
