@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

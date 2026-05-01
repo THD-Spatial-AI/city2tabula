@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
-	"github.com/THD-Spatial/City2TABULA/internal/utils"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
