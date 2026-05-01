@@ -200,7 +200,7 @@ func ExecuteCityDBScript(config *config.Config, scriptPath string, schemaName st
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return fmt.Errorf("CityDB script not found: %s", scriptPath)
 	}
-	return utils.ExecuteCityDBScript(config, scriptPath, schemaName)
+	return executeCityDBScript(config, scriptPath, schemaName)
 }
 
 func CreateSchemas(conn *pgxpool.Pool, schemas []string) error {
