@@ -1,10 +1,10 @@
 # Project information
-site_name: THD-Spatial-AI
+site_name: City2TABULA
 site_author: THD-Spatial-AI
-site_url: https://github.com/thd-spatial-ai
+site_url: https://github.com/thd-spatial-ai/city2tabula
 
 # Repository
-repo_name: THD-Spatial/city2tabula
+repo_name: city2tabula
 repo_url: https://github.com/thd-spatial-ai/city2tabula
 edit_uri: edit/main/docs/
 
