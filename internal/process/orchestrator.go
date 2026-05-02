@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
 
 // JobType represents the category of a job

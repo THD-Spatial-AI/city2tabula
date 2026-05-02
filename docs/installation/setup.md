@@ -13,7 +13,7 @@ For using the City2TABULA tool, you have two main options: the recommended Docke
 
 ### Step 1. Download release
 
-Download the latest release from [GitHub](https://github.com/THD-Spatial/city2tabula/releases). Unzip the downloaded file and navigate to the project directory:
+Download the latest release from [GitHub](https://github.com/thd-spatial-ai/city2tabula/releases). Unzip the downloaded file and navigate to the project directory:
 
 ```bash
 cd city2tabula-<version>
@@ -43,7 +43,7 @@ data/
     ```
 
 !!! tip
-    If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/THD-Spatial/city2tabula/blob/main/data/README.md) for example datasets and sources.
+    If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/thd-spatial-ai/city2tabula/blob/main/data/README.md) for example datasets and sources.
 
 ### Step 3. Create Docker Container
 
