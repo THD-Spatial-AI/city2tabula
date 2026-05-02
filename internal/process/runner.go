@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
-	"github.com/THD-Spatial/City2TABULA/internal/utils"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -101,8 +101,22 @@ func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) err
 		return fmt.Errorf("failed to read SQL file %s: %w", task.SQLFile, err)
 	}
 
-	if err := utils.ExecuteSQLScript(string(data), r.config, conn, task.LodLevel, task.Params.BuildingIDs); err != nil {
-		return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
+	// Check if this is a LOD2 or LOD3 task
+	if strings.Contains(task.TaskType, "LOD2") || strings.Contains(task.TaskType, "LOD3") {
+		var lod int
+		if strings.Contains(task.TaskType, "LOD2") {
+			lod = 2
+		}
+		if strings.Contains(task.TaskType, "LOD3") {
+			lod = 3
+		}
+		if err := executeSQLScript(sqlScript, r.config, conn, lod, task.Params.BuildingIDs); err != nil {
+			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
+		}
+	} else {
+		if err := executeSQLScript(sqlScript, r.config, conn, 0, nil); err != nil {
+			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
+		}
 	}
 
 	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, task.SQLFile)
