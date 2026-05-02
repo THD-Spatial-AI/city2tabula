@@ -9,10 +9,9 @@ import (
 // RetryConfig holds retry configuration
 type RetryConfig struct {
 	MaxRetries      int
-	InitialDelay    time.Duration
-	MaxDelay        time.Duration
-	BackoffFactor   float64
+	RetryDelay      time.Duration
 	DeadlockRetries int
+	DeadlockDelay   time.Duration
 }
 
 // BatchConfig holds batch processing configuration
@@ -27,10 +26,9 @@ type BatchConfig struct {
 func DefaultRetryConfig() *RetryConfig {
 	return &RetryConfig{
 		MaxRetries:      3,
-		InitialDelay:    100 * time.Millisecond,
-		MaxDelay:        5 * time.Second,
-		BackoffFactor:   2.0,
+		RetryDelay:      200 * time.Millisecond,
 		DeadlockRetries: 5,
+		DeadlockDelay:   100 * time.Millisecond,
 	}
 }
 
