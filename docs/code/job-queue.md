@@ -85,29 +85,9 @@ for job := range jobChan { // stops automatically when channel is closed + empty
 
 ---
 
-## Flow diagram
+## Concurrency workflow diagram
 
-```mermaid
-flowchart TD
-    A[Build JobQueue\norchestrator.go] -->|Enqueue jobs| B[JobQueue]
-    B -->|ToChannel| C[Buffered Channel\nclosed immediately]
-
-    C --> W1[Worker 1]
-    C --> W2[Worker 2]
-    C --> W3[Worker N]
-
-    W1 -->|RunJob| R1[Runner → SQL scripts]
-    W2 -->|RunJob| R2[Runner → SQL scripts]
-    W3 -->|RunJob| R3[Runner → SQL scripts]
-
-    R1 & R2 & R3 --> DB[(PostGIS DB)]
-
-    subgraph Worker Pool
-        W1
-        W2
-        W3
-    end
-```
+![Sequence diagram showing the flow of jobs from the orchestrator to the queue, then to the channel, picked up by workers, executed by runners, and results stored in PostGIS.](../assets/diagrams/concurrency/concurrency.drawio.svg)
 
 ---
 
