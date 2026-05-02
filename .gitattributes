@@ -21,6 +21,6 @@ data/*.json filter=lfs diff=lfs merge=lfs -text
 *.gml linguist-vendored
 *.sh linguist-vendored
 *.bat linguist-vendored
-
+*.py linguist-vendored
 
 *.md !text !filter !merge !diff
