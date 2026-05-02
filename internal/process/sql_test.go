@@ -2,6 +2,7 @@ package process
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -189,6 +190,171 @@ func TestReplaceParameters(t *testing.T) {
 
 			if got != testCase.want {
 				t.Fatalf("expected %q, got %q", testCase.want, got)
+			}
+		})
+	}
+}
+
+// BenchmarkReplaceParameters measures the performance of replaceParameters function with a large SQL script and a large parameter map.
+//
+// Use case: In feature extraction, the SQL script can be quite large and the parameter map can contain many entries. This benchmark helps to understand how the function performs under such conditions and whether it can be optimized if needed.
+func BenchmarkReplaceParameters(b *testing.B) {
+
+	cases := []struct {
+		name string
+		size int
+	}{
+		// Case 1: small SQL script with 10 parameters
+		{
+			name: "given a small SQL script with 10 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			size: 10,
+		},
+		// Case 2: small SQL script with 100 parameters
+		{
+			name: "given a small SQL script with 100 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			size: 100,
+		},
+		// Case 3: medium SQL script with 1000 parameters
+		{
+			name: "given a medium SQL script with 1000 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			size: 1000,
+		},
+		// Case 4: large SQL script with 10000 parameters
+		{
+			name: "given a large SQL script with 10000 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			size: 10000,
+		},
+	}
+
+	for _, bc := range cases {
+		b.Run(bc.name, func(b *testing.B) {
+			// Create a large string with 1000 placeholders and a corresponding parameter map
+			sqlScript := "SELECT * FROM {param1}"
+			params := make(map[string]any)
+			for i := 1; i <= bc.size; i++ {
+				placeholder := "{param" + strconv.Itoa(i) + "}"
+				sqlScript += " JOIN " + placeholder + " ON condition" + strconv.Itoa(i)
+				params["param"+strconv.Itoa(i)] = "table" + strconv.Itoa(i)
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				replaceParameters(sqlScript, params)
+			}
+		})
+	}
+}
+
+func BenchmarkReplaceParameters_ScriptLength(b *testing.B) {
+	params := map[string]any{
+		"lod_schema":           "lod2",
+		"srid":                 "25832",
+		"city2tabula_schema":   "city2tabula",
+		"tabula_schema":        "tabula",
+		"lod_level":            2,
+		"public_schema":        "public",
+		"citydb_schema":        "citydb",
+		"citydb_pkg_schema":    "citydb_pkg",
+		"country":              "DEU",
+		"tabula_table":         "tabula",
+		"tabula_variant_table": "tabula_variant",
+		"room_height":          "3.0",
+		"building_ids":         "(1,2,3)",
+	}
+
+	cases := []struct {
+		name   string
+		script string
+	}{
+		{
+			name:   "given a short script (~120 chars), when replaceParameters is called with 13 params, then returns updated script",
+			script: "SELECT * FROM {lod_schema}.{tabula_table} WHERE srid = {srid} AND country = '{country}' AND building_id IN {building_ids};",
+		},
+		{
+			name:   "given a medium script (~200 chars), when replaceParameters is called with 13 params, then returns updated script",
+			script: "SELECT * FROM {lod_schema}.{tabula_table} JOIN {citydb_schema}.building ON b.id = t.id WHERE srid = {srid} AND country = '{country}' AND lod_level = {lod_level} AND building_id IN {building_ids};",
+		},
+		{
+			name:   "given a long script (~350 chars), when replaceParameters is called with 13 params, then returns updated script",
+			script: "SELECT * FROM {lod_schema}.{tabula_table} JOIN {citydb_schema}.building ON b.id = t.id JOIN {citydb_pkg_schema}.package ON p.id = b.id WHERE srid = {srid} AND country = '{country}' AND lod_level = {lod_level} AND room_height > {room_height} AND city2tabula_schema = '{city2tabula_schema}' AND building_id IN {building_ids};",
+		},
+		{
+			name:   "given a very long script (~550 chars), when replaceParameters is called with 13 params, then returns updated script",
+			script: "SELECT b.id, b.geom, t.tabula_class FROM {lod_schema}.{tabula_table} AS t JOIN {citydb_schema}.building AS b ON b.id = t.id JOIN {citydb_pkg_schema}.package AS p ON p.id = b.id JOIN {public_schema}.spatial_ref_sys AS s ON s.srid = {srid} WHERE s.srid = {srid} AND t.country = '{country}' AND b.lod_level = {lod_level} AND b.room_height > {room_height} AND t.schema = '{city2tabula_schema}' AND t.tabula_variant IN (SELECT id FROM {tabula_schema}.{tabula_variant_table}) AND b.id IN {building_ids};",
+		},
+	}
+	// loop + b.ResetTimer() + replaceParameters call
+	for _, bc := range cases {
+		b.Run(bc.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				replaceParameters(bc.script, params)
+			}
+		})
+	}
+}
+
+// Benchmark 2 — param count, script length fixed:
+
+func BenchmarkReplaceParameters_ParamCount(b *testing.B) {
+	// fixed script — one placeholder per param you plan to test
+	// keep the script the same length across all cases
+
+	cases := []struct {
+		name   string
+		params map[string]any
+	}{
+		// fill in: 5 params, 13 params (realistic), 50 params
+		{
+			name: "given a SQL script with 5 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			params: map[string]any{
+				"lod_schema":   "lod2",
+				"srid":         "25832",
+				"country":      "DEU",
+				"building_ids": "(1,2,3)",
+				"tabula_table": "tabula",
+			},
+		},
+		{
+			name: "given a SQL script with 13 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			params: map[string]any{
+				"lod_schema":           "lod2",
+				"srid":                 "25832",
+				"city2tabula_schema":   "city2tabula",
+				"tabula_schema":        "tabula",
+				"lod_level":            2,
+				"public_schema":        "public",
+				"citydb_schema":        "citydb",
+				"citydb_pkg_schema":    "citydb_pkg",
+				"country":              "DEU",
+				"tabula_table":         "tabula",
+				"tabula_variant_table": "tabula_variant",
+				"room_height":          "3.0",
+			},
+		},
+		{
+			name: "given a SQL script with 50 parameters, when replaceParameters is called, then returns updated script with all parameters replaced",
+			params: func() map[string]any {
+				params := make(map[string]any)
+				for i := 1; i <= 50; i++ {
+					params["param"+strconv.Itoa(i)] = "value" + strconv.Itoa(i)
+				}
+				return params
+			}(),
+		},
+	}
+	// loop + b.ResetTimer() + replaceParameters call
+	for _, bc := range cases {
+		b.Run(bc.name, func(b *testing.B) {
+			// create a SQL script with 50 placeholders matching the params in the largest case
+			sqlScript := "SELECT * FROM {lod_schema}.{tabula_table} WHERE srid = {srid} AND country = '{country}' AND building_id IN {building_ids}"
+			for i := 1; i <= 50; i++ {
+				sqlScript += " AND param" + strconv.Itoa(i) + " = {" + "param" + strconv.Itoa(i) + "}"
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				replaceParameters(sqlScript, bc.params)
 			}
 		})
 	}
