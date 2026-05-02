@@ -6,59 +6,81 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
-// TestCreateBatches_ExactDivision tests CreateBatches with a slice that divides evenly into batches
-func TestCreateBatches_ExactDivision(t *testing.T) {
-
-	got := utils.CreateBatches([]int64{1, 2, 3, 4}, 2)
-
-	if len(got) != 2 {
-		t.Fatalf("expected 2 batches, got %d", len(got))
+// TestCreateBatches verifies that CreateBatches correctly partitions a flat slice
+// of building IDs into fixed-size batches for parallel processing.
+//
+// Use case: City2TABULA distributes building IDs across worker goroutines in batches.
+// Each batch becomes one Job in the JobQueue. The function must preserve element order,
+// respect the batch size boundary, and handle edge cases gracefully.
+func TestCreateBatches(t *testing.T) {
+	cases := []struct {
+		name      string
+		ids       []int64
+		batchSize int
+		wantLen   int
+		want      [][]int64
+	}{
+		{
+			name:      "given a slice that divides evenly, when batched, then returns equal-sized batches",
+			ids:       []int64{1, 2, 3, 4},
+			batchSize: 2,
+			wantLen:   2,
+			want:      [][]int64{{1, 2}, {3, 4}},
+		},
+		{
+			name:      "given a slice with a remainder, when batched, then last batch contains remaining elements",
+			ids:       []int64{1, 2, 3, 4, 5},
+			batchSize: 2,
+			wantLen:   3,
+			want:      [][]int64{{1, 2}, {3, 4}, {5}},
+		},
+		{
+			name:      "given a slice is empty, when batched, then returns no batches",
+			ids:       []int64{},
+			batchSize: 2,
+			wantLen:   0,
+			want:      [][]int64{},
+		},
+		{
+			name:      "given a batchSize is larger than total ids, when batched, then returns single batch with all ids",
+			ids:       []int64{1, 2, 3, 4},
+			batchSize: 5,
+			wantLen:   1,
+			want:      [][]int64{{1, 2, 3, 4}},
+		},
+		{
+			name:      "given a negative batch size, when batched, then returns single batch with all ids",
+			ids:       []int64{1, 2, 3, 4},
+			batchSize: -1,
+			wantLen:   1,
+			want:      [][]int64{{1, 2, 3, 4}},
+		},
 	}
 
-	// Fatalf above guards us — if we reach here, got[0] and got[1] are safe to access
-	if got[0][0] != 1 || got[0][1] != 2 {
-		t.Errorf("batch[0] = %v, want [1 2]", got[0])
-	}
-	if got[1][0] != 3 || got[1][1] != 4 {
-		t.Errorf("batch[1] = %v, want [3 4]", got[1])
-	}
-}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
 
-func TestCreateBatches_WithRemainder(t *testing.T) {
-	got := utils.CreateBatches([]int64{1, 2, 3, 4, 5}, 2)
+			// When
+			got := utils.CreateBatches(testCase.ids, testCase.batchSize)
 
-	if len(got) != 3 {
-		t.Fatalf("expected 3 batches, got %d", len(got))
-	}
+			// Then: check correct number of batches
+			if len(got) != testCase.wantLen {
+				t.Fatalf("expected %d batches, got %d", testCase.wantLen, len(got))
+			}
 
-	// Fatalf above guards us - if we reach here, got[0], got[1], and got [2] are safe to access
-	if got[0][0] != 1 || got[0][1] != 2 {
-		t.Errorf("batch[0] = %v, want [1 2]", got[0])
-	}
-	if got[1][0] != 3 || got[1][1] != 4 {
-		t.Errorf("batch[1] = %v, want [3 4]", got[1])
-	}
-	if len(got[2]) != 1 || got[2][0] != 5 {
-		t.Errorf("batch[2] = %v, want [5]", got[2])
-	}
-}
-
-func TestCreateBatches_EmptyInput(t *testing.T) {
-	got := utils.CreateBatches([]int64{}, 2)
-
-	if len(got) != 0 {
-		t.Fatalf("expected 0 batches, got %d", len(got))
-	}
-}
-
-func TestCreateBatches_BatchSizeLargerThanInput(t *testing.T) {
-	got := utils.CreateBatches([]int64{1, 2, 3, 4}, 10)
-
-	if len(got) != 1 {
-		t.Fatalf("expected 1 batch, got %d", len(got))
-	}
-
-	if len(got[0]) != 4 || got[0][0] != 1 || got[0][1] != 2 || got[0][2] != 3 || got[0][3] != 4 {
-		t.Errorf("batch[0] = %v, want [1 2 3 4]", got[0])
+			// Then: each batch has correct length
+			for i, batch := range testCase.want {
+				if len(got[i]) != len(batch) {
+					t.Errorf("batch[%d]: length = %d, want %d", i, len(got[i]), len(batch))
+					continue
+				}
+				// Then: each batch content is in correct order
+				for j, val := range batch {
+					if got[i][j] != val {
+						t.Errorf("batch[%d][%d] = %d, want %d", i, j, got[i][j], val)
+					}
+				}
+			}
+		})
 	}
 }
