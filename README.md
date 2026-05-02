@@ -1,6 +1,6 @@
 ![city2tabula logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
 
-[![go](https://github.com/THD-Spatial/City2TABULA/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
+[![go](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
 &nbsp;
 [![MkDocs](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/docs.yml/badge.svg)](https://thd-spatial-ai.github.io/city2tabula)
 &nbsp;
