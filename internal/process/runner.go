@@ -2,10 +2,7 @@ package process
 
 import (
 	"fmt"
-	"math"
-	"math/rand"
 	"os"
-
 	"sort"
 	"strings"
 	"time"
@@ -66,24 +63,21 @@ func (r *Runner) RunTaskWithRetry(task *Task, conn *pgxpool.Pool, config *config
 		// Check if this is a deadlock error
 		if isDeadlockError(err) {
 			if attempt < retryConfig.DeadlockRetries {
-				delay := r.calculateDeadlockDelay(attempt)
 				utils.Warn.Printf("Deadlock detected in task %s (attempt %d/%d), retrying in %v: %v",
-					task.TaskType, attempt+1, retryConfig.DeadlockRetries+1, delay, err)
-				time.Sleep(delay)
+					task.TaskType, attempt+1, retryConfig.DeadlockRetries+1, retryConfig.DeadlockDelay, err)
+				time.Sleep(retryConfig.DeadlockDelay)
 				continue
-			} else {
-				utils.Error.Printf("Task %s failed after %d deadlock retries: %v",
-					task.TaskType, retryConfig.DeadlockRetries, err)
-				return fmt.Errorf("task %s failed after %d deadlock retries: %w", task.TaskType, retryConfig.DeadlockRetries, err)
 			}
+			utils.Error.Printf("Task %s failed after %d deadlock retries: %v",
+				task.TaskType, retryConfig.DeadlockRetries, err)
+			return fmt.Errorf("task %s failed after %d deadlock retries: %w", task.TaskType, retryConfig.DeadlockRetries, err)
 		}
 
 		// For other errors, use regular retry logic
 		if attempt < maxRetries {
-			delay := r.calculateRetryDelay(attempt, retryConfig)
 			utils.Warn.Printf("Task %s failed (attempt %d/%d), retrying in %v: %v",
-				task.TaskType, attempt+1, maxRetries+1, delay, err)
-			time.Sleep(delay)
+				task.TaskType, attempt+1, maxRetries+1, retryConfig.RetryDelay, err)
+			time.Sleep(retryConfig.RetryDelay)
 		} else {
 			utils.Error.Printf("Task %s failed after %d retries: %v", task.TaskType, maxRetries, err)
 		}
@@ -141,28 +135,3 @@ func isDeadlockError(err error) bool {
 		strings.Contains(errStr, "sqlstate 40p01")
 }
 
-// calculateRetryDelay calculates delay for regular retries using exponential backoff
-func (r *Runner) calculateRetryDelay(attempt int, config *config.RetryConfig) time.Duration {
-	delay := float64(config.InitialDelay) * math.Pow(config.BackoffFactor, float64(attempt))
-
-	if delay > float64(config.MaxDelay) {
-		delay = float64(config.MaxDelay)
-	}
-
-	return time.Duration(delay)
-}
-
-// calculateDeadlockDelay calculates delay specifically for deadlock retries
-func (r *Runner) calculateDeadlockDelay(attempt int) time.Duration {
-	baseDelay := time.Duration(50+attempt*25) * time.Millisecond
-	jitter := time.Duration(rand.Intn(100)) * time.Millisecond
-
-	totalDelay := baseDelay + jitter
-
-	maxDelay := 2 * time.Second
-	if totalDelay > maxDelay {
-		totalDelay = maxDelay
-	}
-
-	return totalDelay
-}
