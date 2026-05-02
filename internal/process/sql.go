@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
 
 func executeSQLScript(sqlScript string, cfg *config.Config, conn *pgxpool.Pool, lod int, buildingIDs []int64) error {
@@ -60,6 +61,7 @@ func getSQLParameterMap(params config.SQLParameters) map[string]any {
 	return paramMap
 }
 
+// Finds the keys provided in map with corresponding value in input string
 func replaceParameters(sqlScript string, params map[string]any) string {
 	for key, value := range params {
 		sqlScript = strings.ReplaceAll(sqlScript, fmt.Sprintf("{%s}", key), fmt.Sprintf("%v", value))
