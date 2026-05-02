@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
-	"github.com/THD-Spatial/City2TABULA/internal/utils"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -109,11 +109,11 @@ func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) err
 		if strings.Contains(task.TaskType, "LOD3") {
 			lod = 3
 		}
-		if err := utils.ExecuteSQLScript(sqlScript, r.config, conn, lod, task.Params.BuildingIDs); err != nil {
+		if err := executeSQLScript(sqlScript, r.config, conn, lod, task.Params.BuildingIDs); err != nil {
 			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
 		}
 	} else {
-		if err := utils.ExecuteSQLScript(sqlScript, r.config, conn, 0, nil); err != nil {
+		if err := executeSQLScript(sqlScript, r.config, conn, 0, nil); err != nil {
 			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
 		}
 	}
