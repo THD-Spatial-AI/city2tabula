@@ -28,7 +28,3 @@ func NewJob(buildingIDs []int64, tasks []*Task) *Job {
 		CreatedAt:   time.Now(),
 	}
 }
-
-func (j *Job) AddTask(task *Task) {
-	j.Tasks = append(j.Tasks, task)
-}
