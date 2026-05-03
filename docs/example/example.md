@@ -23,12 +23,19 @@ Tool has been tested with the following datasets:
 
     All dataset links were last accessed on 2026-03-13
 
+## TABULA Building Typology Data
+
+The TABULA building typology data included in this repository (data/tabula/ and testdata/*/seed_tabula_variant.sql)
+
+**Source:** IEE Projects TABULA + EPISCOPE ([www.episcope.eu](https://www.episcope.eu))
+
 ## File Formats Supported
 
 | Format | Extension | Description |
 | ------- | --------- | ----------- |
 | CityGML | `.gml` | Following [CityGML specification](https://www.ogc.org/standards/citygml) |
 | CityJSON | `.json` | Following [CityJSON specification](https://www.cityjson.org/) |
+| CSV | `.csv` | Comma-separated values, used for TABULA building typology data |
 
 ??? question "How to download bulk files from .meta4 files?"
     Some geo-portals provide metadata files in [META4](https://file.org/extension/meta4) format, which contain links to the actual data files. To download the bulk files, you can use a download manager that supports .meta4 files, such as [aria2](https://aria2.github.io/).
