@@ -119,7 +119,13 @@ func TestGetSQLParameterMap(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			// Given
+			// (params are defined in the test table above)
+
+			// When
 			got := getSQLParameterMap(testCase.params)
+
+			// Then
 			if !reflect.DeepEqual(got, testCase.want) {
 				t.Fatalf("expected %v, got %v", testCase.want, got)
 			}
@@ -185,9 +191,13 @@ func TestReplaceParameters(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			// Given
+			// (sqlScript and params are defined in the test table above)
 
+			// When
 			got := replaceParameters(testCase.sqlScript, testCase.params)
 
+			// Then
 			if got != testCase.want {
 				t.Fatalf("expected %q, got %q", testCase.want, got)
 			}

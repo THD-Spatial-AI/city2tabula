@@ -39,8 +39,13 @@ func TestIsDeadLockError(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			// (error is defined in the test table above)
+
+			// When
 			got := isDeadlockError(tc.err)
 
+			// Then
 			if got != tc.want {
 				t.Errorf("isDeadlockError(%v) = %v; want %v", tc.err, got, tc.want)
 			}
