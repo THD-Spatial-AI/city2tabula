@@ -29,8 +29,10 @@ import (
 )
 
 func TestJobQueue_NewQueueEmpty(t *testing.T) {
+	// When
 	queue := NewJobQueue()
 
+	// Then
 	if !queue.IsEmpty() {
 		t.Errorf("Expected new queue to be empty, but it was not")
 	}
@@ -41,88 +43,128 @@ func TestJobQueue_NewQueueEmpty(t *testing.T) {
 }
 
 func TestJobQueue_Enqueue(t *testing.T) {
+	// Given
 	queue := NewJobQueue()
 	job := NewJob([]int64{1}, nil)
 
+	// When
 	queue.Enqueue(job)
 
+	// Then
 	if queue.Len() != 1 {
 		t.Errorf("Expected queue length to be 1 after enqueue, but got %d", queue.Len())
 	}
 }
 
 func TestJobQueue_Dequeue(t *testing.T) {
+	// Given
 	queue := NewJobQueue()
 	job1 := NewJob([]int64{1}, nil)
 	job2 := NewJob([]int64{2}, nil)
-
 	queue.Enqueue(job1)
 	queue.Enqueue(job2)
 
+	// When
 	dequeuedJob_1 := queue.Dequeue()
 
+	// Then
 	if dequeuedJob_1 != job1 {
 		t.Errorf("Expected first dequeued job to be job1, but got a different job")
 	}
-
 	if queue.Len() != 1 {
 		t.Errorf("Expected queue length to be 1 after dequeue, but got %d", queue.Len())
 	}
 
+	// When
 	dequeuedJob_2 := queue.Dequeue()
 
+	// Then
 	if dequeuedJob_2 != job2 {
 		t.Errorf("Expected dequeued job to be job2, but got a different job")
 	}
 
+	// When
 	dequeuedJob_3 := queue.Dequeue()
 
+	// Then
 	if dequeuedJob_3 != nil {
 		t.Errorf("Expected dequeued job to be nil when queue is empty, but got a job")
 	}
 }
 
 func TestJobQueue_IsEmpty(t *testing.T) {
-	queue := NewJobQueue()
+	t.Run("given new queue, when IsEmpty called, then returns true", func(t *testing.T) {
+		// Given
+		queue := NewJobQueue()
 
-	if !queue.IsEmpty() {
-		t.Errorf("Expected new queue to be empty, but it was not")
-	}
+		// When
+		result := queue.IsEmpty()
 
-	job := NewJob([]int64{1}, nil)
-	queue.Enqueue(job)
+		// Then
+		if !result {
+			t.Errorf("Expected new queue to be empty, but it was not")
+		}
+	})
 
-	if queue.IsEmpty() {
-		t.Errorf("Expected queue to not be empty after enqueue, but it was")
-	}
+	t.Run("given queue with one job, when IsEmpty called, then returns false", func(t *testing.T) {
+		// Given
+		queue := NewJobQueue()
+		job := NewJob([]int64{1}, nil)
+		queue.Enqueue(job)
+
+		// When
+		result := queue.IsEmpty()
+
+		// Then
+		if result {
+			t.Errorf("Expected queue to not be empty after enqueue, but it was")
+		}
+	})
 }
 
 func TestJobQueue_Peek(t *testing.T) {
-	queue := NewJobQueue()
-	job := NewJob([]int64{1}, nil)
+	t.Run("given empty queue, when Peek called, then returns nil", func(t *testing.T) {
+		// Given
+		queue := NewJobQueue()
 
-	if queue.Peek() != nil {
-		t.Errorf("Expected Peek to return nil for empty queue, but got a job")
-	}
+		// When
+		result := queue.Peek()
 
-	queue.Enqueue(job)
+		// Then
+		if result != nil {
+			t.Errorf("Expected Peek to return nil for empty queue, but got a job")
+		}
+	})
 
-	if queue.Peek() != job {
-		t.Errorf("Expected Peek to return the enqueued job, but got a different job")
-	}
+	t.Run("given queue with one job, when Peek called, then returns the job without removing it", func(t *testing.T) {
+		// Given
+		queue := NewJobQueue()
+		job := NewJob([]int64{1}, nil)
+		queue.Enqueue(job)
+
+		// When
+		result := queue.Peek()
+
+		// Then
+		if result != job {
+			t.Errorf("Expected Peek to return the enqueued job, but got a different job")
+		}
+	})
 }
 
 func TestJobQueue_Clear(t *testing.T) {
+	// Given
 	queue := NewJobQueue()
 	job := NewJob([]int64{1}, nil)
-
 	queue.Enqueue(job)
+
+	// When
 	queue.Clear()
 
+	// Then
 	if !queue.IsEmpty() {
 		t.Errorf("Expected queue to be empty after Clear, but it was not")
 	}
-
 	if queue.Len() != 0 {
 		t.Errorf("Expected queue length to be 0 after Clear, but got %d", queue.Len())
 	}
