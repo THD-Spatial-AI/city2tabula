@@ -2,6 +2,8 @@
 
 [![go](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
 &nbsp;
+[![codecov](https://codecov.io/gh/thd-spatial-ai/city2tabula/branch/main/graph/badge.svg)](https://codecov.io/gh/thd-spatial-ai/city2tabula)
+&nbsp;
 [![MkDocs](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/docs.yml/badge.svg)](https://thd-spatial-ai.github.io/city2tabula)
 &nbsp;
 [![GitHub release](https://img.shields.io/github/v/release/thd-spatial-ai/City2TABULA.svg)](https://github.com/thd-spatial-ai/city2tabula/releases)
