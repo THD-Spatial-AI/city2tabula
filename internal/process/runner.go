@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-
 	"sort"
 	"strings"
 	"time"
@@ -92,10 +91,12 @@ func (r *Runner) RunTaskWithRetry(task *Task, conn *pgxpool.Pool, config *config
 	return fmt.Errorf("task %s failed after %d retries: %w", task.TaskType, maxRetries, lastErr)
 }
 
-// runSingleTask is the internal method that actually executes a task
+// runSingleTask reads the SQL file and executes it against the database.
+// task.LodLevel drives which LOD schema and building IDs are used — -1 means no LOD context (schema setup, functions, etc.).
 func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) error {
 	utils.Debug.Printf("[Worker %d] Starting task: %s (SQL file: %s)", workerID, task.TaskType, task.SQLFile)
-	sqlScript, err := r.getSQLScript(task.SQLFile)
+
+	data, err := os.ReadFile(task.SQLFile)
 	if err != nil {
 		return fmt.Errorf("failed to read SQL file %s: %w", task.SQLFile, err)
 	}
@@ -120,14 +121,6 @@ func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) err
 
 	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, task.SQLFile)
 	return nil
-}
-
-func (r *Runner) getSQLScript(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 // isDeadlockError checks if the error is a PostgreSQL deadlock error

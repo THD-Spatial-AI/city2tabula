@@ -86,14 +86,9 @@ func main() {
 
 	if f.ResetC2T {
 		utils.Info.Println(flagMessages.ResetC2T.Progress)
-		// Drop City2TABULA schemas
-		c2tSchemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
-		for _, schema := range c2tSchemas {
-			if err := db.DropSchemaIfExists(pool, schema); err != nil {
-				utils.Warn.Printf("Warning dropping schema %s: %v", schema, err)
-			}
+		if err := db.ResetCity2TabulaSchemas(&config, pool); err != nil {
+			utils.Error.Fatalf(flagMessages.ResetC2T.Error+": %v", err)
 		}
-		db.RunCity2TabulaDBSetup(&config, pool)
 		utils.Info.Println(flagMessages.ResetC2T.Success)
 	}
 
