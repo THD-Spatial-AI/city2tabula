@@ -84,7 +84,7 @@ func TestMain(m *testing.M) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Enable PostGIS extensions required by the pipeline
+	// Enable PostGIS extensions required by the pipeline.
 	exts := []string{
 		"CREATE EXTENSION IF NOT EXISTS postgis",
 		"CREATE EXTENSION IF NOT EXISTS postgis_sfcgal",
@@ -98,11 +98,18 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// integrationConfig returns a Config wired to the test container.
+// pipelineTestCase holds per-country configuration for a pipeline integration test.
+type pipelineTestCase struct {
+	country string
+	srid    string
+	seeds   []string // SQL files seeded in order via psql
+}
+
+// pipelineConfig builds a Config for the given test case.
 // It bypasses LoadConfig() / .env so no environment setup is required.
-func integrationConfig() *config.Config {
+func pipelineConfig(tc pipelineTestCase) *config.Config {
 	return &config.Config{
-		Country: "germany",
+		Country: tc.country,
 		DB: &config.DBConfig{
 			Tables: &config.Tables{
 				Tabula:        config.Tabula,
@@ -119,7 +126,7 @@ func integrationConfig() *config.Config {
 			},
 		},
 		CityDB: &config.CityDB{
-			SRID:      "25832",
+			SRID:      tc.srid,
 			LODLevels: []int{2}, // only LOD2 seed data is available in testdata/
 		},
 		City2Tabula: &config.City2TabulaConfig{
@@ -130,6 +137,34 @@ func integrationConfig() *config.Config {
 			Threads: 2,
 		},
 		RetryConfig: config.DefaultRetryConfig(),
+	}
+}
+
+// resetSchemas drops the lod2 schema and truncates all city2tabula output tables
+// so each country test starts from a clean state within the shared container.
+// City2tabula tables may not exist on the first call (before RunCity2TabulaDBSetup
+// has run), so truncation is wrapped in a DO block that silently skips missing tables.
+func resetSchemas(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+
+	if _, err := testPool.Exec(ctx, `DROP SCHEMA IF EXISTS lod2 CASCADE`); err != nil {
+		t.Fatalf("resetSchemas: drop lod2: %v", err)
+	}
+
+	_, err := testPool.Exec(ctx, `
+		DO $$ BEGIN
+			TRUNCATE city2tabula.lod2_building_feature         CASCADE;
+			TRUNCATE city2tabula.lod2_child_feature            CASCADE;
+			TRUNCATE city2tabula.lod2_child_feature_surface    CASCADE;
+			TRUNCATE city2tabula.lod2_child_feature_geom_dump  CASCADE;
+			TRUNCATE city2tabula.tabula_variant                CASCADE;
+		EXCEPTION WHEN undefined_table OR invalid_schema_name THEN
+			NULL; -- schema/tables not yet created, nothing to truncate
+		END $$;
+	`)
+	if err != nil {
+		t.Fatalf("resetSchemas: truncate city2tabula: %v", err)
 	}
 }
 
@@ -149,33 +184,33 @@ func seedDB(t *testing.T, paths ...string) {
 	}
 }
 
-// TestExamplePipeline_LOD2 runs the full City2TABULA feature extraction pipeline
-// against real German LoD2 buildings and asserts that the pipeline populates
-// the city2tabula schema and assigns TABULA variant codes.
-func TestExamplePipeline_LOD2(t *testing.T) {
+// runPipelineTest is the shared test driver for all country/LOD pipeline tests.
+// It resets schemas, seeds the database, runs feature extraction, and asserts results.
+func runPipelineTest(t *testing.T, tc pipelineTestCase) {
+	t.Helper()
 	ctx := context.Background()
-	cfg := integrationConfig()
 
-	// Step 1: Create city2tabula + tabula schemas and all output tables.
-	// This replicates what RunCity2TabulaDBSetup does without the CityDB Java tool.
+	// Skip if any seed file is missing — CI only runs tests for committed seeds.
+	for _, seed := range tc.seeds {
+		if _, err := os.Stat(seed); os.IsNotExist(err) {
+			t.Skipf("seed file not found, skipping: %s", seed)
+		}
+	}
+
+	resetSchemas(t)
+
+	cfg := pipelineConfig(tc)
+
 	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
 
-	// Step 2: Seed lod2 schema (real pg_dump from CityDB import) and tabula_variant data.
-	// seed_lod2.sql          — full lod2 schema + building data (pg_dump --schema=lod2)
-	// seed_tabula_variant.sql — tabula_variant rows only (pg_dump --table --data-only)
-	seedDB(t,
-		"testdata/germany/seed_lod2.sql",
-		"testdata/germany/seed_tabula_variant.sql",
-	)
+	seedDB(t, tc.seeds...)
 
-	// Step 3: Run the full feature extraction pipeline (scripts 01–07).
 	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)
 	}
 
-	// Step 4: Assert results.
 	var buildingCount int
 	if err := testPool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature",
@@ -198,4 +233,37 @@ func TestExamplePipeline_LOD2(t *testing.T) {
 
 	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes",
 		buildingCount, labeledCount)
+}
+
+func TestPipeline_Germany_LOD2(t *testing.T) {
+	runPipelineTest(t, pipelineTestCase{
+		country: "germany",
+		srid:    "25832",
+		seeds: []string{
+			"testdata/germany/seed_lod2.sql",
+			"testdata/germany/seed_tabula_variant.sql",
+		},
+	})
+}
+
+func TestPipeline_Austria_LOD2(t *testing.T) {
+	runPipelineTest(t, pipelineTestCase{
+		country: "austria",
+		srid:    "31256", // MGI / Austria GK East — verify from your AT CityDB import settings
+		seeds: []string{
+			"testdata/austria/seed_lod2.sql",
+			"testdata/austria/seed_tabula_variant.sql",
+		},
+	})
+}
+
+func TestPipeline_Netherlands_LOD2(t *testing.T) {
+	runPipelineTest(t, pipelineTestCase{
+		country: "netherlands",
+		srid:    "28992", // Amersfoort / RD New — verify from your NL CityDB import settings
+		seeds: []string{
+			"testdata/netherlands/seed_lod2.sql",
+			"testdata/netherlands/seed_tabula_variant.sql",
+		},
+	})
 }
