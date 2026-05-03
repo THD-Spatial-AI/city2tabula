@@ -133,7 +133,3 @@ func SupplementaryJobQueue(config *config.Config) (*JobQueue, error) {
 
 	return queue, nil
 }
-
-func (j *Job) AddTask(task *Task) {
-	j.Tasks = append(j.Tasks, task)
-}
