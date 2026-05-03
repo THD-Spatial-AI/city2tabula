@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build Go Binary",
+      "label": "Build Binary",
       "type": "shell",
       "command": "go",
       "args": ["build", "-o", "city2tabula", "./cmd"],
@@ -11,106 +11,82 @@
         "isDefault": true
       },
       "problemMatcher": ["$go"],
-      "detail": "Compiles the Go program into an executable binary."
+      "detail": "Compile the Go program into an executable binary."
     },
     {
-      "label": "Get Help for City2TABULA",
+      "label": "Run Tests",
       "type": "shell",
       "command": "go",
-      "args": ["run", "./cmd", "-help"],
+      "args": ["test", "-v", "./..."],
       "group": {
-        "kind": "build",
+        "kind": "test",
         "isDefault": true
       },
       "problemMatcher": ["$go"],
-      "detail": "Compiles the Go program into an executable binary."
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Run all tests with verbose output."
     },
     {
-      "label": "Create Complete Database",
+      "label": "Run Tests with Coverage",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out"],
+      "group": "test",
+      "problemMatcher": ["$go"],
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Run all tests and print coverage percentage per function."
+    },
+    {
+      "label": "Create Database",
       "type": "shell",
       "command": "go",
       "args": ["run", "./cmd", "-create-db"],
-      "group": "test",
-      "dependsOn": "Build Go Binary",
+      "group": "none",
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
         "focus": true,
         "panel": "shared",
-        "showReuseMessage": true,
         "clear": false
       },
-      "detail": "Creates the complete City2TABULA database (CityDB infrastructure + schemas + data import)."
+      "detail": "Create the complete City2TABULA database (CityDB + schemas + data import)."
     },
     {
-      "label": "Reset Complete Database",
+      "label": "Reset Database",
       "type": "shell",
       "command": "go",
       "args": ["run", "./cmd", "--reset-db"],
-      "group": "test",
-      "dependsOn": "Build Go Binary",
+      "group": "none",
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
         "focus": true,
         "panel": "shared",
-        "showReuseMessage": true,
         "clear": false
       },
-      "detail": "Reset everything: drop all schemas and recreate the complete database."
-    },
-    {
-      "label": "Reset CityDB Only",
-      "type": "shell",
-      "command": "go",
-      "args": ["run", "./cmd", "--reset-citydb"],
-      "group": "test",
-      "dependsOn": "Build Go Binary",
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      },
-      "detail": "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)."
-    },
-    {
-      "label": "Reset City2TABULA Schemas Only",
-      "type": "shell",
-      "command": "go",
-      "args": ["run", "./cmd", "--reset-city2tabula"],
-      "group": "test",
-      "dependsOn": "Build Go Binary",
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      },
-      "detail": "Reset only City2TABULA schemas (preserve CityDB infrastructure)."
+      "detail": "Drop all schemas and recreate the complete database."
     },
     {
       "label": "Extract Features",
       "type": "shell",
       "command": "go",
       "args": ["run", "./cmd", "-extract-features"],
-      "group": "test",
-      "dependsOn": "Build Go Binary",
+      "group": "none",
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
         "focus": true,
         "panel": "shared",
-        "showReuseMessage": true,
         "clear": false
       },
       "detail": "Run the feature extraction pipeline."
@@ -119,20 +95,15 @@
       "label": "Run MkDocs server",
       "type": "shell",
       "command": "bash",
-      "args": [
-        "-lc",
-        "python -m pip install -r docs/requirements.txt && python -m mkdocs serve"
-      ],
+      "args": ["-lc", "python -m pip install -r docs/requirements.txt && python -m mkdocs serve"],
       "options": {
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [],
       "presentation": {
-        "echo": true,
         "reveal": "always",
         "focus": false,
         "panel": "shared",
-        "showReuseMessage": true,
         "clear": false
       },
       "detail": "Start the MkDocs development server with live reload."

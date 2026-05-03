@@ -21,11 +21,14 @@ const (
 	LogLevelError
 )
 
+// Loggers are initialised with safe defaults so code that uses them never
+// panics, even in tests that don't call InitLogger().
+// InitLogger() upgrades them to write to a log file and respects LOG_LEVEL.
 var (
-	Info  *log.Logger
-	Debug *log.Logger
-	Warn  *log.Logger
-	Error *log.Logger
+	Info  = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Debug = log.New(io.Discard, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Warn  = log.New(os.Stdout, "WARN: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Current log level - can be configured
 	currentLogLevel LogLevel = LogLevelInfo // Default to INFO level

@@ -48,18 +48,20 @@ func BuildFeatureExtractionQueue(
 	return jobQueue, nil
 }
 
-// createJob is a helper function to create a job with tasks
+// createJob builds a Job from a slice of SQL script paths.
+// Each script becomes one Task, named "<PREFIX>: <filename>", with priority matching its position.
+// LodLevel is set on each task so the runner knows which LOD schema to query — no string parsing needed.
 func createJob(batch []int64, scripts []string, jobType JobType) *Job {
 	params := Params{BuildingIDs: batch}
 	job := NewJob(batch, nil)
 
-	// Determine task name prefix based on job type
 	var prefix string
+	lodLevel := -1 // -1 = no LOD context; LOD0 is a real CityGML level so we don't use 0 as a sentinel
 	switch jobType {
 	case LOD2:
-		prefix = "LOD2"
+		prefix, lodLevel = "LOD2", 2
 	case LOD3:
-		prefix = "LOD3"
+		prefix, lodLevel = "LOD3", 3
 	case Function:
 		prefix = "FUNCTION"
 	case MainTable:
@@ -70,66 +72,68 @@ func createJob(batch []int64, scripts []string, jobType JobType) *Job {
 		prefix = "SUPPLEMENTARY_TABLE"
 	}
 
-	// Add tasks to job
 	for i, file := range scripts {
 		filename := filepath.Base(file)
 		taskName := fmt.Sprintf("%s: %s", prefix, filename)
-		job.AddTask(NewTask(taskName, params, file, i+1))
+		job.AddTask(NewTask(taskName, params, file, i+1, lodLevel))
 	}
 
 	return job
 }
 
-// MainDBSetupJobQueue creates a queue with function scripts and main table scripts
+// loadScriptsAndQueue loads SQL scripts from disk and returns an empty queue ready to fill.
+// All queue-builder functions use this to avoid repeating the same error-handling boilerplate.
+func loadScriptsAndQueue(config *config.Config) (*config.SQLScripts, *JobQueue, error) {
+	scripts, err := config.LoadSQLScripts()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load SQL scripts: %w", err)
+	}
+	return scripts, NewJobQueue(), nil
+}
+
+// MainDBSetupJobQueue builds the queue for the initial city2tabula schema setup:
+//  1. PostgreSQL functions (run once, no building IDs)
+//  2. LOD2 main tables
+//  3. LOD3 main tables
 func MainDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
-	sqlScripts, err := config.LoadSQLScripts()
+	scripts, queue, err := loadScriptsAndQueue(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
+		return nil, err
 	}
 
-	jobQueue := NewJobQueue()
+	queue.Enqueue(createJob([]int64{}, scripts.FunctionScripts, Function))
+	queue.Enqueue(createJob([]int64{}, scripts.MainTableScripts, LOD2))
+	queue.Enqueue(createJob([]int64{}, scripts.MainTableScripts, LOD3))
 
-	// Add function scripts job
-	functionJob := createJob([]int64{}, sqlScripts.FunctionScripts, Function)
-	jobQueue.Enqueue(functionJob)
-
-	// Add LOD2 main table scripts job
-	lod2Job := createJob([]int64{}, sqlScripts.MainTableScripts, LOD2)
-	jobQueue.Enqueue(lod2Job)
-
-	// Add LOD3 main table scripts job
-	lod3Job := createJob([]int64{}, sqlScripts.MainTableScripts, LOD3)
-	jobQueue.Enqueue(lod3Job)
-
-	return jobQueue, nil
+	return queue, nil
 }
 
-// SupplementaryDBSetupJobQueue creates a queue with supplementary table scripts
+// SupplementaryDBSetupJobQueue builds the queue for the supplementary schema setup
+// (tabula classification tables). Runs after MainDBSetupJobQueue.
 func SupplementaryDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
-	sqlScripts, err := config.LoadSQLScripts()
+	scripts, queue, err := loadScriptsAndQueue(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
+		return nil, err
 	}
 
-	jobQueue := NewJobQueue()
+	queue.Enqueue(createJob([]int64{}, scripts.SupplementaryTableScripts, SupplementaryTable))
 
-	job := createJob([]int64{}, sqlScripts.SupplementaryTableScripts, SupplementaryTable)
-	jobQueue.Enqueue(job)
-
-	return jobQueue, nil
+	return queue, nil
 }
 
-// SupplementaryJobQueue creates a queue with supplementary processing scripts
+// SupplementaryJobQueue builds the queue for running the supplementary processing scripts
+// (e.g. TABULA attribute extraction). Runs after data has been imported.
 func SupplementaryJobQueue(config *config.Config) (*JobQueue, error) {
-	sqlScripts, err := config.LoadSQLScripts()
+	scripts, queue, err := loadScriptsAndQueue(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SQL scripts: %w", err)
+		return nil, err
 	}
 
-	jobQueue := NewJobQueue()
+	queue.Enqueue(createJob([]int64{}, scripts.SupplementaryScripts, Supplementary))
 
-	job := createJob([]int64{}, sqlScripts.SupplementaryScripts, Supplementary)
-	jobQueue.Enqueue(job)
+	return queue, nil
+}
 
-	return jobQueue, nil
+func (j *Job) AddTask(task *Task) {
+	j.Tasks = append(j.Tasks, task)
 }
