@@ -84,3 +84,35 @@ func TestCreateBatches(t *testing.T) {
 		})
 	}
 }
+
+// BenchmarkCreateBatches measures how long CreateBatches takes to partition
+// a slice of building IDs under different input sizes and batch sizes.
+//
+// Use case: CreateBatches runs once per pipeline execution on the full set of
+// building IDs. Understanding its cost at different scales confirms it is not
+// a bottleneck compared to the SQL execution it feeds into.
+func BenchmarkCreateBatches(b *testing.B) {
+	cases := []struct {
+		name      string
+		size      int
+		batchSize int
+	}{
+		{"100_ids_batch10", 100, 10},
+		{"1000_ids_batch100", 1000, 100},
+		{"10000_ids_batch500", 10000, 500},
+	}
+
+	for _, bc := range cases {
+		ids := make([]int64, bc.size)
+		for i := range ids {
+			ids[i] = int64(i + 1)
+		}
+
+		b.Run(bc.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				utils.CreateBatches(ids, bc.batchSize)
+			}
+		})
+	}
+}
