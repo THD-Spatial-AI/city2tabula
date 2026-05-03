@@ -25,11 +25,10 @@ jobs:
       - name: Test
         run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage.out
-          fail_ci_if_error: false
+            token: ${{ secrets.CODECOV_TOKEN }}
 
   integration:
     name: Integration Tests
