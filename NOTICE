@@ -8,42 +8,33 @@ This project incorporates data from third parties listed below.
 TABULA Building Typology Data
 -------------------------------------------------------------------------------
 
-- **Source:** IEE Projects TABULA + EPISCOPE (www.episcope.eu)
+Source:IEE Projects TABULA + EPISCOPE (www.episcope.eu)
   The TABULA building typology data included in this repository (data/tabula/ and
   testdata/*/seed_tabula_variant.sql)
 
-- **Reference:**
+Reference:
   Loga, T., Stein, B., Diefenbach, N. (2016). TABULA building typologies in
   20 European countries — Making energy-related features of residential building
   stocks comparable. Energy and Buildings, 132, 4–12.
   https://doi.org/10.1016/j.enbuild.2016.06.094
 
-- **Link:** <https://www.episcope.eu>
+Link: <https://www.episcope.eu>
 
 -------------------------------------------------------------------------------
 Building Geometry Data (testdata/)
 -------------------------------------------------------------------------------
 
 Germany (testdata/germany/seed_lod2.sql):
-
-  - **Source:** Bayerische Vermessungsverwaltung - [www.geodaten.bayern.de](https://www.ldbv.bayern.de/)
-
-  - **Licence:** Creative Commons Attribution 4.0 (CC BY 4.0)
-
-  - **Link:** <https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2>
+  Source: Bayerische Vermessungsverwaltung - [www.geodaten.bayern.de](https://www.ldbv.bayern.de/)
+  Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
+  Link: <https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2>
 
 Austria (testdata/austria/seed_lod2.sql):
-
-  - **Source:** Stadt Wien - [data.wien.gv.at](https://www.data.gv.at/auftritte/?organisation=stadt-wien)
-
-  - **Licence:** Creative Commons Attribution 4.0 (CC BY 4.0)
-
-  - **Link:** https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip
+  Source: Stadt Wien - [data.wien.gv.at](https://www.data.gv.at/auftritte/?organisation=stadt-wien)
+  Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
+  Link: https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip
 
 Netherlands (testdata/netherlands/seed_lod2.sql):
-
-  - **Source:** © 3DBAG by tudelft3d and 3DGI - <https://docs.3dbag.nl/en/copyright/>
-
-  - **License:** Creative Commons Attribution 4.0 (CC BY 4.0)
-
-  - **Link:** https://www.3dbag.nl/data
+  Source: © 3DBAG by tudelft3d and 3DGI - <https://docs.3dbag.nl/en/copyright/>
+  Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
+  Link: https://www.3dbag.nl/data
