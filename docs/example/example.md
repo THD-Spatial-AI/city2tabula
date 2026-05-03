@@ -8,9 +8,9 @@ Tool has been tested with the following datasets:
 
 | Country | Region | Format | Source | License |
 | ------- | ------ | ------ | ------ | ------- |
-| Germany | Deggendorf, Bavaria | CityGML | [Bayerische Vermessungsverwaltung](https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
-| Austria | Vienna | CityGML | [Vienna Open Government Data](https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
-| Netherlands | Loenen | CityJSON | [3DBAG](https://3dbag.nl/en/download) (Tiles: [7-736-608.city.json](https://data.3dbag.nl/v20241216/tiles/7/736/608/7-736-608.city.json), [8-736-600.city.json](https://data.3dbag.nl/v20241216/tiles/8/736/600/8-736-600.city.json)) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| Germany | Deggendorf, Bavaria | CityGML | Bayerische Vermessungsverwaltung - [www.geodaten.bayern.de](https://www.ldbv.bayern.de/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
+| Austria | Vienna | CityGML | Stadt Wien - [data.wien.gv.at](https://www.data.gv.at/auftritte/?organisation=stadt-wien) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) |
+| Netherlands | Loenen | CityJSON | © 3DBAG by tudelft3d and 3DGI - <https://docs.3dbag.nl/en/copyright/> | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
 
 ### LOD3 (Level of Detail 3)
 
