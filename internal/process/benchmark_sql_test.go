@@ -45,7 +45,10 @@ func setupBenchmarkDB(b *testing.B) {
 	b.Helper()
 	benchSetupOnce.Do(func() {
 		ctx := context.Background()
-		cfg := integrationConfig()
+		cfg := pipelineConfig(pipelineTestCase{
+			country: "germany",
+			srid:    "25832",
+		})
 
 		if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
 			b.Fatalf("RunCity2TabulaDBSetup: %v", err)

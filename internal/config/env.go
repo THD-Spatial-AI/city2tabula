@@ -9,11 +9,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// LoadEnv loads environment variables from .env file
+// LoadEnv loads environment variables from .env file.
+// Uses Overload so .env values take precedence over any variables already
+// set in the shell — the .env file is the single source of truth for dev config.
 func LoadEnv() {
-	if err := godotenv.Load(); err != nil {
-		// Could use a logger here when available
-		// For now, silently continue if no .env file
+	if err := godotenv.Overload(); err != nil {
+		// No .env file present — rely on environment variables already set.
 	}
 }
 
