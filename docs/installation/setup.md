@@ -42,8 +42,12 @@ data/
             └── germany_lod3.gml
     ```
 
+
+
 !!! tip
-    If you don’t have your own data, you can use the example datasets provided in the `data/` directory. These are sourced from publicly available datasets with appropriate licensing. Refer to this [documentation](https://github.com/thd-spatial-ai/city2tabula/blob/main/data/README.md) for example datasets and sources.
+    you can create subdirectories within the country directory if you have files for multiple cities or regions, e.g., `data/lod2/germany/berlin/` and `data/lod2/germany/munich/`. Just ensure that the files are organized under the correct LoD and country directories for the tool to process them correctly.
+
+    You can download from sources listed in [Data](https://thd-spatial-ai.github.io/city2tabula/example/example/) section
 
 ### Step 3. Create Docker Container
 
@@ -122,7 +126,7 @@ setup.bat extract-features
 
 ## Development Setup
 
-!!! warning
+!!! warning "Only for Unix-based systems (Linux/macOS)"
     This setup is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended. Local installation on Windows might require additional configuration (e.g., WSL2, manual Java setup) and is not covered in this guide.
 
 ### Prerequisites (dev)
@@ -136,5 +140,5 @@ setup.bat extract-features
 | Git                        | 2.25+   | required for City2TABULA | [git-scm.com](https://git-scm.com/downloads)                                                       |
 | CityDB Importer/Exporter   | v1.1.0 | Unzip and place the `citydb-tool` directory at your preferred location. | [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.1.0)                          |
 
-!!! note
+!!! info "Coming soon..."
     Steps for local development setup will be added in future updates. For now, refer to the Docker setup instructions for a streamlined installation process.

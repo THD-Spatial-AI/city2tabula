@@ -16,34 +16,62 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 ---
 
-## Getting started
+## Quick Start
 
-For setup and installation guide, please refer to [docs/getting-started/setup.md](https://thd-spatial-ai.github.io/city2tabula/installation/setup/)
+**Prerequisite:** [Docker](https://docs.docker.com/get-docker/)
 
-Local docs preview (MkDocs):
+```bash
+make setup          # Build image, start containers (PostGIS + CityDB CLI included)
+make create-db      # Create database and import data
+make extract-features
+```
+
+Full setup instructions for all platforms (Linux, macOS, Windows) are in the [installation guide](https://thd-spatial-ai.github.io/city2tabula/installation/setup/).
+
+---
+
+## Local Documentation (MkDocs)
 
 ```bash
 python -m pip install -r docs/requirements.txt
 python -m mkdocs serve
 ```
 
+---
+
 ## CLI
 
-Build locally:
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-create-db` | Create the complete City2TABULA database (CityDB infrastructure + schemas + data import) |
+| `-reset-db` | Reset everything: drop all schemas and recreate the complete database |
+| `-reset-citydb` | Reset only CityDB infrastructure (drop CityDB schemas, recreate, and re-import data) |
+| `-reset-city2tabula` | Reset only City2TABULA schemas (preserves CityDB) |
+| `-extract-features` | Run the feature extraction pipeline |
+| `-version` / `-v` | Print version and exit |
+
+---
+
+## Testing
 
 ```bash
-go build -o city2tabula ./cmd
-./city2tabula --help
+# Unit tests
+go test ./...
+
+# Unit tests with coverage
+go test -coverprofile=coverage.out -covermode=atomic ./...
+go tool cover -html=coverage.out
+
+# Integration tests (requires Docker)
+go test -tags integration -v -timeout 10m ./internal/process/
+
+# SQL benchmarks (requires Docker)
+go test -tags integration -bench=. -benchmem -run=^$ ./internal/process/
 ```
 
-Common flags:
-
-- `-create-db`
-- `-reset-db`
-- `-reset-citydb`
-- `-reset-city2tabula`
-- `-extract-features`
-- `-version` / `-v`
+---
 
 ## License
 
