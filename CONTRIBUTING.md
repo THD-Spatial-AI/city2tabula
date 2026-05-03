@@ -16,8 +16,8 @@ By participating, you agree to follow the rules in [CODE_OF_CONDUCT.md](CODE_OF_
 
 ## Where to post
 
-- **Questions / “how do I…?” / ideas:** use [Discussions](https://github.com/THD-Spatial/city2tabula/discussions)
-- **Bugs / tasks / actionable requests:** open an [Issue](https://github.com/THD-Spatial/city2tabula/issues)
+- **Questions / “how do I…?” / ideas:** use [Discussions](https://github.com/thd-spatial-ai/city2tabula/discussions)
+- **Bugs / tasks / actionable requests:** open an [Issue](https://github.com/thd-spatial-ai/city2tabula/issues)
 
 If you’re not sure, start a Discussion. We’ll convert it to an Issue if needed.
 
@@ -42,7 +42,7 @@ For medium/large changes, open a Discussion or Issue first so we agree on scope 
 ### 1) Fork and clone (if you don’t have write access)
 
 ```bash
-git clone https://github.com/THD-Spatial/city2tabula.git
+git clone https://github.com/thd-spatial-ai/city2tabula.git
 cd city2tabula
 ```
 

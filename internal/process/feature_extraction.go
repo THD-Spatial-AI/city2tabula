@@ -3,14 +3,14 @@ package process
 import (
 	"fmt"
 
-	"github.com/THD-Spatial/City2TABULA/internal/config"
-	"github.com/THD-Spatial/City2TABULA/internal/utils"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
 func RunFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 	// Get building IDs from CityDB
-	lod2BldIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod2)
+	lod2BldIDs, err := getBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod2)
 	if err != nil {
 		return fmt.Errorf("failed to get LOD2 building IDs: %w", err)
 	}
@@ -21,7 +21,7 @@ func RunFeatureExtraction(config *config.Config, pool *pgxpool.Pool) error {
 		utils.Info.Printf("Found %d buildings for LOD2 in CityDB", len(lod2BldIDs))
 	}
 
-	lod3BldIDs, err := utils.GetBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod3)
+	lod3BldIDs, err := getBuildingIDsFromCityDB(pool, config.DB.Schemas.Lod3)
 	if err != nil {
 		return fmt.Errorf("failed to get LOD3 building IDs: %w", err)
 	}

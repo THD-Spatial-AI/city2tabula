@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "City2TABULA"
+abstract: >
+  A Go CLI tool that extracts, normalises, and enriches geometric and spatial
+  attributes from LoD2/LoD3 3D building models stored in PostgreSQL/PostGIS
+  (3DCityDB schema). Output feeds downstream TABULA/EPISCOPE-based building
+  typology classification and heating demand estimation workflows.
+type: software
+version: "0.5.2-alpha"
+date-released: "2025-01-01"
+repository-code: "https://github.com/THD-Spatial-AI/city2tabula"
+license: Apache-2.0
+authors:
+  - given-names: Jay
+    family-names: Ravani
+    email: jaykumar.ravani@th-deg.de
+    orcid: "https://orcid.org/0009-0008-1307-6983"
+    affiliation: "BigGeoData & Spatial AI, Technische Hochschule Deggendorf"
+keywords:
+  - 3D city models
+  - CityGML
+  - CityJSON
+  - data pipeline
+  - classification
+  - building typology
+  - TABULA
+  - EPISCOPE
+  - PostGIS
+  - heating demand
+  - urban energy
+references:
+  - type: article
+    title: >
+      3DCityDB - a 3D geodatabase solution for the management, analysis, and
+      visualization of semantic 3D city models based on CityGML
+    authors:
+      - family-names: Yao
+        given-names: Zhihang
+      - family-names: Nagel
+        given-names: Claus
+      - family-names: Kunde
+        given-names: Felix
+      - family-names: Hudra
+        given-names: György
+      - family-names: Willkomm
+        given-names: Philipp
+      - family-names: Donaubauer
+        given-names: Andreas
+      - family-names: Adolphi
+        given-names: Thomas
+      - family-names: Kolbe
+        given-names: Thomas H.
+    journal: "Open Geospatial Data, Software and Standards"
+    volume: 3
+    issue: 5
+    year: 2018
+    doi: "10.1186/s40965-018-0046-7"
+    url: "https://doi.org/10.1186/s40965-018-0046-7"
