@@ -81,39 +81,53 @@ func ResetCityDBOnly(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
-// RunCity2TabulaDBSetup runs the SQL setup pipelines
+// RunCity2TabulaDBSetup creates the city2tabula and tabula schemas and runs all setup job queues.
 func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
-
-	// Create schemas
 	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
 	if err := CreateSchemas(conn, schemas); err != nil {
 		return fmt.Errorf("failed to create schemas: %w", err)
 	}
-
-	// Step 1: Run main database setup jobs
-	mainJobQueue, err := process.MainDBSetupJobQueue(config)
-	if err != nil {
-		return fmt.Errorf("failed to setup main DB queue: %w", err)
+	if err := setupMainDB(config, conn); err != nil {
+		return err
 	}
+	return setupSupplementaryDB(config, conn)
+}
 
-	if err := process.RunJobQueue(mainJobQueue, conn, config); err != nil {
+// ResetCity2TabulaSchemas drops the city2tabula and tabula schemas and rebuilds them from scratch.
+// Use this when you want to re-run the City2TABULA setup without touching CityDB.
+func ResetCity2TabulaSchemas(config *config.Config, conn *pgxpool.Pool) error {
+	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
+	for _, schema := range schemas {
+		if err := DropSchemaIfExists(conn, schema); err != nil {
+			utils.Warn.Printf("Warning dropping schema %s: %v", schema, err)
+		}
+	}
+	return RunCity2TabulaDBSetup(config, conn)
+}
+
+// setupMainDB runs the main DB setup job queue: PostgreSQL functions and main table schemas.
+func setupMainDB(config *config.Config, conn *pgxpool.Pool) error {
+	queue, err := process.MainDBSetupJobQueue(config)
+	if err != nil {
+		return fmt.Errorf("failed to build main DB setup queue: %w", err)
+	}
+	if err := process.RunJobQueue(queue, conn, config); err != nil {
 		return fmt.Errorf("main DB setup failed: %w", err)
 	}
-
 	utils.Info.Println("Main database setup completed")
+	return nil
+}
 
-	// Step 2: Run supplementary database setup jobs
-	supplementaryJobQueue, err := process.SupplementaryDBSetupJobQueue(config)
+// setupSupplementaryDB runs the supplementary DB setup job queue: tabula classification table schemas.
+func setupSupplementaryDB(config *config.Config, conn *pgxpool.Pool) error {
+	queue, err := process.SupplementaryDBSetupJobQueue(config)
 	if err != nil {
-		return fmt.Errorf("failed to setup supplementary DB queue: %w", err)
+		return fmt.Errorf("failed to build supplementary DB setup queue: %w", err)
 	}
-
-	if err := process.RunJobQueue(supplementaryJobQueue, conn, config); err != nil {
+	if err := process.RunJobQueue(queue, conn, config); err != nil {
 		return fmt.Errorf("supplementary DB setup failed: %w", err)
 	}
-
 	utils.Info.Println("Supplementary database setup completed")
-
 	return nil
 }
 
@@ -139,7 +153,7 @@ func DropAllSchemas(config *config.Config, conn *pgxpool.Pool) error {
 
 	// Drop City2TABULA schemas
 	city2tabulaSchemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
-	if err := DropSchemas(conn, city2tabulaSchemas); err != nil {
+	if err := DropCity2TabulaSchemas(conn, city2tabulaSchemas); err != nil {
 		utils.Warn.Printf("Warning during City2TABULA schema drop: %v", err)
 	}
 
@@ -212,7 +226,7 @@ func CreateSchemas(conn *pgxpool.Pool, schemas []string) error {
 	return nil
 }
 
-func DropSchemas(conn *pgxpool.Pool, schemas []string) error {
+func DropCity2TabulaSchemas(conn *pgxpool.Pool, schemas []string) error {
 	for _, schema := range schemas {
 		if err := DropSchemaIfExists(conn, schema); err != nil {
 			return fmt.Errorf("failed to drop schema %s: %w", schema, err)
