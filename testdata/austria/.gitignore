@@ -1,0 +1,9 @@
+# Large benchmark dumps (hundreds of MB) — keep locally, do not commit.
+# Integration test seeds (seed_lod2.sql, seed_lod3.sql, seed_tabula_variant.sql)
+# are small exports (~50-500 buildings) and ARE committed directly to git.
+#
+# To create a benchmark dump from a full CityDB import:
+#   pg_dump --schema=lod2 --no-owner --no-privileges --dbname=YOUR_DB --file=seed_lod2_benchmark.sql
+#   sed -i '/^\\restrict/d;/^\\unrestrict/d' seed_lod2_benchmark.sql
+seed_lod2_benchmark.sql
+seed_lod3_benchmark.sql
