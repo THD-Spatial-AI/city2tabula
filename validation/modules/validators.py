@@ -147,10 +147,11 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
 
     results = []
 
-    # Determine which columns to keep (include geom if it exists)
+    # Determine which columns to keep (include geom, is_valid, is_planar if present)
     base_cols = ['surface_feature_id', 'building_feature_id', 'classname']
-    if 'geom' in filtered_calc.columns:
-        base_cols.append('geom')
+    for col in ['geom', 'is_valid', 'is_planar']:
+        if col in filtered_calc.columns:
+            base_cols.append(col)
 
     # Process each attribute
     for computed_column, source_label in attribute_mapping.items():
@@ -194,14 +195,21 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         # Calculate differences and errors
         merged['attribute_name'] = computed_column
         merged['calculated_value'] = merged[computed_column]
-        merged['difference'] = merged['calculated_value'] - merged['thematic_value']
 
-        # Calculate percentage error (handle division by zero)
-        merged['percent_error'] = np.where(
-            merged['thematic_value'] != 0,
-            (merged['difference'] / merged['thematic_value']) * 100,
-            np.nan
-        )
+        # Azimuth is circular (0–360°): wrap difference into [-180, 180]
+        if computed_column == 'azimuth':
+            raw_diff = merged['calculated_value'] - merged['thematic_value']
+            merged['difference'] = (raw_diff + 180) % 360 - 180
+            # Percent error is meaningless for circular quantities — a 2° error on a
+            # 1° thematic value gives 200% regardless of actual geometric accuracy.
+            merged['percent_error'] = np.nan
+        else:
+            merged['difference'] = merged['calculated_value'] - merged['thematic_value']
+            merged['percent_error'] = np.where(
+                merged['thematic_value'] != 0,
+                (merged['difference'] / merged['thematic_value']) * 100,
+                np.nan
+            )
 
         # Keep only needed columns
         result_cols = base_cols + [
@@ -313,6 +321,84 @@ def export_problematic_surfaces(validation_df, output_path, error_threshold=10.0
     print(f"  - {n_surfaces} unique surfaces")
     print(f"  - {n_buildings} unique buildings")
     print(f"  - Saved to: {output_path}")
+
+    # Report geometry quality breakdown for problematic surfaces
+    for flag in ('is_valid', 'is_planar'):
+        if flag in problematic.columns:
+            bad = (~problematic[flag]).sum()
+            pct = bad / len(problematic) * 100 if len(problematic) > 0 else 0
+            label = "invalid geometry" if flag == 'is_valid' else "non-planar geometry"
+            print(f"  - {bad} ({pct:.1f}%) problematic rows have {label}")
+
     print(f"{'='*80}\n")
 
     return problematic
+
+
+def analyze_geometry_quality(surface_df, validation_df=None):
+    """
+    Report on is_valid and is_planar flags across all surface types.
+
+    Parameters:
+    -----------
+    surface_df : pd.DataFrame
+        All surface features loaded from City2TABULA (must have is_valid, is_planar, classname).
+    validation_df : pd.DataFrame, optional
+        Validation results (from validate_surface_attributes). When provided, adds a
+        breakdown showing what fraction of high-error surfaces are invalid or non-planar.
+
+    Returns:
+    --------
+    pd.DataFrame : Per-classname summary with counts and percentages for each flag.
+    """
+    if surface_df.empty:
+        print("Warning: empty surface dataframe")
+        return pd.DataFrame()
+
+    missing = [c for c in ('is_valid', 'is_planar', 'classname') if c not in surface_df.columns]
+    if missing:
+        print(f"Warning: columns not found in surface data: {missing}")
+        return pd.DataFrame()
+
+    rows = []
+    for cls, grp in surface_df.groupby('classname'):
+        total = len(grp)
+        n_invalid = int((~grp['is_valid']).sum())
+        n_non_planar = int((~grp['is_planar']).sum())
+        rows.append({
+            'classname':        cls,
+            'total':            total,
+            'invalid_count':    n_invalid,
+            'invalid_pct':      round(n_invalid / total * 100, 2) if total else 0,
+            'non_planar_count': n_non_planar,
+            'non_planar_pct':   round(n_non_planar / total * 100, 2) if total else 0,
+        })
+
+    summary = pd.DataFrame(rows)
+
+    print(f"\n{'='*80}")
+    print("GEOMETRY QUALITY SUMMARY")
+    print(f"{'='*80}")
+    print(f"Total surfaces: {len(surface_df)}")
+    for _, r in summary.iterrows():
+        print(f"\n  {r['classname']} ({r['total']} surfaces)")
+        print(f"    is_valid=False : {r['invalid_count']} ({r['invalid_pct']}%)")
+        print(f"    is_planar=False: {r['non_planar_count']} ({r['non_planar_pct']}%)")
+
+    # Correlation with high validation error
+    if validation_df is not None and not validation_df.empty:
+        for flag in ('is_valid', 'is_planar'):
+            if flag not in validation_df.columns:
+                continue
+            label = "invalid" if flag == 'is_valid' else "non-planar"
+            bad_rows = validation_df[~validation_df[flag]]
+            if bad_rows.empty:
+                print(f"\n  No {label} surfaces in validation results")
+                continue
+            pct = len(bad_rows) / len(validation_df) * 100
+            print(f"\n  Of {len(validation_df)} validated surface rows:")
+            print(f"    {len(bad_rows)} ({pct:.1f}%) come from {label} surfaces")
+
+    print(f"{'='*80}\n")
+
+    return summary

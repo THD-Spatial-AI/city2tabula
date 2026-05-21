@@ -16,10 +16,8 @@ type RetryConfig struct {
 
 // BatchConfig holds batch processing configuration
 type BatchConfig struct {
-	Size           int
-	Threads        int
-	DBMaxOpenConns int
-	DBMaxIdleConns int
+	Size    int
+	Threads int
 }
 
 // DefaultRetryConfig returns sensible defaults for retry behaviour
@@ -35,10 +33,8 @@ func DefaultRetryConfig() *RetryConfig {
 // loadBatchConfig loads batch processing configuration
 func loadBatchConfig() *BatchConfig {
 	return &BatchConfig{
-		Size:           1000,
-		Threads:        getThreadCount(),
-		DBMaxOpenConns: GetEnvAsInt("DB_MAX_OPEN_CONNS", 10),
-		DBMaxIdleConns: GetEnvAsInt("DB_MAX_IDLE_CONNS", 5),
+		Size:    1000,
+		Threads: getThreadCount(),
 	}
 }
 

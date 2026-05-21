@@ -1,3 +1,7 @@
+-- Explodes each MULTIPOLYGON surface geometry into individual POLYGON faces via ST_Dump.
+-- One row per polygon face is inserted into _child_feature_geom_dump, cast to POLYGONZ.
+-- Skips buildings whose dump rows already exist.
+
 WITH new_buildings AS (
   -- Select only buildings that haven't been processed yet
   SELECT DISTINCT building_feature_id

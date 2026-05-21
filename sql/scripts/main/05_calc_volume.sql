@@ -1,4 +1,5 @@
--- Combined volume and storey calculations (simple arithmetic)
+-- Computes building volume as a bounding-box approximation: height × footprint_area.
+-- min_volume uses eave height (wall-only span); max_volume uses ridge height (wall + roof span).
 UPDATE {city2tabula_schema}.{lod_schema}_building_feature AS bf
 SET
     -- Volume calculations

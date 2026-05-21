@@ -116,13 +116,12 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, fig_f
     ax.plot([min_val, max_val], [min_val, max_val],
             'r--', label='Perfect Agreement', linewidth=2)
 
-    # Calculate R²
-    ss_res = ((df['calculated_value'] - df['thematic_value']) ** 2).sum()
+    # Calculate R² and RMSE using pre-computed difference (handles circular attrs)
+    ss_res = (df['difference'] ** 2).sum()
     ss_tot = ((df['thematic_value'] - df['thematic_value'].mean()) ** 2).sum()
     r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
-    # Calculate RMSE
-    rmse = np.sqrt(((df['calculated_value'] - df['thematic_value']) ** 2).mean())
+    rmse = np.sqrt((df['difference'] ** 2).mean())
 
     # Labels and title
     ax.set_xlabel('Thematic Value', fontsize=12, fontweight='bold')
@@ -333,8 +332,8 @@ def plot_multi_attribute_comparison(validation_df, save_path=None, figsize=(12, 
         max_val = max(df['thematic_value'].max(), df['calculated_value'].max())
         ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=1.5)
 
-        # Calculate R²
-        ss_res = ((df['calculated_value'] - df['thematic_value']) ** 2).sum()
+        # Calculate R² using pre-computed difference (handles circular attrs)
+        ss_res = (df['difference'] ** 2).sum()
         ss_tot = ((df['thematic_value'] - df['thematic_value'].mean()) ** 2).sum()
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 

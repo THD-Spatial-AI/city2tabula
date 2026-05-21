@@ -40,6 +40,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface(
   azimuth_unit VARCHAR CHECK (azimuth_unit IN ('degrees')),
   is_valid BOOLEAN,
   is_planar BOOLEAN,
+  is_party_wall BOOLEAN DEFAULT FALSE,
+  neighbour_building_id INTEGER,
   child_row_id UUID,
   attribute_calc_status VARCHAR,
   geom geometry(POLYGONZ, {srid})
@@ -94,3 +96,15 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_building_footprint_geometry_idx ON {city
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_building_feature_id_idx ON {city2tabula_schema}.{lod_schema}_child_feature (id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_surface_building_feature_id_idx ON {city2tabula_schema}.{lod_schema}_child_feature_surface (building_feature_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_child_surface_feature_id_idx ON {city2tabula_schema}.{lod_schema}_child_feature_surface (surface_feature_id);
+CREATE INDEX IF NOT EXISTS {lod_schema}_child_feature_surface_party_wall_idx ON {city2tabula_schema}.{lod_schema}_child_feature_surface (building_feature_id) WHERE is_party_wall = TRUE;
+
+-- Neighbour pairs table (populated by neighbour detection scripts)
+DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_neighbours CASCADE;
+CREATE TABLE {city2tabula_schema}.{lod_schema}_building_neighbours (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    building_id_a INTEGER NOT NULL,
+    building_id_b INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS {lod_schema}_building_neighbours_a_idx ON {city2tabula_schema}.{lod_schema}_building_neighbours (building_id_a);
+CREATE INDEX IF NOT EXISTS {lod_schema}_building_neighbours_b_idx ON {city2tabula_schema}.{lod_schema}_building_neighbours (building_id_b);

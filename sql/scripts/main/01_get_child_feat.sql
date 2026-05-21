@@ -1,3 +1,8 @@
+-- Finds the LoD surface features (RoofSurface, WallSurface, GroundSurface) belonging to
+-- each building by spatially intersecting their 3D geometry with the building solid
+-- (ST_3DIntersects). Only MULTIPOLYGON geometries are collected; script 02 explodes
+-- these into individual polygon faces. Skips buildings already present in _child_feature.
+
 WITH buildings AS (
   SELECT f.id AS building_feature_id, g.geometry AS building_geom
   FROM {lod_schema}.feature f

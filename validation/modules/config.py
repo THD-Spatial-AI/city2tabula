@@ -62,10 +62,9 @@ def _add_db_config(config):
         config['db'] = {}
 
     # Add connection string (preserving existing db config from YAML)
-    country = config.get('dataset', {}).get('country', '').lower()
     config['db']['connection_string'] = (
         f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/city2tabula_{country}"
+        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
     )
 
     return config

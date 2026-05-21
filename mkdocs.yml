@@ -116,6 +116,15 @@ nav:
   - Data: example/example.md
   - Code:
     - Job Queue & Worker Pipeline: code/job-queue.md
+    - SQL Extraction Pipeline:
+      - Overview: code/sql-pipeline/index.md
+      - 01 – Get Child Features: code/sql-pipeline/01-get-child-features.md
+      - 02 — Dump Geometry: code/sql-pipeline/02-dump-geometry.md
+      - 03 — Surface Attributes: code/sql-pipeline/03-surface-attributes.md
+      - 04 — Building Features: code/sql-pipeline/04-building-features.md
+      - 05 — Volume: code/sql-pipeline/05-volume.md
+      - 06 — Storeys: code/sql-pipeline/06-storeys.md
+      - 07 — TABULA Labelling: code/sql-pipeline/07-tabula-labelling.md
 
 extra:
   version:

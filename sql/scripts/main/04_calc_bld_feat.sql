@@ -1,6 +1,17 @@
--- This script populates the {lod_schema}_building_feature and lod3_building_feature tables by aggregating data from child features.
--- It excludes buildings that have already been processed to avoid unnecessary work.
--- The script calculates building footprint area, roof complexity, and centroid.
+-- Aggregates per-surface attributes into a single row per building and inserts into
+-- _building_feature. Skips buildings that already have a row in the target table.
+--
+-- Height semantics (both derived from child surface heights):
+--   min_height — maximum vertical span of any WallSurface face (eave height).
+--                Named "min" because it excludes the roof ridge contribution.
+--   max_height — eave height + maximum vertical span of any RoofSurface face (ridge height).
+--
+-- Complexity codes (0 = simple, 1 = regular, 2 = complex):
+--   footprint_complexity — based on vertex count of the merged GroundSurface boundary.
+--   roof_complexity      — based on number of distinct RoofSurface polygons.
+--
+-- surface_count_floor is initialised to 0 here; area_total_floor is later overwritten
+-- in script 06 as footprint_area × number_of_storeys (total heated floor area estimate).
 
 WITH new_buildings AS (
     -- Select only buildings that haven't been processed yet
@@ -8,22 +19,26 @@ WITH new_buildings AS (
     FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
     WHERE building_feature_id IN {building_ids}
 ),
-building_data AS (
+aggregated_surfaces AS (
     SELECT
         cfs.building_feature_id,
         0 as construction_year,
         0.0 as heating_demand,
         'kWh/m2a' AS heating_demand_unit,
         SUM(surface_area) FILTER (WHERE classname = 'GroundSurface') AS footprint_area,
+        -- Footprint complexity: vertex count of the merged ground boundary.
+        -- ≤ 4 vertices → simple rectangle; 5–10 → regular polygon; > 10 → complex shape.
         CASE
-            WHEN ST_NPoints(ST_Boundary(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'))) <= 4 THEN 0 -- 'simple'
-            WHEN ST_NPoints(ST_Boundary(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'))) BETWEEN 5 AND 10 THEN 1 -- 'regular'
-            ELSE 2 -- 'complex'
+            WHEN ST_NPoints(ST_Boundary(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'))) <= 4 THEN 0
+            WHEN ST_NPoints(ST_Boundary(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'))) BETWEEN 5 AND 10 THEN 1
+            ELSE 2
         END AS footprint_complexity,
+        -- Roof complexity: number of distinct RoofSurface polygons.
+        -- 1 face → simple (flat or single-pitch); 2–4 → regular (gable, hip); > 4 → complex.
         CASE
-            WHEN COUNT(*) FILTER (WHERE classname = 'RoofSurface') = 1 THEN 0 -- 'simple'
-            WHEN COUNT(*) FILTER (WHERE classname = 'RoofSurface') BETWEEN 2 AND 4 THEN 1 -- 'regular'
-            ELSE 2 -- 'complex'
+            WHEN COUNT(*) FILTER (WHERE classname = 'RoofSurface') = 1 THEN 0
+            WHEN COUNT(*) FILTER (WHERE classname = 'RoofSurface') BETWEEN 2 AND 4 THEN 1
+            ELSE 2
         END AS roof_complexity,
         FALSE AS has_attached_neighbour,
         ARRAY[]::INTEGER[] AS attached_neighbour_id,
@@ -37,8 +52,10 @@ building_data AS (
         COUNT(*) FILTER (WHERE classname = 'RoofSurface') AS surface_count_roof,
         COUNT(*) FILTER (WHERE classname = 'WallSurface') AS surface_count_wall,
         0 AS surface_count_floor,
+        -- Eave height: max vertical span across all wall faces.
         MAX(height) FILTER (WHERE classname = 'WallSurface') AS min_height,
         'm' AS min_height_unit,
+        -- Ridge height: eave height + max vertical span across all roof faces.
         MAX(height) FILTER (WHERE classname = 'WallSurface') +
         COALESCE(MAX(height) FILTER (WHERE classname = 'RoofSurface'), 0) AS max_height,
         'm' AS max_height_unit,
@@ -52,7 +69,7 @@ building_data AS (
         ST_Transform(ST_Force2D(ST_Centroid(
             ST_Union(geom) FILTER (WHERE classname = 'GroundSurface')
         )), {srid}) AS building_centroid_geom,
-        ST_Transform(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'), {srid}) AS  building_footprint_geom
+        ST_Transform(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'), {srid}) AS building_footprint_geom
 
     FROM
         {city2tabula_schema}.{lod_schema}_child_feature_surface cfs
@@ -117,4 +134,4 @@ SELECT
     number_of_storeys,
     building_centroid_geom,
     building_footprint_geom
-FROM building_data;
+FROM aggregated_surfaces;

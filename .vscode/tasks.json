@@ -65,7 +65,7 @@
       "label": "Reset Database",
       "type": "shell",
       "command": "go",
-      "args": ["run", "./cmd", "--reset-db"],
+      "args": ["run", "./cmd", "-reset-db"],
       "group": "none",
       "problemMatcher": [],
       "presentation": {
@@ -75,6 +75,21 @@
         "clear": false
       },
       "detail": "Drop all schemas and recreate the complete database."
+    },
+    {
+      "label": "Reset City2TABULA Schema",
+      "type": "shell",
+      "command": "go",
+      "args": ["run", "./cmd", "-reset-city2tabula"],
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": false
+      },
+      "detail": "Drop all schemas and recreate the complete City2TABULA schema."
     },
     {
       "label": "Extract Features",

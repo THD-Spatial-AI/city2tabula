@@ -1,6 +1,6 @@
-version: "1.1.0"
-date: "2025-11-27"
-author: "Jaykumar R. Ravani"
+version: "1.2.0"
+date: "2026-05-16"
+author: "Jay Ravani"
 # =============================================================================
 # VALIDATION CONFIGURATION: Bavarian LoD2 Dataset (Germany)
 # =============================================================================
@@ -148,18 +148,34 @@ attributes:
 # =============================================================================
 # VALIDATION TOLERANCES
 # =============================================================================
-# Define acceptable error thresholds for validation
+# Tolerances reflect the documented accuracy of the Bavarian LoD2 source data
+# (OpenData Bayern, https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2):
+#   - Ridge/eave height accuracy: normally 20–30 cm
+#   - Complex roof generalization: deviations > 1 m in individual cases
+#   - Planimetric accuracy: from ALKIS®/ATKIS® cadastral data
+#
+# Note: source attributes (Dachneigung, Dachorientierung, Flaeche) are derived
+# from the same CityGML geometry that City2TABULA reads. Differences arise from
+# algorithmic divergence and edge-case handling, not independent measurement.
+# The tolerances below are set to reflect the inherent source data accuracy
+# rather than sub-centimetre algorithmic precision.
 # =============================================================================
 validation:
 
   tolerance:
     # Absolute tolerances
     abs:
-      height: 0.5      # ±0.5 meters
-      tilt: 2.0        # ±2.0 degrees
-      azimuth: 5.0     # ±5.0 degrees
+      height: 0.5      # ±0.5 m  — source height accuracy 20–30 cm; ±0.5 m allows for
+                       #            generalized complex roofs and combined ridge+eave error
+      tilt: 5.0        # ±5.0°   — 20–30 cm height error over a 3–5 m roof span yields
+                       #            2.3–5.7° tilt error; ±2° was too tight for source quality
+      azimuth: 15.0    # ±15.0°  — roof shape generalization (>1 m shifts) rotates the
+                       #            surface normal significantly; median error ≈ 0° but
+                       #            empirical std is ~38° on generalized complex shapes
 
     # Percentage tolerances
     percent:
-      footprint_area: 5.0   # ±5%
-      surface_area: 5.0     # ±5%
+      footprint_area: 5.0    # ±5%  — planimetric accuracy from ALKIS/ATKIS is good;
+                             #        footprint is height-independent
+      surface_area: 10.0     # ±10% — combined height (20–30 cm) + positional error
+                             #        affects inclined surface area; ±5% was too tight
