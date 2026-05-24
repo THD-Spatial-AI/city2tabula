@@ -4,7 +4,6 @@
 import os
 import yaml
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
 
 # Load environment variables from a .env file first (before using os.getenv)
 load_dotenv()
@@ -117,27 +116,6 @@ def get_surface_attribute_mapping(config, surface_type='roof'):
     }
 
 
-def get_surface_type_filter(attribute_name):
-    """
-    Determine which surface types should be validated for a given attribute.
-
-    Parameters:
-    -----------
-    attribute_name : str
-        Attribute name (e.g., 'tilt', 'azimuth', 'area')
-
-    Returns:
-    --------
-    list or None : List of surface classnames (e.g., ['RoofSurface']) or None for all surfaces
-    """
-    # Tilt and azimuth should only be validated for roof surfaces
-    if attribute_name in ['tilt', 'azimuth']:
-        return ['RoofSurface']
-
-    # Area can be validated for all surface types
-    return None
-
-
 def print_config_summary(config):
     """Print a formatted summary of the loaded configuration."""
     print("\n" + "="*80)
@@ -198,42 +176,3 @@ def print_config_summary(config):
 
     print("="*80)
 
-if __name__ == "__main__":
-    # Test loading configuration
-    try:
-        config = load_config(os.path.join(os.path.dirname(__file__), '..', 'configs', f'config_germany.yaml'))  # Replace with an actual test config path
-        print_config_summary(config)
-
-        # Test helper functions
-        print("\n" + "="*80)
-        print("TESTING HELPER FUNCTIONS")
-        print("="*80)
-
-        print("\n1. Building attribute mapping:")
-        building_map = get_building_attribute_mapping(config)
-        for k, v in building_map.items():
-            print(f"   {k}: {v}")
-
-        print("\n2. Roof surface attribute mapping:")
-        roof_map = get_surface_attribute_mapping(config, 'roof')
-        for k, v in roof_map.items():
-            print(f"   {k}: {v}")
-
-        print("\n3. Surface type filters:")
-        for attr in ['tilt', 'azimuth', 'area']:
-            filter_val = get_surface_type_filter(attr)
-            print(f"   {attr}: {filter_val}")
-
-        print("4. Database configuration:")
-        db_config = _add_db_config(config).get('db', {})
-        for k, v in db_config.items():
-            print(f"   {k}: {v}")
-
-        print("\n" + "="*80)
-        print("ALL TESTS PASSED")
-        print("="*80)
-
-    except Exception as e:
-        print(f"Error loading configuration: {e}")
-        import traceback
-        traceback.print_exc()
