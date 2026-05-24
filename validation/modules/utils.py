@@ -228,13 +228,17 @@ def load_thematic_surface_data(engine, config, attribute_mapping,
     for source_label, computed_cols in label_to_columns.items():
         sl_sql = source_label.replace("'", "''")   # escape for SQL literal
 
-        # For each computed column in City2TABULA, exclude rows where the
-        # calculated value is the sentinel -1 (e.g. azimuth=-1 for flat roofs).
-        # Combined with filtering thematic != -1, this ensures the eligible pool
-        # only contains surfaces where BOTH sides are meaningful, so the sampled
-        # N rows survive the -1 filter in validate_surface_attributes intact.
-        calc_filters = " ".join(
-            f"AND sf.{col} != -1" for col in computed_cols
+        # Azimuth uses -1 as a sentinel for flat/undefined roofs.
+        # Filter BOTH the thematic value and the calculated column so that the
+        # eligible pool only contains surfaces where both sides are meaningful.
+        # This must be restricted to azimuth only — for area, height, tilt etc.
+        # -1 is not a sentinel and applying != -1 would silently drop surfaces
+        # with NULL calculated values (NULL != -1 evaluates to NULL in SQL).
+        azimuth_cols = [col for col in computed_cols if col == 'azimuth']
+        calc_filters = " ".join(f"AND sf.{col} != -1" for col in azimuth_cols)
+
+        thematic_sentinel_filter = (
+            f"AND {_numeric_coalesce()} != -1" if azimuth_cols else ""
         )
 
         query = f"""
@@ -247,7 +251,7 @@ def load_thematic_surface_data(engine, config, attribute_mapping,
                    {calc_filters}
             WHERE  p.name = '{sl_sql}'
               AND  {_has_numeric_value()}
-              AND  {_numeric_coalesce()} != -1
+              {thematic_sentinel_filter}
         ),
         sampled AS (
             SELECT feature_id
