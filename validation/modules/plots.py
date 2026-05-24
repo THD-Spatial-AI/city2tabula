@@ -140,6 +140,8 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, fig_f
             plt.savefig(png_path, dpi=300, bbox_inches='tight')
         else:
             plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
+        plt.close(fig)
+        return None
 
     return fig
 
