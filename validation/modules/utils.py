@@ -167,17 +167,18 @@ def load_thematic_building_data(engine, config, building_feature_ids, attribute_
 
 
 def load_thematic_surface_data(engine, config, surface_feature_ids, attribute_mapping,
-                               surface_type='RoofSurface', surface_df=None):
+                               surface_type='RoofSurface'):
     """
     Load thematic surface data from CityDB property table for specified surfaces.
 
-    Tries a direct match first (property.feature_id = surface_feature_id).  For
-    surfaces with no direct hit, optionally falls back to the parent building /
-    building-part level: some datasets store per-surface attributes (e.g.
-    Dachneigung) once on the parent feature, implying the same value applies to
-    all its surfaces.  Pass `surface_df` (the City2TABULA surface DataFrame, which
-    must contain both `surface_feature_id` and `building_feature_id` columns) to
-    enable this fallback.
+    Only performs a direct match (property.feature_id = surface_feature_id).
+    Datasets that store surface attributes at the building/building-part level
+    (e.g. Freiburg Dachneigung) will have lower coverage — those surfaces simply
+    have no directly assignable thematic value and are excluded from validation.
+
+    TODO: once the child-feature/parent-feature relation resolver is implemented,
+    add an inherited fallback that uses direct feature-ID relationships instead of
+    geometry-based surface-to-building assignment.
 
     Parameters:
     -----------
@@ -192,17 +193,12 @@ def load_thematic_surface_data(engine, config, surface_feature_ids, attribute_ma
         e.g., {'surface_area': 'Flaeche', 'tilt': 'Dachneigung'}
     surface_type : str
         Surface type classname (e.g., 'RoofSurface', 'WallSurface', 'GroundSurface')
-    surface_df : pd.DataFrame, optional
-        City2TABULA surface features with at least surface_feature_id and
-        building_feature_id columns.  When provided, enables inherited fallback.
 
     Returns:
     --------
-    pd.DataFrame : DataFrame with columns
-        [feature_id, attribute_name, thematic_value, match_source]
-        match_source is 'direct' or 'inherited'.
+    pd.DataFrame : DataFrame with columns [feature_id, attribute_name, thematic_value]
     """
-    empty = pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value', 'match_source'])
+    empty = pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
 
     if not surface_feature_ids or not attribute_mapping:
         return empty
@@ -216,101 +212,44 @@ def load_thematic_surface_data(engine, config, surface_feature_ids, attribute_ma
         return empty
 
     source_labels_str = ','.join(f"'{label}'" for label in source_labels)
+    unique_surface_ids = list(set(surface_feature_ids))
+    ids_str = ','.join(map(str, unique_surface_ids))
 
-    def _property_query(feature_ids):
-        ids_str = ','.join(map(str, feature_ids))
-        return f"""
-        SELECT
-            p.feature_id,
-            p.name AS source_label,
-            COALESCE(
-                p.val_double,
-                CASE
-                    WHEN p.val_string IS NOT NULL
-                    THEN
-                        CASE
-                            WHEN p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$'
-                            THEN p.val_string::numeric
-                            ELSE NULL
-                        END
-                    ELSE NULL
-                END
-            ) AS thematic_value
-        FROM {citydb_schema}.{property_table} AS p
-        WHERE p.feature_id IN ({ids_str})
-          AND p.name IN ({source_labels_str})
-          AND (
-              p.val_double IS NOT NULL
-              OR (p.val_string IS NOT NULL
-                  AND p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$')
-          )
-        ORDER BY p.feature_id, p.name;
-        """
+    query = f"""
+    SELECT
+        p.feature_id,
+        p.name AS source_label,
+        COALESCE(
+            p.val_double,
+            CASE
+                WHEN p.val_string IS NOT NULL
+                THEN
+                    CASE
+                        WHEN p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$'
+                        THEN p.val_string::numeric
+                        ELSE NULL
+                    END
+                ELSE NULL
+            END
+        ) AS thematic_value
+    FROM {citydb_schema}.{property_table} AS p
+    WHERE p.feature_id IN ({ids_str})
+      AND p.name IN ({source_labels_str})
+      AND (
+          p.val_double IS NOT NULL
+          OR (p.val_string IS NOT NULL
+              AND p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$')
+      )
+    ORDER BY p.feature_id, p.name;
+    """
+
+    raw_df = pd.read_sql(query, engine)
 
     label_to_column = {v: k for k, v in attribute_mapping.items()}
+    raw_df['attribute_name'] = raw_df['source_label'].map(label_to_column)
+    result_df = raw_df[['feature_id', 'attribute_name', 'thematic_value']].copy()
 
-    # --- direct match ---
-    unique_surface_ids = list(set(surface_feature_ids))
-    direct_raw = pd.read_sql(_property_query(unique_surface_ids), engine)
-    direct_raw['attribute_name'] = direct_raw['source_label'].map(label_to_column)
-    direct_df = direct_raw[['feature_id', 'attribute_name', 'thematic_value']].copy()
-    direct_df['match_source'] = 'direct'
-    print(f"  Direct match: {len(direct_df)} {surface_type} attribute values "
-          f"across {direct_df['feature_id'].nunique()} surfaces")
-
-    # --- inherited fallback via parent building/building-part ---
-    inherited_df = pd.DataFrame()
-    if surface_df is not None and not surface_df.empty:
-        required = {'surface_feature_id', 'building_feature_id'}
-        if not required.issubset(surface_df.columns):
-            print(f"  Warning: surface_df missing columns {required - set(surface_df.columns)} "
-                  f"— skipping inherited fallback")
-        else:
-            # Surfaces with no direct thematic data for ANY attribute
-            directly_matched_ids = set(direct_df['feature_id'].unique())
-            unmatched_ids = set(unique_surface_ids) - directly_matched_ids
-
-            if unmatched_ids:
-                # Build surface_id → building_id mapping (take first building per surface)
-                surf_filtered = surface_df[
-                    surface_df['classname'] == surface_type
-                ][['surface_feature_id', 'building_feature_id']].drop_duplicates('surface_feature_id')
-
-                unmatched_surf = surf_filtered[
-                    surf_filtered['surface_feature_id'].isin(unmatched_ids)
-                ]
-
-                unique_building_ids = unmatched_surf['building_feature_id'].dropna().unique().tolist()
-
-                if unique_building_ids:
-                    parent_raw = pd.read_sql(_property_query(unique_building_ids), engine)
-                    parent_raw['attribute_name'] = parent_raw['source_label'].map(label_to_column)
-
-                    # Join parent property back to each surface
-                    inherited_raw = unmatched_surf.merge(
-                        parent_raw[['feature_id', 'attribute_name', 'thematic_value']],
-                        left_on='building_feature_id',
-                        right_on='feature_id',
-                        how='inner'
-                    )
-                    inherited_raw = inherited_raw.rename(
-                        columns={'surface_feature_id': 'feature_id'}
-                    )
-                    inherited_df = inherited_raw[
-                        ['feature_id', 'attribute_name', 'thematic_value']
-                    ].drop_duplicates(['feature_id', 'attribute_name']).copy()
-                    inherited_df['match_source'] = 'inherited'
-                    print(f"  Inherited fallback: {len(inherited_df)} {surface_type} attribute values "
-                          f"across {inherited_df['feature_id'].nunique()} surfaces "
-                          f"(parent building/part level)")
-
-    result_df = pd.concat(
-        [df for df in [direct_df, inherited_df] if not df.empty],
-        ignore_index=True
-    )
-
-    total_surfaces = result_df['feature_id'].nunique()
-    print(f"  Total thematic data: {len(result_df)} {surface_type} attribute values "
-          f"across {total_surfaces} surfaces")
+    print(f"Loaded {len(result_df)} {surface_type} attribute values "
+          f"across {result_df['feature_id'].nunique()} surfaces")
 
     return result_df

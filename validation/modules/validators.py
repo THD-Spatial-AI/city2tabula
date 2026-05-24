@@ -142,8 +142,13 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         print(f"Warning: Empty input dataframes for {surface_type} validation")
         return pd.DataFrame()
 
-    # Filter surfaces by type
+    # Filter surfaces by type, then deduplicate by surface_feature_id.
+    # The same surface can be assigned to multiple buildings via the ST_3DIntersects
+    # overlap logic (attached buildings / building parts). Surface-level attributes
+    # (tilt, azimuth, area) are geometric properties of the surface itself and are
+    # identical across all duplicate rows, so we keep only the first occurrence.
     filtered_calc = surface_calc_df[surface_calc_df['classname'] == surface_type].copy()
+    filtered_calc = filtered_calc.drop_duplicates(subset='surface_feature_id', keep='first')
 
     if filtered_calc.empty:
         print(f"Warning: No surfaces found with classname '{surface_type}'")
