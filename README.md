@@ -33,8 +33,9 @@ Full setup instructions for all platforms (Linux, macOS, Windows) are in the [in
 ## Local Documentation (MkDocs)
 
 ```bash
-python -m pip install -r docs/requirements.txt
-python -m mkdocs serve
+python -m venv .venv
+.venv/bin/pip install -r docs/requirements.txt
+.venv/bin/mkdocs serve
 ```
 
 ---
