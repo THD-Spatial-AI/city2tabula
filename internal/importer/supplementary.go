@@ -62,6 +62,7 @@ func ImportCsvWithPsql(filePath string, config *config.Config) error {
 	// Build psql command
 	cmd := exec.Command("psql",
 		"-h", config.DB.Host,
+		"-p", config.DB.Port,
 		"-U", config.DB.User,
 		"-d", config.DB.Name,
 		"-c", copyCommand)
