@@ -231,8 +231,30 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Error("expected at least 1 building to have a TABULA variant code assigned")
 	}
 
-	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes",
-		buildingCount, labeledCount)
+	// Verify script 08 ran successfully: object_id must be populated for every building.
+	var missingObjectID int
+	if err := testPool.QueryRow(ctx,
+		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature WHERE object_id IS NULL",
+	).Scan(&missingObjectID); err != nil {
+		t.Fatalf("failed to query object_id coverage: %v", err)
+	}
+	if missingObjectID > 0 {
+		t.Errorf("script 08 failed: %d buildings have no object_id populated", missingObjectID)
+	}
+
+	// Verify script 08 ran successfully: surface link table must have rows.
+	var surfaceLinkCount int
+	if err := testPool.QueryRow(ctx,
+		"SELECT COUNT(*) FROM city2tabula.lod2_surface_link",
+	).Scan(&surfaceLinkCount); err != nil {
+		t.Fatalf("failed to query lod2_surface_link: %v", err)
+	}
+	if surfaceLinkCount == 0 {
+		t.Error("script 08 failed: lod2_surface_link is empty, expected surface rows")
+	}
+
+	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links",
+		buildingCount, labeledCount, surfaceLinkCount)
 }
 
 func TestPipeline_Germany_LOD2(t *testing.T) {
