@@ -16,6 +16,17 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 ---
 
+## Compatibility
+
+| Dependency | Supported version |
+|---|---|
+| citydb-tool | ≤ v1.3.2 |
+| PostgreSQL | 15 – 17 |
+| PostGIS | 3.4+ |
+| Go | 1.23+ |
+
+---
+
 ## Quick Start
 
 **Prerequisite:** [Docker](https://docs.docker.com/get-docker/)
@@ -66,7 +77,7 @@ go test -coverprofile=coverage.out -covermode=atomic ./...
 go tool cover -html=coverage.out
 
 # Integration tests (requires Docker)
-go test -tags integration -v -timeout 10m ./internal/process/
+go test -count=1 -tags integration -v -timeout 10m ./internal/process/
 
 # SQL benchmarks (requires Docker)
 go test -tags integration -bench=. -benchmem -run=^$ ./internal/process/
