@@ -114,6 +114,10 @@ nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
   - Data: example/example.md
+  - Validation:
+    - Results: validation/index.md
+    - Performance: validation/performance.md
+    - Generating Reports: validation/report.md
   - Code:
     - Job Queue & Worker Pipeline: code/job-queue.md
     - SQL Extraction Pipeline:

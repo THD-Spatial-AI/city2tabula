@@ -70,43 +70,41 @@ python validation/generate_report.py \
 
 ## Output Sections
 
-### 1 — Accuracy
+### 1. Accuracy
 
 RMSE and mean signed difference for every validated attribute across all datasets.
 
-```
-| Dataset        | Level    | Attribute        |       n | RMSE  | Mean diff | Median %err |
-| ---            | ---      | ---              |     --- | ---   | ---       | ---         |
+
+| Dataset | Level | Attribute        |       n | RMSE  | Mean diff | Median %err |
+| --- | --- | ---              |     --- | ---   | ---       | ---         |
 | Freiburg (DE)  | Roof     | Surface area (m²)| 22,411  | 0.392 | −0.004    | 0.000       |
 | Freiburg (DE)  | Wall     | Surface area (m²)| 55,129  | 0.004 |  0.000    | 0.000       |
 | Vienna (AT)    | Wall     | Surface area (m²)|1,180,291| 17.360| −0.030    | 0.000       |
 ...
-```
 
-### 2 — Geometry Quality
+### 2. Geometry Quality
 
 Per surface type: how many surfaces are PostGIS-invalid (`ST_IsValid = false`) or non-planar. Counted on unique surfaces (area attribute only, to avoid double-counting tilt/azimuth rows).
 
-```
+
 | Dataset        | Surface type | n surfaces | Invalid (%) | Non-planar (%) |
 | ---            | ---          | ---        | ---         | ---            |
 | Freiburg (DE)  | Roof         | 22,411     | 0.0%        | 52.2%          |
 | Freiburg (DE)  | Wall         | 55,129     | 89.0%       | 13.1%          |
 | Vienna (AT)    | Wall         |1,180,291   | 99.4%       | 17.2%          |
 ...
-```
 
-### 3 — RMSE by Geometry Validity
+### 3. RMSE by Geometry Validity
 
 Surface area RMSE split into two groups: surfaces that passed both `is_valid` and `is_planar`, and surfaces that failed either check. This isolates the contribution of degenerate geometry to overall error.
 
-```
+
 | Dataset        | Surface type | RMSE all | RMSE valid+planar | RMSE invalid/non-planar | n valid | n invalid |
 | ---            | ---          | ---      | ---               | ---                     | ---     | ---       |
 | Deggendorf (DE)| Wall         | 38.177   | 0.016             | 38.256                  | 3,482   | 840,307   |
 | Vienna (AT)    | Wall         | 17.360   | 0.003             | 17.362                  | 240     | 1,180,051 |
 ...
-```
+
 
 !!! tip "The geometry argument"
     The **Key Takeaways** section at the end of the report computes the ratio of
@@ -117,7 +115,7 @@ Surface area RMSE split into two groups: surfaces that passed both `is_valid` an
 
     This is the quantitative argument that geometry quality — not the pipeline — drives the remaining error.
 
-### 4 — Building Height by Attachment Status
+### 4. Building Height by Attachment Status
 
 Height RMSE split by `has_attached_neighbour`. Buildings that share a wall with a neighbour can have their roof surfaces mis-attributed during geometry-based surface assignment, inflating height errors.
 
