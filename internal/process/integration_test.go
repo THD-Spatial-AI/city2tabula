@@ -231,7 +231,7 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Error("expected at least 1 building to have a TABULA variant code assigned")
 	}
 
-	// Verify script 08 ran successfully: object_id must be populated for every building.
+	// Verify script 04 populated object_id on INSERT (no retroactive backfill needed).
 	var missingObjectID int
 	if err := testPool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature WHERE object_id IS NULL",
@@ -239,10 +239,21 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Fatalf("failed to query object_id coverage: %v", err)
 	}
 	if missingObjectID > 0 {
-		t.Errorf("script 08 failed: %d buildings have no object_id populated", missingObjectID)
+		t.Errorf("script 04 failed: %d buildings have no object_id populated", missingObjectID)
 	}
 
-	// Verify script 08 ran successfully: surface link table must have rows.
+	// Verify objectids propagated through all surface layers.
+	var missingSurfaceObjectIDs int
+	if err := testPool.QueryRow(ctx,
+		"SELECT COUNT(*) FROM city2tabula.lod2_child_feature_surface WHERE building_object_id IS NULL OR surface_object_id IS NULL",
+	).Scan(&missingSurfaceObjectIDs); err != nil {
+		t.Fatalf("failed to query surface object_id coverage: %v", err)
+	}
+	if missingSurfaceObjectIDs > 0 {
+		t.Errorf("scripts 01–03 failed: %d surface rows are missing building_object_id or surface_object_id", missingSurfaceObjectIDs)
+	}
+
+	// Verify script 08 built the surface link table.
 	var surfaceLinkCount int
 	if err := testPool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM city2tabula.lod2_surface_link",
@@ -253,8 +264,8 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Error("script 08 failed: lod2_surface_link is empty, expected surface rows")
 	}
 
-	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links",
-		buildingCount, labeledCount, surfaceLinkCount)
+	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links, %d surfaces with objectids",
+		buildingCount, labeledCount, surfaceLinkCount, missingSurfaceObjectIDs)
 }
 
 func TestPipeline_Germany_LOD2(t *testing.T) {
