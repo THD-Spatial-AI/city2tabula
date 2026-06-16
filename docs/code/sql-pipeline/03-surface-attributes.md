@@ -219,10 +219,17 @@ Applies per-class rules to produce the final unit normal (nx, ny, nz):
 
 With the unit normal `(nx, ny, nz)` available, the attributes are:
 
+
 ```sql
 -- Tilt: angle of the normal above the horizontal plane
 DEGREES(ASIN(ABS(nz))) AS tilt
 ```
+
+<figure markdown="span">
+  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_light.svg#only-light){ width="600" }
+  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_dark.svg#only-dark){ width="600" }
+  <figcaption>Figure 1: Tilt and normal vector components</figcaption>
+</figure>
 
 `nz` is the vertical component of the unit normal. For a vertical wall, `nz = 0`, giving `ASIN(0) = 0°`. For a flat horizontal surface, `|nz| = 1`, giving `ASIN(1) = 90°`.
 
@@ -233,6 +240,18 @@ CASE
   ELSE MOD((450.0 - degrees(atan2(ny, nx))) + 360.0, 360.0)
 END AS azimuth
 ```
+
+<figure markdown="span">
+  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_dark.svg#only-dark){ width="600" }
+  <figcaption>Figure 2: Azimuth and normal vector components</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
+  <figcaption>Figure 3: Azimuth and normal vector components</figcaption>
+</figure>
 
 `atan2(ny, nx)` computes the mathematical angle (counter-clockwise from East). The formula `(450 − angle) mod 360` converts this to a compass bearing (clockwise from North). For nearly-flat surfaces (tilt > ~80°), the horizontal components are near zero and `atan2` becomes numerically unreliable, so azimuth is set to `-1` (undefined).
 
