@@ -50,6 +50,11 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_surface(
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_feature CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building_feature (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- object_id: the stable objectid from the source 3D city model (lod2.feature.objectid).
+  -- Constant across re-imports; use this to identify the same physical building.
+  object_id VARCHAR(100) UNIQUE,
+  -- building_feature_id: session-local integer from lod2.feature.id.
+  -- Changes on every re-import. Used only as a fast join key inside this pipeline.
   building_feature_id INTEGER UNIQUE,
   tabula_variant_code_id INTEGER,
   tabula_variant_code VARCHAR,
@@ -108,3 +113,29 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building_neighbours (
 
 CREATE INDEX IF NOT EXISTS {lod_schema}_building_neighbours_a_idx ON {city2tabula_schema}.{lod_schema}_building_neighbours (building_id_a);
 CREATE INDEX IF NOT EXISTS {lod_schema}_building_neighbours_b_idx ON {city2tabula_schema}.{lod_schema}_building_neighbours (building_id_b);
+
+-- Stable resolved building -> surface mapping using source objectids.
+-- Populated by script 08 after all surface calculations and party-wall resolution
+-- are complete. Survives re-imports: objectids are baked into the CityGML source
+-- and never change, so this table can be used to skip the ST_3DIntersects resolve
+-- step after a partial re-import of the same data.
+--
+-- One row per surface. building_object_id repeats; surface_object_id is unique
+-- (each surface belongs to exactly one building after party-wall resolution).
+DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_surface_link CASCADE;
+CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_link (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    building_object_id VARCHAR(100) NOT NULL,
+    surface_object_id  VARCHAR(100) NOT NULL,
+    surface_type    VARCHAR(50),   -- RoofSurface | WallSurface | GroundSurface
+    created_at      TIMESTAMPTZ  DEFAULT NOW(),
+    UNIQUE (building_object_id, surface_object_id)
+);
+
+-- Fast lookup: all surfaces for a given building
+CREATE INDEX IF NOT EXISTS {lod_schema}_surface_link_building_idx
+    ON {city2tabula_schema}.{lod_schema}_surface_link (building_object_id);
+
+-- Enforce: each surface belongs to exactly one building
+CREATE UNIQUE INDEX IF NOT EXISTS {lod_schema}_surface_link_surface_idx
+    ON {city2tabula_schema}.{lod_schema}_surface_link (surface_object_id);
