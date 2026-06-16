@@ -48,6 +48,9 @@ def validate_building_attributes(building_calc_df, building_thematic_df, attribu
 
     results = []
 
+    # Carry through building-level flags if present
+    passthrough_cols = [c for c in ['has_attached_neighbour'] if c in building_calc_df.columns]
+
     # Process each attribute
     for computed_column, source_label in attribute_mapping.items():
         # Skip if no source label defined
@@ -64,7 +67,8 @@ def validate_building_attributes(building_calc_df, building_thematic_df, attribu
             continue
 
         # Merge calculated and thematic data on building_feature_id
-        merged = building_calc_df[['building_feature_id', computed_column]].merge(
+        select_cols = ['building_feature_id', computed_column] + passthrough_cols
+        merged = building_calc_df[select_cols].merge(
             attr_thematic[['feature_id', 'thematic_value']],
             left_on='building_feature_id',
             right_on='feature_id',
@@ -88,7 +92,7 @@ def validate_building_attributes(building_calc_df, building_thematic_df, attribu
             'building_feature_id', 'attribute_name',
             'calculated_value', 'thematic_value',
             'difference', 'percent_error'
-        ]
+        ] + passthrough_cols
         results.append(merged[result_cols])
 
     if not results:
@@ -138,8 +142,13 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         print(f"Warning: Empty input dataframes for {surface_type} validation")
         return pd.DataFrame()
 
-    # Filter surfaces by type
+    # Filter surfaces by type, then deduplicate by surface_feature_id.
+    # The same surface can be assigned to multiple buildings via the ST_3DIntersects
+    # overlap logic (attached buildings / building parts). Surface-level attributes
+    # (tilt, azimuth, area) are geometric properties of the surface itself and are
+    # identical across all duplicate rows, so we keep only the first occurrence.
     filtered_calc = surface_calc_df[surface_calc_df['classname'] == surface_type].copy()
+    filtered_calc = filtered_calc.drop_duplicates(subset='surface_feature_id', keep='first')
 
     if filtered_calc.empty:
         print(f"Warning: No surfaces found with classname '{surface_type}'")
@@ -177,8 +186,11 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
         merge_cols = base_cols + [computed_column]
 
         # Merge calculated and thematic data on surface_feature_id
+        thematic_cols = ['feature_id', 'thematic_value']
+        if 'match_source' in attr_thematic.columns:
+            thematic_cols.append('match_source')
         merged = filtered_calc[merge_cols].merge(
-            attr_thematic[['feature_id', 'thematic_value']],
+            attr_thematic[thematic_cols],
             left_on='surface_feature_id',
             right_on='feature_id',
             how='inner'
@@ -211,12 +223,14 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
                 np.nan
             )
 
-        # Keep only needed columns
+        # Keep only needed columns (include match_source if present)
         result_cols = base_cols + [
             'attribute_name',
             'calculated_value', 'thematic_value',
             'difference', 'percent_error'
         ]
+        if 'match_source' in merged.columns:
+            result_cols.append('match_source')
         results.append(merged[result_cols])
 
     if not results:
@@ -231,7 +245,7 @@ def validate_surface_attributes(surface_calc_df, surface_thematic_df, attribute_
     return validation_df
 
 
-def get_validation_summary(validation_df):
+def get_validation_summary(validation_df, by_match_source=False):
     """
     Generate summary statistics for validation results.
 
@@ -239,17 +253,13 @@ def get_validation_summary(validation_df):
     -----------
     validation_df : pd.DataFrame
         Validation results from validate_building_attributes or validate_surface_attributes
+    by_match_source : bool
+        When True and a 'match_source' column is present, also print a breakdown
+        of counts and RMSE split by 'direct' vs 'inherited'.
 
     Returns:
     --------
-    pd.DataFrame : Summary statistics grouped by attribute_name with columns:
-        - attribute_name: Name of the attribute
-        - count: Number of comparisons
-        - mean_difference: Average difference
-        - std_difference: Standard deviation of differences
-        - mean_percent_error: Average percentage error
-        - median_percent_error: Median percentage error
-        - rmse: Root mean square error
+    pd.DataFrame : Summary statistics grouped by attribute_name.
     """
     if validation_df.empty:
         print("Warning: Empty validation dataframe")
@@ -267,8 +277,19 @@ def get_validation_summary(validation_df):
         'mean_percent_error', 'median_percent_error', 'std_percent_error'
     ]
 
-    # Round to 4 decimal places
     summary = summary.round(4)
+
+    # Optional breakdown by match_source (direct vs inherited)
+    if by_match_source and 'match_source' in validation_df.columns:
+        print("\n  Match source breakdown:")
+        breakdown = validation_df.groupby(['attribute_name', 'match_source']).agg(
+            count=('difference', 'count'),
+            rmse=('difference', lambda x: round(float(np.sqrt((x**2).mean())), 4)),
+            mean_diff=('difference', lambda x: round(float(x.mean()), 4))
+        ).reset_index()
+        for _, row in breakdown.iterrows():
+            print(f"    {row['attribute_name']:25s} [{row['match_source']:9s}]  "
+                  f"n={row['count']:6d}  RMSE={row['rmse']:.4f}  mean={row['mean_diff']:+.4f}")
 
     return summary
 

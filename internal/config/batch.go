@@ -16,8 +16,9 @@ type RetryConfig struct {
 
 // BatchConfig holds batch processing configuration
 type BatchConfig struct {
-	Size    int
-	Threads int
+	Size           int
+	Threads        int
+	BuildingLimit  int
 }
 
 // DefaultRetryConfig returns sensible defaults for retry behaviour
@@ -33,9 +34,21 @@ func DefaultRetryConfig() *RetryConfig {
 // loadBatchConfig loads batch processing configuration
 func loadBatchConfig() *BatchConfig {
 	return &BatchConfig{
-		Size:    1000,
-		Threads: getThreadCount(),
+		Size:          1000,
+		Threads:       getThreadCount(),
+		BuildingLimit: getBuildingLimit(),
 	}
+}
+
+// getBuildingLimit reads BUILDING_LIMIT from the environment.
+// 0 means no limit (process all buildings).
+func getBuildingLimit() int {
+	if v := GetEnv("BUILDING_LIMIT", ""); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return n
+		}
+	}
+	return 0
 }
 
 // getThreadCount determines optimal thread count

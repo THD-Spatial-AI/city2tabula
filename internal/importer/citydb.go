@@ -52,7 +52,13 @@ func testCityDBExecPath(cityDBExecPath string) error {
 }
 
 // importCityDBFiles imports CityGML and CityJSON files from a directory into the given schema.
+// If dataPath does not exist the LOD level is skipped with a warning — this makes LOD3 optional.
 func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, config *config.Config) error {
+	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+		utils.Warn.Printf("Data path not found for %s: %s — skipping", lodLevel, dataPath)
+		return nil
+	}
+
 	formats := []struct {
 		cmdFlag string // passed to the citydb CLI
 		label   string // used in log messages
@@ -63,9 +69,6 @@ func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, conf
 
 	for _, f := range formats {
 		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, f.cmdFlag, config)
-		if cmd == nil {
-			return fmt.Errorf("no %s files found in %s for %s", f.label, dataPath, lodLevel)
-		}
 		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", lodLevel, f.label)); err != nil {
 			return err
 		}
@@ -87,15 +90,10 @@ func executeCityDBCommand(cmd *exec.Cmd, description string) error {
 	return nil
 }
 
-// getCityDBImportCommand creates a CityDB import command for the specified format
+// getCityDBImportCommand creates a CityDB import command for the specified format.
+// Callers must verify that dataPath exists before calling this function.
 func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, config *config.Config) *exec.Cmd {
-	// Check file path exists before creating command
-	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
-		utils.Error.Fatalf("Data path not found: %s", dataPath)
-		return nil
-	}
-
-	return exec.Command(cityDBExecPath,
+	args := []string{
 		"import",
 		"--log-level=debug",
 		format,               // "citygml" or "cityjson"
@@ -107,5 +105,12 @@ func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, c
 		fmt.Sprintf("--db-host=%s", config.DB.Host),
 		fmt.Sprintf("--db-port=%s", config.DB.Port),
 		fmt.Sprintf("--db-schema=%s", dbSchema),
-		dataPath)
+	}
+
+	if config.CityDB.ImportLimit > 0 {
+		args = append(args, fmt.Sprintf("--limit=%d", config.CityDB.ImportLimit))
+	}
+
+	args = append(args, dataPath)
+	return exec.Command(cityDBExecPath, args...)
 }

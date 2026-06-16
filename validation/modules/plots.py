@@ -12,19 +12,15 @@ This module provides:
 """
 
 import matplotlib
-matplotlib.use('module://backend_ipe')   # must come BEFORE pyplot
 
-import matplotlib.pyplot as plt
-
-# Try to use the IPE backend if available; otherwise fall back.
 HAS_IPE = False
 try:
     matplotlib.use('module://backend_ipe')
     HAS_IPE = True
 except Exception:
-    # Safe non-GUI backend suitable for headless environments
     matplotlib.use('Agg')
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 def compute_errors(df, attribute):
@@ -144,6 +140,8 @@ def plot_comparison_scatter(validation_df, attribute_name, save_path=None, fig_f
             plt.savefig(png_path, dpi=300, bbox_inches='tight')
         else:
             plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
+        plt.close(fig)
+        return None
 
     return fig
 
@@ -253,6 +251,98 @@ def plot_percent_error_distribution(validation_df, attribute_name, save_path=Non
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3, axis='y')
 
+    plt.tight_layout()
+
+    if save_path:
+        if fig_format == 'ipe' and not HAS_IPE:
+            png_path = (
+                save_path[:-4] + '.png' if save_path.lower().endswith('.ipe') else save_path + '.png'
+            )
+            print("IPE backend not available; saving PNG:", png_path)
+            plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', format=fig_format)
+        plt.close(fig)
+        return None
+
+    return fig
+
+
+def plot_height_neighbour_split(validation_df, attributes=None, save_path=None, fig_format=None):
+    """
+    Scatter plot for height attributes split by has_attached_neighbour status.
+
+    Shows standalone (False) and attached (True) buildings as two colour-coded
+    groups on the same axes, with per-group RMSE and mean-difference annotations.
+    Requires 'has_attached_neighbour' to be present in validation_df.
+
+    Parameters:
+    -----------
+    validation_df : pd.DataFrame
+        Building validation results that include a 'has_attached_neighbour' column.
+    attributes : list, optional
+        Height attributes to plot. Defaults to ['min_height', 'max_height'].
+    save_path : str, optional
+        Path to save figure.
+    fig_format : str, optional
+        Output format passed to savefig.
+
+    Returns:
+    --------
+    matplotlib.figure.Figure or None
+    """
+    if 'has_attached_neighbour' not in validation_df.columns:
+        print("Warning: 'has_attached_neighbour' column not found — skipping neighbour split plot")
+        return None
+
+    if attributes is None:
+        attributes = ['min_height', 'max_height']
+
+    avail = [a for a in attributes if a in validation_df['attribute_name'].unique()]
+    if not avail:
+        print("No matching attributes found for neighbour split plot")
+        return None
+
+    n_attrs = len(avail)
+    fig, axes = plt.subplots(1, n_attrs, figsize=(6 * n_attrs, 5))
+    if n_attrs == 1:
+        axes = [axes]
+
+    colors = {False: 'steelblue', True: 'tomato'}
+    labels = {False: 'Standalone', True: 'Attached'}
+
+    for ax, attr in zip(axes, avail):
+        df = validation_df[validation_df['attribute_name'] == attr].copy()
+        df = compute_errors(df, attr)
+        if df.empty:
+            ax.axis('off')
+            continue
+
+        min_val = min(df['thematic_value'].min(), df['calculated_value'].min())
+        max_val = max(df['thematic_value'].max(), df['calculated_value'].max())
+        ax.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=1.5, label='Perfect agreement')
+
+        for flag in [False, True]:
+            grp = df[df['has_attached_neighbour'] == flag]
+            if grp.empty:
+                continue
+            rmse = np.sqrt((grp['difference'] ** 2).mean())
+            mean_diff = grp['difference'].mean()
+            ax.scatter(
+                grp['thematic_value'], grp['calculated_value'],
+                alpha=0.5, s=20, color=colors[flag], edgecolors='none',
+                label=f"{labels[flag]}  n={len(grp)}, RMSE={rmse:.2f} m, mean={mean_diff:+.2f} m"
+            )
+
+        attr_display = attr.replace('_', ' ').title()
+        ax.set_xlabel('Thematic Value (m)', fontsize=10)
+        ax.set_ylabel('Calculated Value (m)', fontsize=10)
+        ax.set_title(attr_display, fontsize=11, fontweight='bold')
+        ax.legend(fontsize=8, loc='upper left')
+        ax.grid(True, alpha=0.3)
+
+    fig.suptitle('Height Validation: Standalone vs Attached Buildings',
+                 fontsize=13, fontweight='bold')
     plt.tight_layout()
 
     if save_path:

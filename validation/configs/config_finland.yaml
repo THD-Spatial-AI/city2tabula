@@ -1,0 +1,147 @@
+version: "1.0.0"
+date: "2026-05-22"
+author: "Jay Ravani"
+# =============================================================================
+# VALIDATION CONFIGURATION: Helsinki LoD2 Dataset (Finland)
+# =============================================================================
+#
+# Confirmed property names and feature_id level (queried 2026-05-22):
+#
+#   Surface-level (keyed by surface_feature_id) — default thematic_id: "surface"
+#     Area             50568 rows  — surface area for ALL surface types (roof/wall/floor)
+#     RoofPitch        13429 rows  — roof slope/tilt (RoofSurface only)
+#     RoofOrientation  13429 rows  — roof orientation/azimuth (RoofSurface only)
+#     ZMin, ZMax       50568 rows  — elevation bounds (not used for validation)
+#
+#   Building-level (keyed by building_feature_id)
+#     value             2972 rows  — building height (same convention as Bavaria/Austria)
+#     GroundLevel       2972 rows  — ground elevation ASL
+#     HighestRoof       2972 rows  — highest roof point ASL
+#     LowestRoof        2972 rows  — lowest roof point ASL
+#     Rakennuksen_tila  2176 rows  — Finnish: "Building status" (metadata; not used)
+#
+#   No building-level footprint area property exists; floor/ground surface Area
+#   (surface-level) is used instead as the footprint area reference.
+# =============================================================================
+
+dataset:
+  name: "LoD2 Dataset of Helsinki"
+  country: "Finland"
+  lod: 2
+  description: "Helsinki 3D city models in CityGML format with English property names"
+  source_url: ""    # TODO: add official Helsinki open-data URL
+  accessed_date: "2026"
+
+# =============================================================================
+# DATABASE SCHEMA MAPPING
+# =============================================================================
+db:
+  city2tabula_schema: "city2tabula"
+  citydb_schema: "lod2"
+  tables:
+    citydb_property: "property"
+    building_feature: "building_feature"
+    child_feature_surface: "child_feature_surface"
+
+# =============================================================================
+# ID FIELD MAPPING
+# =============================================================================
+id_fields:
+  city2tabula_parent_id: "building_feature_id"
+  city2tabula_child_id: "surface_feature_id"
+  citydb_property_feature_id: "feature_id"
+
+# =============================================================================
+# ATTRIBUTE MAPPING
+# =============================================================================
+attributes:
+
+  # ---------------------------------------------------------------------------
+  # PARENT-LEVEL ATTRIBUTES (Building)
+  # ---------------------------------------------------------------------------
+  parent:
+
+    height:
+      computed_columns: ["min_height", "max_height"]
+      source_label: "value"              # Same convention as Bavaria/Austria
+      unit: "m"
+      description: "Building height; both min and max compared to single source value"
+      note: "Source 'value' property contains the thematic height; 'height' property is an indicator"
+
+    footprint_area:
+      computed_column: "footprint_area"
+      source_label: ""                   # No building-level footprint area in Helsinki data;
+      unit: "m²"                         # validate via child.floor.area instead
+      description: "Building footprint area — use floor surface Area for thematic reference"
+
+  # ---------------------------------------------------------------------------
+  # CHILD-LEVEL ATTRIBUTES (Surfaces)
+  # ---------------------------------------------------------------------------
+  child:
+
+    # -------------------------------------------------------------------------
+    # ROOF SURFACES
+    # -------------------------------------------------------------------------
+    roof:
+      area:
+        computed_column: "surface_area"
+        source_label: "Area"             # English; present on all surface types
+        unit: "m²"
+        description: "Individual roof surface area"
+
+      tilt:
+        computed_column: "tilt"
+        source_label: "RoofPitch"        # English; present on RoofSurface features only
+        unit: "degrees"
+        description: "Roof slope angle from horizontal (0-90°)"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: "RoofOrientation"  # English; present on RoofSurface features only
+        unit: "degrees"
+        description: "Compass bearing (0-360°, -1 for horizontal surfaces)"
+
+    # -------------------------------------------------------------------------
+    # WALL SURFACES
+    # -------------------------------------------------------------------------
+    wall:
+      area:
+        computed_column: "surface_area"
+        source_label: "Area"
+        unit: "m²"
+        description: "Individual wall surface area"
+
+      azimuth:
+        computed_column: "azimuth"
+        source_label: ""                 # Wall orientation not in Helsinki source data
+        unit: "degrees"
+        description: "Wall orientation (not provided in source)"
+
+    # -------------------------------------------------------------------------
+    # FLOOR/GROUND SURFACES
+    # -------------------------------------------------------------------------
+    floor:
+      area:
+        computed_column: "surface_area"
+        source_label: "Area"             # Ground surface Area serves as footprint reference
+        unit: "m²"
+        description: "Ground/floor surface area (thematic footprint reference)"
+
+
+# =============================================================================
+# VALIDATION TOLERANCES
+# =============================================================================
+# Helsinki LoD2 data uses photogrammetric/LiDAR-derived geometry; accuracy is
+# comparable to or better than Bavarian LoD2.  Start with Bavaria tolerances
+# and tighten after inspecting residuals from the first run.
+# =============================================================================
+validation:
+
+  tolerance:
+    abs:
+      height: 0.5       # ±0.5 m  — building height
+      tilt: 5.0         # ±5.0°   — RoofPitch (surface-level, expected tight)
+      azimuth: 15.0     # ±15.0°  — RoofOrientation (surface-level)
+    percent:
+      footprint_area: 5.0
+      surface_area: 10.0

@@ -31,6 +31,11 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 		}
 		utils.Info.Printf("Found %d buildings for LOD%d in CityDB", len(ids), lod)
 
+		if limit := cfg.Batch.BuildingLimit; limit > 0 && limit < len(ids) {
+			ids = ids[:limit]
+			utils.Info.Printf("BUILDING_LIMIT=%d applied: processing %d of available buildings for LOD%d", limit, limit, lod)
+		}
+
 		switch lod {
 		case 2:
 			lod2BldIDs = ids
