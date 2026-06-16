@@ -4,248 +4,288 @@
 """
 Utility functions for loading data from City2TABULA and CityDB databases.
 
-This module handles:
-- Loading calculated data from City2TABULA tables
-- Loading thematic data from CityDB property tables
+Loading strategies
+------------------
+Buildings  (City2TABULA → CityDB):
+    Sample N building IDs from City2TABULA, then fetch their thematic
+    properties from CityDB.  Some buildings may have no thematic data
+    and are simply excluded from the result.
+
+Surfaces   (CityDB → City2TABULA, reversed):
+    Start from CityDB property table: find surface IDs that have the
+    target thematic attribute AND exist in City2TABULA with the right
+    classname.  Sample N from that intersection.  Because we start from
+    the source, N matches are guaranteed (up to total available).
 """
 
 import pandas as pd
-from sqlalchemy import text
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _numeric_coalesce(alias: str = 'p') -> str:
+    """COALESCE across val_double, val_int, and numeric-castable val_string."""
+    return f"""COALESCE(
+            {alias}.val_double,
+            {alias}.val_int::numeric,
+            CASE
+                WHEN {alias}.val_string IS NOT NULL
+                 AND {alias}.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$'
+                THEN {alias}.val_string::numeric
+                ELSE NULL
+            END
+        )"""
+
+
+def _has_numeric_value(alias: str = 'p') -> str:
+    """WHERE fragment: row has at least one non-null numeric value column."""
+    return f"""(
+          {alias}.val_double IS NOT NULL
+          OR {alias}.val_int IS NOT NULL
+          OR ({alias}.val_string IS NOT NULL
+              AND {alias}.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$')
+      )"""
+
+
+# ── City2TABULA data ──────────────────────────────────────────────────────────
 
 def load_city2tabula_data(engine, config):
     """
     Load calculated building and surface data from City2TABULA database.
 
-    Parameters:
-    -----------
-    engine : sqlalchemy.Engine
-        The SQLAlchemy engine connected to the database.
-    config : dict
-        Configuration dictionary containing database schema and table names.
-
-    Returns:
-    --------
+    Returns
+    -------
     tuple : (building_features_df, surface_features_df)
-        - building_features_df: DataFrame with building-level calculated data
-        - surface_features_df: DataFrame with surface-level calculated data
     """
-    # Get database schema names from config
     city2tabula_schema = config['db'].get('city2tabula_schema', 'city2tabula')
-    citydb_schema = config['db'].get('citydb_schema', 'lod2')
+    citydb_schema      = config['db'].get('citydb_schema', 'lod2')
+    tables             = config['db'].get('tables', {})
+    building_table     = f"{citydb_schema}_{tables.get('building_feature', 'building_feature')}"
+    surface_table      = f"{citydb_schema}_{tables.get('child_feature_surface', 'child_feature_surface')}"
 
-    # Get table names from config
-    tables = config['db'].get('tables', {})
-    building_table_base = tables.get('building_feature', 'building_feature')
-    surface_table_base = tables.get('child_feature_surface', 'child_feature_surface')
-
-    # Construct full table names: {schema}_{table}
-    building_table = f"{citydb_schema}_{building_table_base}"
-    surface_table = f"{citydb_schema}_{surface_table_base}"
-
-    # Load building features
     print(f"Loading building features from {city2tabula_schema}.{building_table}...")
-    query_buildings = f"SELECT * FROM {city2tabula_schema}.{building_table};"
-    building_features_df = pd.read_sql(query_buildings, engine)
+    building_features_df = pd.read_sql(
+        f"SELECT * FROM {city2tabula_schema}.{building_table};", engine)
     print(f"Loaded {len(building_features_df)} buildings")
 
-    # Load surface features with geometry
     print(f"Loading surface features from {city2tabula_schema}.{surface_table}...")
-    query_surfaces = f"""
-    SELECT
-        surface_feature_id,
-        building_feature_id,
-        objectclass_id,
-        classname,
-        surface_area,
-        tilt,
-        azimuth,
-        is_valid,
-        is_planar
-    FROM {city2tabula_schema}.{surface_table};
-    """
-    surface_features_df = pd.read_sql(query_surfaces, engine)
+    surface_features_df = pd.read_sql(f"""
+        SELECT surface_feature_id, building_feature_id, objectclass_id, classname,
+               surface_area, tilt, azimuth, is_valid, is_planar
+        FROM {city2tabula_schema}.{surface_table};
+    """, engine)
     print(f"Loaded {len(surface_features_df)} surfaces")
 
     return building_features_df, surface_features_df
 
 
-def load_thematic_building_data(engine, config, building_feature_ids, attribute_mapping):
-    """
-    Load thematic building data from CityDB property table for specified buildings.
+# ── Thematic data loaders ─────────────────────────────────────────────────────
 
-    Parameters:
-    -----------
-    engine : sqlalchemy.Engine
-        Database connection engine
-    config : dict
-        Configuration dictionary
-    building_feature_ids : list
-        List of building feature IDs to fetch thematic data for
+def load_thematic_building_data(engine, config, attribute_mapping, limit=0):
+    """
+    Load thematic building data.  Direction: City2TABULA → CityDB.
+
+    Samples N building IDs from City2TABULA, then fetches their thematic
+    properties from CityDB.  Buildings with no matching thematic data are
+    excluded from the result.
+
+    Parameters
+    ----------
     attribute_mapping : dict
-        Dictionary mapping computed columns to source property labels
-        e.g., {'min_height': 'value', 'footprint_area': 'Flaeche'}
+        ``{computed_column: source_label}`` — multiple computed columns
+        may share the same source label (e.g. min_height and max_height
+        both mapped to 'value').
+    limit : int
+        Number of building IDs to sample (0 = all buildings).
 
-    Returns:
-    --------
-    pd.DataFrame : DataFrame with columns [feature_id, attribute_name, thematic_value]
+    Returns
+    -------
+    pd.DataFrame
+        Columns: feature_id, attribute_name, thematic_value
     """
-    if not building_feature_ids or not attribute_mapping:
-        return pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+    empty = pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+    if not attribute_mapping:
+        return empty
 
-    # Get config
-    citydb_schema = config['db'].get('citydb_schema', 'lod2')
-    property_table = config['db']['tables'].get('citydb_property', 'property')
+    citydb_schema      = config['db'].get('citydb_schema', 'lod2')
+    city2tabula_schema = config['db'].get('city2tabula_schema', 'city2tabula')
+    property_table     = config['db']['tables'].get('citydb_property', 'property')
+    building_table     = (f"{citydb_schema}_"
+                          f"{config['db']['tables'].get('building_feature', 'building_feature')}")
 
-    # Get source labels (filter out empty strings)
-    source_labels = [label for label in attribute_mapping.values() if label]
-
+    source_labels = [lbl for lbl in attribute_mapping.values() if lbl]
     if not source_labels:
-        print("No source labels found for building attributes")
-        return pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+        print("No source labels configured for building attributes")
+        return empty
+    source_labels_str = ', '.join(f"'{lbl}'" for lbl in source_labels)
 
-    # Create placeholders for SQL IN clause
-    feature_ids_str = ','.join(map(str, building_feature_ids))
-    source_labels_str = ','.join(f"'{label}'" for label in source_labels)
+    limit_clause = f"LIMIT {limit}" if limit > 0 else ""
 
-    # Query thematic data
-    # Try both val_double and val_string columns, converting strings to numeric
     query = f"""
+    WITH sampled_buildings AS (
+        SELECT building_feature_id
+        FROM   {city2tabula_schema}.{building_table}
+        ORDER  BY RANDOM()
+        {limit_clause}
+    )
     SELECT
         p.feature_id,
-        p.name AS source_label,
-        COALESCE(
-            p.val_double,
-            CASE
-                WHEN p.val_string IS NOT NULL
-                THEN
-                    CASE
-                        WHEN p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$'
-                        THEN p.val_string::numeric
-                        ELSE NULL
-                    END
-                ELSE NULL
-            END
-        ) AS thematic_value
-    FROM {citydb_schema}.{property_table} AS p
-    WHERE p.feature_id IN ({feature_ids_str})
-      AND p.name IN ({source_labels_str})
-      AND (
-          p.val_double IS NOT NULL
-          OR (p.val_string IS NOT NULL AND p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$')
-      )
-    ORDER BY p.feature_id, p.name;
+        p.name                   AS source_label,
+        {_numeric_coalesce()}    AS thematic_value
+    FROM   sampled_buildings b
+    JOIN   {citydb_schema}.{property_table} p
+           ON p.feature_id = b.building_feature_id
+    WHERE  p.name IN ({source_labels_str})
+      AND  {_has_numeric_value()}
+    ORDER  BY p.feature_id, p.name;
     """
 
-    thematic_df = pd.read_sql(query, engine)
+    raw_df = pd.read_sql(query, engine)
 
-    # Create reverse mapping: source_label -> list of computed_columns
-    # This handles cases where multiple attributes map to the same source label
-    # (e.g., min_height and max_height both use 'value')
-    label_to_columns = {}
+    if raw_df.empty:
+        print("No thematic data found for building attributes")
+        return empty
+
+    # Multiple computed columns may share the same source label.
+    # Expand: one raw row → one result row per mapped computed column.
+    label_to_columns: dict = {}
     for computed_col, source_label in attribute_mapping.items():
-        if source_label not in label_to_columns:
-            label_to_columns[source_label] = []
-        label_to_columns[source_label].append(computed_col)
+        if source_label:
+            label_to_columns.setdefault(source_label, []).append(computed_col)
 
-    # Expand rows for each attribute that uses the same source label
-    expanded_rows = []
-    for _, row in thematic_df.iterrows():
-        source_label = row['source_label']
-        if source_label in label_to_columns:
-            for computed_col in label_to_columns[source_label]:
-                expanded_rows.append({
-                    'feature_id': row['feature_id'],
-                    'attribute_name': computed_col,
-                    'thematic_value': row['thematic_value']
-                })
+    rows = []
+    for _, row in raw_df.iterrows():
+        for computed_col in label_to_columns.get(row['source_label'], []):
+            rows.append({
+                'feature_id':     row['feature_id'],
+                'attribute_name': computed_col,
+                'thematic_value': row['thematic_value'],
+            })
 
-    result_df = pd.DataFrame(expanded_rows)
-
-    print(f"Loaded thematic data for {len(result_df)} building attribute values")
-
+    result_df = pd.DataFrame(rows)
+    print(f"Loaded thematic data for {result_df['feature_id'].nunique()} buildings "
+          f"({len(result_df)} attribute values)")
     return result_df
 
 
-def load_thematic_surface_data(engine, config, surface_feature_ids, attribute_mapping, surface_type='RoofSurface'):
+def load_thematic_surface_data(engine, config, attribute_mapping,
+                               surface_type='RoofSurface', limit=0):
     """
-    Load thematic surface data from CityDB property table for specified surfaces.
+    Load thematic surface data.  Direction: CityDB -> City2TABULA (reversed).
 
-    Parameters:
-    -----------
-    engine : sqlalchemy.Engine
-        Database connection engine
-    config : dict
-        Configuration dictionary
-    surface_feature_ids : list
-        List of surface feature IDs to fetch thematic data for
+    Each attribute is sampled **independently**: N surfaces with tilt, N surfaces
+    with azimuth, etc.  This ensures N comparisons per attribute even when not all
+    surfaces carry every attribute (e.g. some roofs have tilt but no azimuth).
+
+    For each source label the query:
+      1. Finds surface IDs that have that label in CityDB AND exist in City2TABULA
+         with the correct classname  (the eligible set).
+      2. Draws a random sample of N from that set.
+      3. Fetches the thematic values for those N surfaces.
+
+    Only direct matches are used: property.feature_id = surface_feature_id.
+    Surfaces whose thematic values are stored at the building/parent level
+    (e.g. BW Dachneigung on BuildingPart) are excluded -- direct match only.
+
+    Parameters
+    ----------
     attribute_mapping : dict
-        Dictionary mapping computed columns to source property labels
-        e.g., {'surface_area': 'Flaeche', 'tilt': 'Dachneigung'}
+        ``{computed_column: source_label}``
     surface_type : str
-        Surface type classname (e.g., 'RoofSurface', 'WallSurface', 'GroundSurface')
+        'RoofSurface' | 'WallSurface' | 'GroundSurface'
+    limit : int
+        Number of surface IDs to sample per attribute (0 = all eligible).
 
-    Returns:
-    --------
-    pd.DataFrame : DataFrame with columns [feature_id, attribute_name, thematic_value]
+    Returns
+    -------
+    pd.DataFrame
+        Columns: feature_id, attribute_name, thematic_value
     """
-    if not surface_feature_ids or not attribute_mapping:
-        return pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+    empty = pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+    if not attribute_mapping:
+        return empty
 
-    # Get config
-    citydb_schema = config['db'].get('citydb_schema', 'lod2')
-    property_table = config['db']['tables'].get('citydb_property', 'property')
+    citydb_schema      = config['db'].get('citydb_schema', 'lod2')
+    city2tabula_schema = config['db'].get('city2tabula_schema', 'city2tabula')
+    property_table     = config['db']['tables'].get('citydb_property', 'property')
+    surface_table      = (f"{citydb_schema}_"
+                          f"{config['db']['tables'].get('child_feature_surface', 'child_feature_surface')}")
 
-    # Get source labels (filter out empty strings)
-    source_labels = [label for label in attribute_mapping.values() if label]
+    # Group computed columns by source label — one query per label so that
+    # each attribute gets its own independent random sample of N surfaces.
+    label_to_columns: dict = {}
+    for computed_col, source_label in attribute_mapping.items():
+        if source_label:
+            label_to_columns.setdefault(source_label, []).append(computed_col)
 
-    if not source_labels:
-        print(f"No source labels found for {surface_type} attributes")
-        return pd.DataFrame(columns=['feature_id', 'attribute_name', 'thematic_value'])
+    if not label_to_columns:
+        print(f"No source labels configured for {surface_type} attributes")
+        return empty
 
-    # Create placeholders for SQL IN clause
-    feature_ids_str = ','.join(map(str, surface_feature_ids))
-    source_labels_str = ','.join(f"'{label}'" for label in source_labels)
+    limit_clause = f"LIMIT {limit}" if limit > 0 else ""
+    parts = []
 
-    # Query thematic data (same as building query)
-    query = f"""
-    SELECT
-        p.feature_id,
-        p.name AS source_label,
-        COALESCE(
-            p.val_double,
-            CASE
-                WHEN p.val_string IS NOT NULL
-                THEN
-                    CASE
-                        WHEN p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$'
-                        THEN p.val_string::numeric
-                        ELSE NULL
-                    END
-                ELSE NULL
-            END
-        ) AS thematic_value
-    FROM {citydb_schema}.{property_table} AS p
-    WHERE p.feature_id IN ({feature_ids_str})
-      AND p.name IN ({source_labels_str})
-      AND (
-          p.val_double IS NOT NULL
-          OR (p.val_string IS NOT NULL AND p.val_string ~ '^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$')
-      )
-    ORDER BY p.feature_id, p.name;
-    """
+    for source_label, computed_cols in label_to_columns.items():
+        sl_sql = source_label.replace("'", "''")   # escape for SQL literal
 
-    thematic_df = pd.read_sql(query, engine)
+        # Azimuth uses -1 as a sentinel for flat/undefined roofs.
+        # Filter BOTH the thematic value and the calculated column so that the
+        # eligible pool only contains surfaces where both sides are meaningful.
+        # This must be restricted to azimuth only — for area, height, tilt etc.
+        # -1 is not a sentinel and applying != -1 would silently drop surfaces
+        # with NULL calculated values (NULL != -1 evaluates to NULL in SQL).
+        azimuth_cols = [col for col in computed_cols if col == 'azimuth']
+        calc_filters = " ".join(f"AND sf.{col} != -1" for col in azimuth_cols)
 
-    # Create reverse mapping: source_label -> computed_column
-    label_to_column = {v: k for k, v in attribute_mapping.items()}
+        thematic_sentinel_filter = (
+            f"AND {_numeric_coalesce()} != -1" if azimuth_cols else ""
+        )
 
-    # Map source labels back to attribute names
-    thematic_df['attribute_name'] = thematic_df['source_label'].map(label_to_column)
+        query = f"""
+        WITH eligible AS (
+            SELECT DISTINCT p.feature_id
+            FROM   {citydb_schema}.{property_table} p
+            INNER  JOIN {city2tabula_schema}.{surface_table} sf
+                   ON  sf.surface_feature_id = p.feature_id
+                   AND sf.classname = '{surface_type}'
+                   {calc_filters}
+            WHERE  p.name = '{sl_sql}'
+              AND  {_has_numeric_value()}
+              {thematic_sentinel_filter}
+        ),
+        sampled AS (
+            SELECT feature_id
+            FROM   eligible
+            ORDER  BY RANDOM()
+            {limit_clause}
+        )
+        SELECT
+            p.feature_id,
+            {_numeric_coalesce()} AS thematic_value
+        FROM   sampled s
+        JOIN   {citydb_schema}.{property_table} p ON p.feature_id = s.feature_id
+        WHERE  p.name = '{sl_sql}'
+          AND  {_has_numeric_value()}
+        ORDER  BY p.feature_id;
+        """
 
-    # Keep only needed columns
-    result_df = thematic_df[['feature_id', 'attribute_name', 'thematic_value']].copy()
+        raw = pd.read_sql(query, engine)
+        if raw.empty:
+            print(f"  {surface_type}: no data for '{source_label}'")
+            continue
 
-    print(f"Loaded thematic data for {len(result_df)} {surface_type} attribute values")
+        n_surfaces = raw['feature_id'].nunique()
+        for computed_col in computed_cols:
+            part = raw[['feature_id', 'thematic_value']].copy()
+            part['attribute_name'] = computed_col
+            parts.append(part[['feature_id', 'attribute_name', 'thematic_value']])
+            print(f"  {surface_type} {computed_col}: {n_surfaces} surfaces")
 
+    if not parts:
+        print(f"No thematic data found for {surface_type}")
+        return empty
+
+    result_df = pd.concat(parts, ignore_index=True)
+    print(f"Loaded {len(result_df)} {surface_type} attribute values "
+          f"across {result_df['feature_id'].nunique()} unique surfaces")
     return result_df

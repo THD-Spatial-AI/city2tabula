@@ -1,13 +1,17 @@
 package config
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strconv"
+)
 
 // CityDB configuration
 type CityDB struct {
-	SRSName   string
-	ToolPath  string
-	SRID      string
-	LODLevels []int
+	SRSName     string
+	ToolPath    string
+	SRID        string
+	LODLevels   []int
+	ImportLimit int // 0 = no limit
 
 	// CityDB SQL Scripts for database setup
 	SQLScripts struct {
@@ -25,11 +29,19 @@ func loadCityDBConfig() *CityDB {
 	cityDBSRID := GetEnv("CITYDB_SRID", "")
 	cityDBLODLevels := []int{2, 3}
 
+	importLimit := 0
+	if v := GetEnv("IMPORT_LIMIT", ""); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			importLimit = n
+		}
+	}
+
 	return &CityDB{
-		SRSName:   cityDBSRSName,
-		ToolPath:  cityDBToolPath,
-		SRID:      cityDBSRID,
-		LODLevels: cityDBLODLevels,
+		SRSName:     cityDBSRSName,
+		ToolPath:    cityDBToolPath,
+		SRID:        cityDBSRID,
+		LODLevels:   cityDBLODLevels,
+		ImportLimit: importLimit,
 
 		SQLScripts: struct {
 			CreateDB     string
