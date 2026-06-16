@@ -22,6 +22,7 @@ WITH new_buildings AS (
 aggregated_surfaces AS (
     SELECT
         cfs.building_feature_id,
+        MIN(cfs.building_object_id) AS object_id,
         0 as construction_year,
         0.0 as heating_demand,
         'kWh/m2a' AS heating_demand_unit,
@@ -81,6 +82,7 @@ aggregated_surfaces AS (
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
     id,
+    object_id,
     building_feature_id,
     footprint_area,
     footprint_complexity,
@@ -109,6 +111,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
     )
 SELECT
     gen_random_uuid() AS id,
+    object_id,
     building_feature_id,
     footprint_area,
     footprint_complexity,

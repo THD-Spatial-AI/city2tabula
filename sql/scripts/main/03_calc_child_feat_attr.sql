@@ -52,6 +52,8 @@ raw_surfaces AS (
     gd.child_row_id,
     gd.building_feature_id,
     gd.surface_feature_id,
+    gd.building_object_id,
+    gd.surface_object_id,
     gd.objectclass_id,
     gd.classname,
     gd.geom AS valid_geom,
@@ -74,6 +76,7 @@ surface_edges AS (
   -- provides the final edge back to the ring start automatically.
   SELECT
     id, child_row_id, building_feature_id, surface_feature_id,
+    building_object_id, surface_object_id,
     objectclass_id, classname, valid_geom, is_planar,
     point_geom,
     LEAD(point_geom) OVER (PARTITION BY id ORDER BY pt_idx) AS next_pt
@@ -86,12 +89,14 @@ surface_normals AS (
   -- zero cross-product magnitude → no well-defined normal).
   SELECT
     id, child_row_id, building_feature_id, surface_feature_id,
+    building_object_id, surface_object_id,
     objectclass_id, classname, valid_geom, is_planar,
     n_x, n_y, n_z,
     sqrt(n_x * n_x + n_y * n_y + n_z * n_z) AS cross_magnitude
   FROM (
     SELECT
       id, child_row_id, building_feature_id, surface_feature_id,
+      building_object_id, surface_object_id,
       objectclass_id, classname, valid_geom, is_planar,
       SUM((ST_Y(point_geom) - ST_Y(next_pt)) * (ST_Z(point_geom) + ST_Z(next_pt))) AS n_x,
       SUM((ST_Z(point_geom) - ST_Z(next_pt)) * (ST_X(point_geom) + ST_X(next_pt))) AS n_y,
@@ -99,6 +104,7 @@ surface_normals AS (
     FROM surface_edges
     WHERE next_pt IS NOT NULL
     GROUP BY id, child_row_id, building_feature_id, surface_feature_id,
+             building_object_id, surface_object_id,
              objectclass_id, classname, valid_geom, is_planar
     HAVING COUNT(*) >= 2
   ) sums
@@ -140,6 +146,8 @@ normalized_normals AS (
     child_row_id,
     building_feature_id,
     surface_feature_id,
+    building_object_id,
+    surface_object_id,
     objectclass_id,
     classname,
     valid_geom,
@@ -177,6 +185,8 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_surface (
     id,
     building_feature_id,
     surface_feature_id,
+    building_object_id,
+    surface_object_id,
     objectclass_id,
     classname,
     surface_area,
@@ -196,6 +206,8 @@ SELECT
     gen_random_uuid() AS id,
     building_feature_id,
     surface_feature_id,
+    building_object_id,
+    surface_object_id,
     objectclass_id,
     classname,
     -- Self-intersecting geometries give net signed area via the shoelace formula

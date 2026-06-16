@@ -2,9 +2,11 @@
 -- each building by spatially intersecting their 3D geometry with the building solid
 -- (ST_3DIntersects). Only MULTIPOLYGON geometries are collected; script 02 explodes
 -- these into individual polygon faces. Skips buildings already present in _child_feature.
+-- Both building_object_id and surface_object_id are captured here from lod2.feature
+-- so they propagate through all downstream tables without needing a JOIN later.
 
 WITH buildings AS (
-  SELECT f.id AS building_feature_id, g.geometry AS building_geom
+  SELECT f.id AS building_feature_id, f.objectid AS building_object_id, g.geometry AS building_geom
   FROM {lod_schema}.feature f
   JOIN {lod_schema}.geometry_data g ON f.id = g.feature_id
   JOIN {lod_schema}.property p ON f.id = p.feature_id
@@ -19,6 +21,8 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature (
     lod,
     building_feature_id,
     surface_feature_id,
+    building_object_id,
+    surface_object_id,
     objectclass_id,
     classname,
     geom
@@ -28,6 +32,8 @@ SELECT
     {lod_level},
     b.building_feature_id,
     f.id AS surface_feature_id,
+    b.building_object_id,
+    f.objectid AS surface_object_id,
     f.objectclass_id,
     oc.classname,
     g.geometry AS geometry
