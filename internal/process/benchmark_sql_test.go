@@ -74,8 +74,8 @@ func setupBenchmarkDB(b *testing.B) {
 func truncateOutputTables(b *testing.B) {
 	b.Helper()
 	_, err := testPool.Exec(context.Background(), `
-		TRUNCATE city2tabula.lod2_building_feature CASCADE;
-		TRUNCATE city2tabula.lod2_child_feature_surface CASCADE;
+		TRUNCATE city2tabula.lod2_building CASCADE;
+		TRUNCATE city2tabula.lod2_surface_raw CASCADE;
 		TRUNCATE city2tabula.lod2_child_feature_geom_dump CASCADE;
 		TRUNCATE city2tabula.lod2_child_feature CASCADE;
 	`)
@@ -151,5 +151,5 @@ func BenchmarkScript_06_CalcStoreys(b *testing.B) {
 
 func BenchmarkScript_07_LabelBuildingFeatures(b *testing.B) {
 	setupBenchmarkDB(b)
-	runScriptBenchmark(b, "sql/scripts/main/07_label_building_features.sql")
+	runScriptBenchmark(b, "sql/scripts/main/07_label_buildings.sql")
 }

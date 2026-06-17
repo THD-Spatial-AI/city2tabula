@@ -154,9 +154,9 @@ func resetSchemas(t *testing.T) {
 
 	_, err := testPool.Exec(ctx, `
 		DO $$ BEGIN
-			TRUNCATE city2tabula.lod2_building_feature         CASCADE;
+			TRUNCATE city2tabula.lod2_building         CASCADE;
 			TRUNCATE city2tabula.lod2_child_feature            CASCADE;
-			TRUNCATE city2tabula.lod2_child_feature_surface    CASCADE;
+			TRUNCATE city2tabula.lod2_surface_raw    CASCADE;
 			TRUNCATE city2tabula.lod2_child_feature_geom_dump  CASCADE;
 			TRUNCATE city2tabula.tabula_variant                CASCADE;
 		EXCEPTION WHEN undefined_table OR invalid_schema_name THEN
@@ -213,17 +213,17 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 
 	var buildingCount int
 	if err := testPool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature",
+		"SELECT COUNT(*) FROM city2tabula.lod2_building",
 	).Scan(&buildingCount); err != nil {
 		t.Fatalf("failed to query building count: %v", err)
 	}
 	if buildingCount == 0 {
-		t.Error("expected buildings in city2tabula.lod2_building_feature, got 0")
+		t.Error("expected buildings in city2tabula.lod2_building, got 0")
 	}
 
 	var labeledCount int
 	if err := testPool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature WHERE tabula_variant_code IS NOT NULL",
+		"SELECT COUNT(*) FROM city2tabula.lod2_building WHERE tabula_variant_code IS NOT NULL",
 	).Scan(&labeledCount); err != nil {
 		t.Fatalf("failed to query labeled count: %v", err)
 	}
@@ -234,7 +234,7 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 	// Verify script 04 populated object_id on INSERT (no retroactive backfill needed).
 	var missingObjectID int
 	if err := testPool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM city2tabula.lod2_building_feature WHERE object_id IS NULL",
+		"SELECT COUNT(*) FROM city2tabula.lod2_building WHERE object_id IS NULL",
 	).Scan(&missingObjectID); err != nil {
 		t.Fatalf("failed to query object_id coverage: %v", err)
 	}
@@ -245,7 +245,7 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 	// Verify objectids propagated through all surface layers.
 	var missingSurfaceObjectIDs int
 	if err := testPool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM city2tabula.lod2_child_feature_surface WHERE building_object_id IS NULL OR surface_object_id IS NULL",
+		"SELECT COUNT(*) FROM city2tabula.lod2_surface_raw WHERE building_object_id IS NULL OR surface_object_id IS NULL",
 	).Scan(&missingSurfaceObjectIDs); err != nil {
 		t.Fatalf("failed to query surface object_id coverage: %v", err)
 	}
@@ -256,12 +256,12 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 	// Verify script 08 built the surface link table.
 	var surfaceLinkCount int
 	if err := testPool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM city2tabula.lod2_surface_link",
+		"SELECT COUNT(*) FROM city2tabula.lod2_surface",
 	).Scan(&surfaceLinkCount); err != nil {
-		t.Fatalf("failed to query lod2_surface_link: %v", err)
+		t.Fatalf("failed to query lod2_surface: %v", err)
 	}
 	if surfaceLinkCount == 0 {
-		t.Error("script 08 failed: lod2_surface_link is empty, expected surface rows")
+		t.Error("script 08 failed: lod2_surface is empty, expected surface rows")
 	}
 
 	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links, %d surfaces with objectids",

@@ -8,7 +8,7 @@
 -- a different scale than variants, making cross-table distances meaningless.
 --
 -- For each building, all variants are ranked by normalised Euclidean distance and
--- the rank-1 variant code is written back to _building_feature.
+-- the rank-1 variant code is written back to _building.
 
 WITH stats AS (
   -- Global min/max for each dimension, computed over buildings + variants together
@@ -25,7 +25,7 @@ WITH stats AS (
   FROM (
     SELECT max_volume, footprint_area, number_of_storeys,
            footprint_complexity, roof_complexity, area_total_roof, area_total_wall, area_total_floor
-    FROM {city2tabula_schema}.{lod_schema}_building_feature
+    FROM {city2tabula_schema}.{lod_schema}_building
     WHERE footprint_area IS NOT NULL
       AND number_of_storeys IS NOT NULL
       AND area_total_roof IS NOT NULL
@@ -81,7 +81,7 @@ ranked AS (
                    COALESCE(((v.area_total_floor - s.min_floor) / NULLIF(s.max_floor - s.min_floor, 0)), 0), 2)
            ) ASC
          ) AS rnk
-  FROM {city2tabula_schema}.{lod_schema}_building_feature b
+  FROM {city2tabula_schema}.{lod_schema}_building b
   CROSS JOIN {city2tabula_schema}.tabula_variant v
   CROSS JOIN stats s
   WHERE b.footprint_area IS NOT NULL
@@ -96,7 +96,7 @@ ranked AS (
     AND v.area_total_wall IS NOT NULL
     AND v.area_total_floor IS NOT NULL
 )
-UPDATE {city2tabula_schema}.{lod_schema}_building_feature bf
+UPDATE {city2tabula_schema}.{lod_schema}_building bf
 SET tabula_variant_code_id = ranked.tabula_variant_code_id,
     tabula_variant_code    = ranked.tabula_variant_code
 FROM ranked

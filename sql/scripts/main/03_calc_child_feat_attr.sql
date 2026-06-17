@@ -10,7 +10,7 @@
 --   7. oriented_normals -> dot-product flip to enforce outward-facing normal
 --   8. normalized_normals -> per-class flip rules + unit normalisation
 --   9. convergence_corrected -> placeholder for UTM meridian convergence (see Discussion)
---   10. INSERT -> _child_feature_surface
+--   10. INSERT -> _surface_raw
 --
 -- Newell's method (surface_normals):
 --   nx = SUM (y_i − y_{i+1}) * (z_i + z_{i+1})
@@ -25,7 +25,7 @@ WITH new_buildings AS (
   WHERE building_feature_id IN {building_ids}
     AND building_feature_id NOT IN (
       SELECT DISTINCT building_feature_id
-      FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+      FROM {city2tabula_schema}.{lod_schema}_surface_raw
     )
 ),
 
@@ -181,7 +181,7 @@ convergence_corrected AS (
   FROM normalized_normals nn
 )
 
-INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_surface (
+INSERT INTO {city2tabula_schema}.{lod_schema}_surface_raw (
     id,
     building_feature_id,
     surface_feature_id,
