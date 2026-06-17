@@ -3,7 +3,7 @@
 -- the raw GroundSurface area sum from script 04 with a total heated floor area estimate.
 -- Note: area_total_floor in the SET clause uses the OLD number_of_storeys value (pre-update)
 -- because PostgreSQL evaluates all SET expressions from the row state before the UPDATE.
-UPDATE {city2tabula_schema}.{lod_schema}_building_feature AS bf
+UPDATE {city2tabula_schema}.{lod_schema}_building AS bf
 SET
     -- Number of storeys calculation
     number_of_storeys = CASE

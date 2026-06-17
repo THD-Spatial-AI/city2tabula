@@ -1,5 +1,5 @@
 -- Aggregates per-surface attributes into a single row per building and inserts into
--- _building_feature. Skips buildings that already have a row in the target table.
+-- _building. Skips buildings that already have a row in the target table.
 --
 -- Height semantics (both derived from child surface heights):
 --   min_height — maximum vertical span of any WallSurface face (eave height).
@@ -16,7 +16,7 @@
 WITH new_buildings AS (
     -- Select only buildings that haven't been processed yet
     SELECT DISTINCT building_feature_id
-    FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+    FROM {city2tabula_schema}.{lod_schema}_surface_raw
     WHERE building_feature_id IN {building_ids}
 ),
 aggregated_surfaces AS (
@@ -73,14 +73,14 @@ aggregated_surfaces AS (
         ST_Transform(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'), {srid}) AS building_footprint_geom
 
     FROM
-        {city2tabula_schema}.{lod_schema}_child_feature_surface cfs
+        {city2tabula_schema}.{lod_schema}_surface_raw cfs
     WHERE
         geom IS NOT NULL
         AND building_feature_id IN {building_ids}
     GROUP BY
         building_feature_id
 )
-INSERT INTO {city2tabula_schema}.{lod_schema}_building_feature (
+INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     id,
     object_id,
     building_feature_id,
