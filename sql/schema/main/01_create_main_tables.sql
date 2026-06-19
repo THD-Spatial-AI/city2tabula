@@ -57,13 +57,15 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
 );
 
 -- Building-level attributes aggregated from surface data.
--- object_id is the stable CityGML identifier; constant across re-imports.
+-- object_id is the stable 3D city model object identifier (supports both CityGML
+-- and CityJSON); used as the external join key in city2tabula.building_link.
 -- building_feature_id is session-local; changes on every re-import and is
 -- only used as a fast join key within a single pipeline run.
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   object_id VARCHAR(100) UNIQUE,
+  country_code VARCHAR(10),
   building_feature_id INTEGER UNIQUE,
   tabula_variant_code_id INTEGER,
   tabula_variant_code VARCHAR,
