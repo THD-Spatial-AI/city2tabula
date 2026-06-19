@@ -78,7 +78,7 @@ One row per 3D building that has a footprint geometry and a valid `object_id`. T
 | `pylovo_table` | `VARCHAR(3)` | `res` (residential) or `oth` (commercial/public/industrial) — `NULL` when no match |
 | `match_type` | `SMALLINT` | See match types below |
 | `match_confidence` | `DOUBLE PRECISION` | IoU score 0–1; `NULL` when no match |
-| `country_code` | `VARCHAR(10)` | ISO country code from City2TABULA config |
+| `country_code` | `CHAR(2)` | ISO 3166-1 alpha-2 code derived from the `COUNTRY` env var (e.g. `DE`, `NL`) |
 | `geom` | `GEOMETRY(MultiPolygon)` | 3D footprint in native source CRS |
 | `srid` | `INTEGER` | SRID of `geom` (e.g. 25832 for Germany) |
 

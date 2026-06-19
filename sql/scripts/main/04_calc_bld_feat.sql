@@ -113,7 +113,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
 SELECT
     gen_random_uuid() AS id,
     object_id,
-    '{country}'       AS country_code,
+    '{country_code}'  AS country_code,
     building_feature_id,
     footprint_area,
     footprint_complexity,

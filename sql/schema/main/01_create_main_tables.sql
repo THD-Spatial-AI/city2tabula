@@ -65,7 +65,7 @@ DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   object_id VARCHAR(100) UNIQUE,
-  country_code VARCHAR(10),
+  country_code CHAR(2),
   building_feature_id INTEGER UNIQUE,
   tabula_variant_code_id INTEGER,
   tabula_variant_code VARCHAR,

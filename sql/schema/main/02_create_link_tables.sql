@@ -20,7 +20,7 @@ CREATE TABLE {city2tabula_schema}.building_link (
     pylovo_table      VARCHAR(3)    CHECK (pylovo_table IN ('res', 'oth')),
     match_type        SMALLINT      NOT NULL CHECK (match_type IN (1, 2, 3)),
     match_confidence  DOUBLE PRECISION,
-    country_code      VARCHAR(10)   NOT NULL,
+    country_code      CHAR(2)       NOT NULL,
     geom              GEOMETRY(MultiPolygon),
     srid              INTEGER       NOT NULL,
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),

@@ -49,6 +49,7 @@ type SQLParameters struct {
 	CityDBSchema       string  `param:"citydb_schema"`
 	CityDBPkgSchema    string  `param:"citydb_pkg_schema"`
 	Country            string  `param:"country"`
+	CountryCode        string  `param:"country_code"`
 	TabulaTable        string  `param:"tabula_table"`
 	TabulaVariantTable string  `param:"tabula_variant_table"`
 	RoomHeight         string  `param:"room_height"`
@@ -75,6 +76,7 @@ func (c *Config) GetSQLParameters(lod int, buildingIDs []int64) SQLParameters {
 		CityDBSchema:       c.DB.Schemas.CityDB,
 		CityDBPkgSchema:    c.DB.Schemas.CityDBPkg,
 		Country:            c.Country,
+		CountryCode:        c.CountryCode,
 		TabulaTable:        c.DB.Tables.Tabula,
 		TabulaVariantTable: c.DB.Tables.TabulaVariant,
 		RoomHeight:         c.City2Tabula.RoomHeight,

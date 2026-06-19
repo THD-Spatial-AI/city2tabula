@@ -79,5 +79,10 @@ func (c Config) Validate() error {
 	if len(missing) > 0 {
 		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
 	}
+
+	if c.CountryCode == "" {
+		return fmt.Errorf("unsupported country %q: no TABULA data available", c.Country)
+	}
+
 	return nil
 }
