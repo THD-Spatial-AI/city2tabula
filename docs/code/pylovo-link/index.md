@@ -1,8 +1,8 @@
 # PyLovo Building Link
 
-The PyLovo link step connects 3D building footprints extracted by City2TABULA to the OSM building data held in a [PyLovo](https://github.com/thd-spatial-ai/pylovo) database. The result is the `city2tabula.building_link` table, which records whether each 3D building has a matching OSM building, which PyLovo table it belongs to (`res` for residential, `oth` for commercial/public), and how confident the spatial match is.
+The PyLovo link step connects 3D building footprints extracted by City2TABULA to the OSM building data held in a [PyLovo2EnerPlanET](https://github.com/enerplanet/pylovo2enerplanet) database. The result is the `city2tabula.building_link` table, which records whether each 3D building has a matching OSM building, which PyLovo table it belongs to (`res` for residential, `oth` for commercial/public), and how confident the spatial match is.
 
-This step is optional. Feature extraction (`-extract-features`) runs independently; linking enriches the output with OSM semantics and is needed only when connecting City2TABULA to EnerPlanET or PyLovo.
+This step is optional. Feature extraction (`-extract-features`) runs independently; linking enriches the output with OSM semantics and is needed only when connecting City2TABULA output to EnerPlanET.
 
 ---
 
@@ -10,21 +10,24 @@ This step is optional. Feature extraction (`-extract-features`) runs independent
 
 Each 3D building footprint is matched to a PyLovo building by **Intersection over Union (IoU)** — the area of overlap divided by the area of the smaller footprint. A match is accepted when IoU ≥ 0.5.
 
-![IoU diagram](../../assets/diagrams/pipeline/pylovo_data_process.svg)
+Residential buildings (`res`) are checked first. A commercial/public match (`oth`) is only considered when no `res` building meets the threshold.
+
+![IoU diagram](../../assets/diagrams/pipeline/pylovo-link/pylovo-link-dark.svg#only-dark)
+![IoU diagram](../../assets/diagrams/pipeline/pylovo-link/pylovo-link-light.svg#only-light)
 
 To avoid scanning the full PyLovo database for every batch of 3D buildings, the pipeline uses **spatial grid batching**: buildings are grouped into 1 km × 1 km cells, and only the PyLovo buildings whose footprint intersects the cell's bounding box are loaded for comparison. This keeps each join small and predictable regardless of the total number of PyLovo buildings.
 
 ```mermaid
 flowchart TD
-    A[("lod2_building\n3D footprints + object_id")]
-    B["getGridBatches\nDivide buildings into\n1 km × 1 km grid cells"]
-    C["batch_bbox\nBounding box of cell\ntransformed to EPSG:3035"]
-    D[("pylovo.res\npylovo.oth\nOSM buildings")]
-    E["res_subset / oth_subset\nPre-filtered + pre-transformed\nto native 3D CRS"]
-    F["IoU join\nST_Intersection area /\nsmaller footprint area"]
+    A[("lod2_building<br>3D footprints + object_id")]
+    B["getGridBatches<br>Divide buildings into<br>1 km × 1 km grid cells"]
+    C["batch_bbox<br>Bounding box of cell<br>transformed to EPSG:3035"]
+    D[("pylovo.res<br>pylovo.oth<br>OSM buildings")]
+    E["res_subset / oth_subset<br>Pre-filtered + pre-transformed<br>to native 3D CRS"]
+    F["IoU join<br>ST_Intersection area /<br>smaller footprint area"]
     G{{"IoU ≥ 0.5?"}}
-    H["match_type = 1\nComplete match\nobject_id + osm_id"]
-    I["match_type = 2\n3D only\nno OSM match found"]
+    H["match_type = 1<br>Complete match<br>object_id + osm_id"]
+    I["match_type = 2<br>3D only<br>no OSM match found"]
     J[("city2tabula.building_link")]
 
     A --> B
@@ -66,7 +69,7 @@ Set these in your `.env` file alongside the existing database variables.
 
 ## Output: `city2tabula.building_link`
 
-One row per 3D building that has a footprint geometry and a valid `object_id`.
+One row per 3D building that has a footprint geometry and a valid `object_id`. The pipeline is idempotent — re-running `-link-pylovo` after updated PyLovo data will overwrite existing rows for the affected buildings.
 
 | Column | Type | Description |
 |---|---|---|
@@ -102,4 +105,4 @@ sql/scripts/link/
 A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag — no changes to the existing pipeline.
 
 !!! info "Pre-requisite"
-    `pylovo.res` and `pylovo.oth` must be populated by the PyLovo datapipeline before running `-link-pylovo`. The link step reads from PyLovo but does not modify it.
+    `pylovo.res` and `pylovo.oth` must be populated by the [pylovo2enerplanet/datapipeline](https://github.com/enerplanet/pylovo2enerplanet/tree/main/datapipeline) before running `-link-pylovo`. The link step reads from PyLovo but does not modify it.

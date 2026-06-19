@@ -1,5 +1,6 @@
 -- Populates city2tabula.building_link by spatially joining 3D building footprints
 -- against pylovo.res (residential) and pylovo.oth (commercial/public/industrial).
+-- Invoked by the -link-pylovo flag.
 --
 -- Runs per batch of {building_ids}. For each batch:
 --   1. Compute a bounding box from the batch footprints (batch_bbox).

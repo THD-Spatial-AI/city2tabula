@@ -152,6 +152,23 @@ if f.MyNewStep {
 
 ---
 
+## Adding a new SQL parameter
+
+If your script needs a value not already in `SQLParameters`, add it in two places:
+
+```go
+// internal/config/sql.go — add to SQLParameters struct
+MyNewParam string `param:"my_new_param"`
+
+// Same file — populate in GetSQLParameters()
+MyNewParam: c.DB.Schemas.MyNew,  // or wherever the value comes from
+```
+
+Then add `{my_new_param}` in your SQL script. The substitution happens automatically.
+
+!!! info "Adding config from environment"
+    If your new parameter comes from an environment variable, add the `GetEnv` call in the appropriate `load*Config()` function in `internal/config/`. Document the variable in `.env.example`.
+
 ## What the framework handles automatically
 
 You never need to implement these — they apply to every step by default:
@@ -169,38 +186,16 @@ You never need to implement these — they apply to every step by default:
 
 ## Worked example: PyLovo link (`-link-pylovo`)
 
-The PyLovo link step was added following this exact pattern. Here is what was done for each step:
+The PyLovo link step was added following this exact pattern.
 
-**1. SQL script** — `sql/scripts/link/pylovo/01_build_pylovo_link.sql`  
-Spatial join of `lod2_building` footprints against `pylovo.res` and `pylovo.oth`. Uses `{pylovo_schema}` and `{srid}` placeholders. Includes an internal `batch_bbox` CTE to pre-filter PyLovo before the IoU join, which reduced runtime from 4 minutes to 1.56 seconds for 1,000 buildings.
-
-**2. Config** — added `SQLPylvoLinkScriptDir` and `PyLovoLinkScripts []string` to `internal/config/sql.go`
-
-**3. Orchestrator** — added `PyLovoLink JobType` and `PyLovoLinkJobQueue()` to `internal/process/orchestrator.go`
-
-**4. Run function** — added `RunPyLovoLinkBuild()` to `internal/process/feature_extraction.go`.  
-Uses **spatial grid batching** (`getGridBatches`) instead of ID-based batching because the IoU join benefits from buildings being geographically co-located — a tight bounding box means only a small subset of PyLovo buildings need to be loaded per batch.
-
-**5. Flag** — added `-link-pylovo` to `internal/flags/flags.go`.  
-Named after the specific data source, not generic OSM — a future OGR2OGR-based source gets its own `-link-ogr2ogr` flag with its own scripts subdirectory.
-
-**6. Main** — added the `if f.LinkPylovo` block to `cmd/main.go`
+| Nr. | Step | File | Change |
+|---|---|---|---|
+| 1 | SQL script | `sql/scripts/link/pylovo/01_build_pylovo_link.sql` | Spatial join of `lod2_building` footprints against `pylovo.res` / `oth` using `{pylovo_schema}` and `{srid}`. A `batch_bbox` CTE pre-filters PyLovo before the IoU join, reducing runtime from 4 min to 1.56 s for 1,000 buildings. |
+| 2 | Config | `internal/config/sql.go` | Added `SQLPylvoLinkScriptDir` constant and `PyLovoLinkScripts []string` field. |
+| 3 | Orchestrator | `internal/process/orchestrator.go` | Added `PyLovoLink` JobType and `PyLovoLinkJobQueue()` queue builder. |
+| 4 | Run function | `internal/process/feature_extraction.go` | Added `RunPyLovoLinkBuild()` with spatial grid batching (`getGridBatches`). IoU join requires buildings to be geographically co-located so the bounding box pre-filter stays tight. |
+| 5 | Flag | `internal/flags/flags.go` | Added `-link-pylovo`, named after the data source. A future OGR2OGR source gets its own `-link-ogr2ogr` flag and subdirectory with no changes to existing code. |
+| 6 | Main | `cmd/main.go` | Added `if f.LinkPylovo` block. |
 
 ---
 
-## Adding a new SQL parameter
-
-If your script needs a value not already in `SQLParameters`, add it in two places:
-
-```go
-// internal/config/sql.go — add to SQLParameters struct
-MyNewParam string `param:"my_new_param"`
-
-// Same file — populate in GetSQLParameters()
-MyNewParam: c.DB.Schemas.MyNew,  // or wherever the value comes from
-```
-
-Then add `{my_new_param}` in your SQL script. The substitution happens automatically.
-
-!!! info "Adding config from environment"
-    If your new parameter comes from an environment variable, add the `GetEnv` call in the appropriate `load*Config()` function in `internal/config/`. Document the variable in `.env.example`.

@@ -226,8 +226,8 @@ DEGREES(ASIN(ABS(nz))) AS tilt
 ```
 
 <figure markdown="span">
-  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_light.svg#only-light){ width="600" }
-  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_dark.svg#only-dark){ width="600" }
+  ![tilt diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_slope_light.svg#only-light){ width="600" }
+  ![tilt diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_slope_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 1: Tilt and normal vector components</figcaption>
 </figure>
 
@@ -242,14 +242,14 @@ END AS azimuth
 ```
 
 <figure markdown="span">
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_light.svg#only-light){ width="600" }
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_dark.svg#only-dark){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_compass_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_compass_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 2: Azimuth and normal vector components</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_light.svg#only-light){ width="600" }
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 3: Azimuth and normal vector components</figcaption>
 </figure>
 
