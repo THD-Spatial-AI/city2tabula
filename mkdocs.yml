@@ -1,7 +1,7 @@
 # Project information
 site_name: City2TABULA
 site_author: THD-Spatial-AI
-site_url: https://github.com/thd-spatial-ai/city2tabula
+site_url: https://thd-spatial-ai.github.io/city2tabula/
 
 # Repository
 repo_name: city2tabula
@@ -22,7 +22,6 @@ theme:
     - navigation.footer
     - navigation.indexes
     - navigation.instant
-    - navigation.prune
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.top
@@ -120,6 +119,9 @@ nav:
     - Generating Reports: validation/report.md
   - Code:
     - Job Queue & Worker Pipeline: code/job-queue.md
+    - Extending the Pipeline: code/extending-pipeline.md
+    - PyLovo Building Link:
+      - code/pylovo-link/index.md
     - SQL Extraction Pipeline:
       - Overview: code/sql-pipeline/index.md
       - 01 – Get Child Features: code/sql-pipeline/01-get-child-features.md

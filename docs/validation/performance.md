@@ -45,7 +45,7 @@ kill $(jobs -p)
 **Surface count** — after extraction completes:
 
 ```sql
-SELECT COUNT(id) FROM city2tabula.lod2_child_feature_surface;
+SELECT COUNT(id) FROM city2tabula.lod2_surface_raw;
 ```
 
 ---

@@ -1,8 +1,8 @@
 # Script 05 — Volume
 
 **File:** `sql/scripts/main/05_calc_volume.sql`  
-**Reads from:** `{city2tabula_schema}.{lod_schema}_building_feature`  
-**Writes to:** `{city2tabula_schema}.{lod_schema}_building_feature` (UPDATE)
+**Reads from:** `{city2tabula_schema}.{lod_schema}_building`  
+**Writes to:** `{city2tabula_schema}.{lod_schema}_building` (UPDATE)
 
 ---
 
@@ -17,7 +17,7 @@ This is a deliberate simplification. Computing the exact volume of a 3D building
 ## What it does
 
 ```sql
-UPDATE {city2tabula_schema}.{lod_schema}_building_feature AS bf
+UPDATE {city2tabula_schema}.{lod_schema}_building AS bf
 SET
     min_volume = bf.min_height * bf.footprint_area,
     max_volume = bf.max_height * bf.footprint_area,

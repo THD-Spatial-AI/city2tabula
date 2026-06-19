@@ -1,8 +1,8 @@
 # SQL Extraction Pipeline
 
-This section documents the seven SQL scripts that transform raw 3D building geometry from the CityDB database into a structured set of building features ready for TABULA classification.
+This section documents the eight SQL scripts that transform raw 3D building geometry from the CityDB database into a structured set of building features ready for TABULA classification.
 
-The scripts run in order, numbered `01_` through `07_`. Each script reads from the output of the previous one, so the pipeline is strictly sequential within a batch of buildings.
+The scripts run in order, numbered `01_` through `08_`. Each script reads from the output of the previous one, so the pipeline is strictly sequential within a batch of buildings.
 
 ---
 
@@ -17,6 +17,7 @@ Given a batch of building IDs, the pipeline:
 5. Approximates building volume from height × footprint area.
 6. Refines the storey count and total floor area.
 7. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
+8. Builds the resolved surface output table, excluding party-wall surfaces.
 
 ---
 
@@ -24,14 +25,15 @@ Given a batch of building IDs, the pipeline:
 
 ```mermaid
 flowchart TD
-    A[("CityDB\n(lod2 / lod3 schema)")] -->|script 01| B[_child_feature\nOne row per surface feature]
-    B -->|script 02| C[_child_feature_geom_dump\nOne row per polygon face]
-    C -->|script 03| D[_child_feature_surface\nTilt, azimuth, area, height per face]
-    D -->|script 04| E[_building_feature\nAggregated building summary]
-    E -->|script 05| F[_building_feature\nVolume added]
-    F -->|script 06| G[_building_feature\nStoreys + floor area refined]
-    G -->|script 07| H[_building_feature\nTABULA variant code assigned]
-    I[("tabula.tabula_variant\n(reference archetypes)")] -->|script 07| H
+    A[("CityDB<br>(lod2 / lod3 schema)")] -->|script 01| B["_child_feature<br>One row per surface feature"]
+    B -->|script 02| C["_child_feature_geom_dump<br>One row per polygon face"]
+    C -->|script 03| D["_surface_raw<br>Tilt, azimuth, area, height per face"]
+    D -->|script 04| E["_building<br>Aggregated building summary"]
+    E -->|script 05| F["_building<br>Volume added"]
+    F -->|script 06| G["_building<br>Storeys + floor area refined"]
+    G -->|script 07| H["_building<br>TABULA variant code assigned"]
+    I[("tabula.tabula_variant<br>(reference archetypes)")] -->|script 07| H
+    D -->|script 08| J["_surface<br>Resolved surface output<br>geometry + attributes"]
 ```
 
 ---
@@ -42,11 +44,12 @@ flowchart TD
 |--------|---------|-----------|
 | [01 — Get child features](01-get-child-features.md) | Spatially match surface features to each building solid | `_child_feature` |
 | [02 — Dump geometry](02-dump-geometry.md) | Explode multi-polygon surfaces to individual polygon faces | `_child_feature_geom_dump` |
-| [03 — Surface attributes](03-surface-attributes.md) | Compute surface normal, tilt, azimuth, area, and height per face | `_child_feature_surface` |
-| [04 — Building features](04-building-features.md) | Aggregate surface attributes into one row per building | `_building_feature` |
-| [05 — Volume](05-volume.md) | Approximate building volume from height × footprint | `_building_feature` (UPDATE) |
-| [06 — Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building_feature` (UPDATE) |
-| [07 — TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building_feature` (UPDATE) |
+| [03 — Surface attributes](03-surface-attributes.md) | Compute surface normal, tilt, azimuth, area, and height per face | `_surface_raw` |
+| [04 — Building features](04-building-features.md) | Aggregate surface attributes into one row per building | `_building` |
+| [05 — Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
+| [06 — Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
+| [07 — TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
+| 08 — Build surface | Populate resolved surface output with geometry and attributes | `_surface` |
 
 ---
 

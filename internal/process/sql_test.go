@@ -63,6 +63,8 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"tabula_table":         "tabula",
 				"tabula_variant_table": "tabula_variant",
 				"room_height":          "3.0",
+				"country_code":         "",
+				"pylovo_schema":        "",
 			},
 		},
 		{
@@ -82,6 +84,8 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"tabula_table":         "",
 				"tabula_variant_table": "",
 				"room_height":          "",
+				"country_code":         "",
+				"pylovo_schema":        "",
 			},
 		},
 		{
@@ -114,6 +118,8 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"tabula_table":         "tabula",
 				"tabula_variant_table": "tabula_variant",
 				"room_height":          "",
+				"country_code":         "",
+				"pylovo_schema":        "",
 			},
 		},
 	}

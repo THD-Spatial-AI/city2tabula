@@ -4,7 +4,7 @@
 
 **Reads from:** `{city2tabula_schema}.{lod_schema}_child_feature_geom_dump`
 
-**Writes to:** `{city2tabula_schema}.{lod_schema}_child_feature_surface`
+**Writes to:** `{city2tabula_schema}.{lod_schema}_surface_raw`
 
 ---
 
@@ -75,7 +75,7 @@ FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
 WHERE building_feature_id IN {building_ids}
   AND building_feature_id NOT IN (
     SELECT DISTINCT building_feature_id
-    FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+    FROM {city2tabula_schema}.{lod_schema}_surface_raw
   )
 ```
 
@@ -226,8 +226,8 @@ DEGREES(ASIN(ABS(nz))) AS tilt
 ```
 
 <figure markdown="span">
-  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_light.svg#only-light){ width="600" }
-  ![tilt diagram](../../assets/diagrams/pipeline/roof_slope_dark.svg#only-dark){ width="600" }
+  ![tilt diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_slope_light.svg#only-light){ width="600" }
+  ![tilt diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_slope_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 1: Tilt and normal vector components</figcaption>
 </figure>
 
@@ -242,14 +242,14 @@ END AS azimuth
 ```
 
 <figure markdown="span">
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_light.svg#only-light){ width="600" }
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_compass_dark.svg#only-dark){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_compass_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_compass_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 2: Azimuth and normal vector components</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_light.svg#only-light){ width="600" }
-  ![azimuth diagram](../../assets/diagrams/pipeline/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_light.svg#only-light){ width="600" }
+  ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
   <figcaption>Figure 3: Azimuth and normal vector components</figcaption>
 </figure>
 
@@ -287,4 +287,4 @@ The simplest attribute: the difference between the highest and lowest Z coordina
 
 ## What comes next
 
-Script 04 reads `_child_feature_surface` and aggregates the per-face attributes into a single summary row per building.
+Script 04 reads `_surface_raw` and aggregates the per-face attributes into a single summary row per building.

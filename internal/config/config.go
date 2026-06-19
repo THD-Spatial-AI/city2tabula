@@ -7,7 +7,8 @@ import (
 // Main Config holds the application configuration
 type Config struct {
 	// Global settings
-	Country string
+	Country     string // normalized country name (e.g. "germany")
+	CountryCode string // ISO 3166-1 alpha-2 code (e.g. "DE"); derived from Country
 
 	// Database connection and structure
 	DB *DBConfig
@@ -32,8 +33,12 @@ type Config struct {
 func LoadConfig() Config {
 	LoadEnv()
 
+	country := getCountry()
+	code, _ := CountryCode(country) // empty string if unsupported; Validate() will catch it
+
 	return Config{
-		Country:     getCountry(),
+		Country:     country,
+		CountryCode: code,
 		DB:          loadDBConfig(),
 		Data:        loadDataPaths(),
 		CityDB:      loadCityDBConfig(),

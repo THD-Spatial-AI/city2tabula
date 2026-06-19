@@ -108,8 +108,10 @@ type pipelineTestCase struct {
 // pipelineConfig builds a Config for the given test case.
 // It bypasses LoadConfig() / .env so no environment setup is required.
 func pipelineConfig(tc pipelineTestCase) *config.Config {
+	code, _ := config.CountryCode(tc.country)
 	return &config.Config{
-		Country: tc.country,
+		Country:     tc.country,
+		CountryCode: code,
 		DB: &config.DBConfig{
 			Tables: &config.Tables{
 				Tabula:        config.Tabula,

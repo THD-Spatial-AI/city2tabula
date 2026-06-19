@@ -15,6 +15,7 @@ const (
 	Lod3Schema        = "lod3"
 	TabulaSchema      = "tabula"
 	City2TabulaSchema = "city2tabula"
+	PylvoSchemaName   = "public" // default PyLovo schema; override with PYLOVO_SCHEMA env var
 )
 
 // Tables holds all table name configurations
@@ -34,6 +35,7 @@ type Schemas struct {
 	Lod3        string
 	Tabula      string
 	City2Tabula string
+	Pylvo       string // PyLovo schema containing res and oth tables
 }
 
 // Database configuration
@@ -78,6 +80,7 @@ func loadSchemas() *Schemas {
 		Lod3:        Lod3Schema,
 		Tabula:      TabulaSchema,
 		City2Tabula: City2TabulaSchema,
+		Pylvo:       GetEnv("PYLOVO_SCHEMA", PylvoSchemaName),
 	}
 }
 

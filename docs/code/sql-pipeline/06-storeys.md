@@ -1,8 +1,8 @@
 # Script 06 — Storeys
 
 **File:** `sql/scripts/main/06_calc_storeys.sql`  
-**Reads from:** `{city2tabula_schema}.{lod_schema}_building_feature`  
-**Writes to:** `{city2tabula_schema}.{lod_schema}_building_feature` (UPDATE)
+**Reads from:** `{city2tabula_schema}.{lod_schema}_building`  
+**Writes to:** `{city2tabula_schema}.{lod_schema}_building` (UPDATE)
 
 ---
 
@@ -17,7 +17,7 @@ Script 04 computed a preliminary `number_of_storeys` inline as `wall_height / 2.
 ## What it does
 
 ```sql
-UPDATE {city2tabula_schema}.{lod_schema}_building_feature AS bf
+UPDATE {city2tabula_schema}.{lod_schema}_building AS bf
 SET
     number_of_storeys = bf.min_height / bf.room_height,
     room_height_unit  = 'm',

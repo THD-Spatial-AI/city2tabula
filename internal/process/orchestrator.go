@@ -17,6 +17,7 @@ const (
 	MainTable          JobType = "main_table"
 	Supplementary      JobType = "supplementary"
 	SupplementaryTable JobType = "supplementary_table"
+	PyLovoLink         JobType = "pylovo_link"
 )
 
 // BuildFeatureExtractionQueue creates a queue of jobs (one per batch)
@@ -70,6 +71,8 @@ func createJob(batch []int64, scripts []string, jobType JobType) *Job {
 		prefix = "SUPPLEMENTARY"
 	case SupplementaryTable:
 		prefix = "SUPPLEMENTARY_TABLE"
+	case PyLovoLink:
+		prefix, lodLevel = "PYLOVO_LINK", 2
 	}
 
 	for i, file := range scripts {
@@ -130,6 +133,23 @@ func SupplementaryJobQueue(config *config.Config) (*JobQueue, error) {
 	}
 
 	queue.Enqueue(createJob([]int64{}, scripts.SupplementaryScripts, Supplementary))
+
+	return queue, nil
+}
+
+// PyLovoLinkJobQueue builds the queue for the PyLovo building link pipeline.
+// Runs after feature extraction; requires pylovo.res and pylovo.oth to be populated.
+// LOD2 batches are used — the link table is keyed on object_id which is LOD-agnostic,
+// so a single LOD pass is sufficient.
+func PyLovoLinkJobQueue(config *config.Config, lod2Batches [][]int64) (*JobQueue, error) {
+	scripts, queue, err := loadScriptsAndQueue(config)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, batch := range lod2Batches {
+		queue.Enqueue(createJob(batch, scripts.PyLovoLinkScripts, PyLovoLink))
+	}
 
 	return queue, nil
 }

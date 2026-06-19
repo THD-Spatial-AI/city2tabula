@@ -1,8 +1,8 @@
 # Script 07 — TABULA Labelling
 
-**File:** `sql/scripts/main/07_label_building_features.sql`  
-**Reads from:** `{city2tabula_schema}.{lod_schema}_building_feature`, `{city2tabula_schema}.tabula_variant`  
-**Writes to:** `{city2tabula_schema}.{lod_schema}_building_feature` (UPDATE)
+**File:** `sql/scripts/main/07_label_buildings.sql`  
+**Reads from:** `{city2tabula_schema}.{lod_schema}_building`, `{city2tabula_schema}.tabula_variant`  
+**Writes to:** `{city2tabula_schema}.{lod_schema}_building` (UPDATE)
 
 ---
 
@@ -57,7 +57,7 @@ WITH stats AS (
     MIN(footprint_area) AS min_area, MAX(footprint_area) AS max_area,
     ...
   FROM (
-    SELECT ... FROM {lod_schema}_building_feature WHERE ...
+    SELECT ... FROM {lod_schema}_building WHERE ...
     UNION ALL
     SELECT ... FROM tabula_variant WHERE ...
   ) all_data
@@ -98,7 +98,7 @@ ranked AS (
              ... (6 more terms)
            ) ASC
          ) AS rnk
-  FROM {lod_schema}_building_feature b
+  FROM {lod_schema}_building b
   CROSS JOIN tabula_variant v
   CROSS JOIN stats s
   WHERE ...
@@ -119,7 +119,7 @@ This CTE compares **every building against every TABULA variant** using a `CROSS
 ### Step 3 — UPDATE
 
 ```sql
-UPDATE {lod_schema}_building_feature bf
+UPDATE {lod_schema}_building bf
 SET tabula_variant_code_id = ranked.tabula_variant_code_id,
     tabula_variant_code    = ranked.tabula_variant_code
 FROM ranked
@@ -127,13 +127,13 @@ WHERE bf.building_feature_id = ranked.building_feature_id
   AND ranked.rnk = 1
 ```
 
-For each building, takes only the rank-1 variant (the closest one) and writes its code back into `_building_feature`.
+For each building, takes only the rank-1 variant (the closest one) and writes its code back into `_building`.
 
 ---
 
 ## Output
 
-After this script, each row in `_building_feature` has:
+After this script, each row in `_building` has:
 
 | Column | Description |
 |--------|------------|
@@ -146,4 +146,4 @@ These codes are the primary output of the City2TABULA pipeline and are used down
 
 ## Pipeline complete
 
-This is the last of the seven extraction scripts. At this point, `_building_feature` contains a fully populated row for every building in the batch: geometry-derived attributes, height, area, volume, storey count, shape complexity, and a TABULA archetype assignment.
+This is the last of the seven extraction scripts. At this point, `_building` contains a fully populated row for every building in the batch: geometry-derived attributes, height, area, volume, storey count, shape complexity, and a TABULA archetype assignment.
