@@ -8,6 +8,7 @@ type Flags struct {
 	ResetCityDB     bool
 	ResetC2T        bool
 	ExtractFeatures bool
+	LinkPylovo       bool
 	ShowVersion     bool
 	ShowV           bool
 }
@@ -20,6 +21,7 @@ func ParseFlags() *Flags {
 	// flag.BoolVar(&f.ImportData, "import-data", false, "Import data into existing CityDB schemas (useful if you want to keep existing City2TABULA schemas and import new 3D city data)")
 	flag.BoolVar(&f.ResetC2T, "reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline")
+	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
 	flag.BoolVar(&f.ShowV, "v", false, "print version and exit (shorthand)")
 	flag.Parse()
@@ -38,6 +40,7 @@ type ResetDBMsg Msg
 type ResetCityDBMsg Msg
 type ResetC2TMsg Msg
 type ExtractFeaturesMsg Msg
+type LinkPylovoMsg Msg
 type ImportDataMsg Msg
 
 // Define messages for each flag
@@ -95,6 +98,11 @@ var (
 		Success:  "Feature extraction completed successfully",
 		Error:    "Failed to extract features",
 	}
+	LinkPylovoMessages = LinkPylovoMsg{
+		Progress: "Building OSM link table...",
+		Success:  "OSM link table built successfully",
+		Error:    "Failed to build OSM link table",
+	}
 )
 
 // Define a struct to hold all messages for easy access
@@ -104,6 +112,7 @@ type Messages struct {
 	ResetCityDB     ResetCityDBMsg
 	ResetC2T        ResetC2TMsg
 	ExtractFeatures ExtractFeaturesMsg
+	LinkPylovo       LinkPylovoMsg
 }
 
 var AllMessages = Messages{
@@ -112,4 +121,5 @@ var AllMessages = Messages{
 	ResetCityDB:     ResetCityDBMessages,
 	ResetC2T:        ResetC2TMessages,
 	ExtractFeatures: ExtractFeaturesMessages,
+	LinkPylovo:       LinkPylovoMessages,
 }

@@ -99,4 +99,12 @@ func main() {
 		}
 		utils.Info.Println(flagMessages.ExtractFeatures.Success)
 	}
+
+	if f.LinkPylovo {
+		utils.Info.Println(flagMessages.LinkPylovo.Progress)
+		if err := process.RunPyLovoLinkBuild(&config, pool); err != nil {
+			utils.Error.Fatalf(flagMessages.LinkPylovo.Error+": %v", err)
+		}
+		utils.Info.Println(flagMessages.LinkPylovo.Success)
+	}
 }

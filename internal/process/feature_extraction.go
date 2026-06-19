@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -62,6 +63,105 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	}
 
 	return RunJobQueue(jobQueue, pool, cfg)
+}
+
+// RunPyLovoLinkBuild populates city2tabula.building_link by spatially joining 3D building
+// footprints against pylovo.res and pylovo.oth. Must be run after RunFeatureExtraction.
+// Only LOD2 buildings are processed — the link table is keyed on object_id, which is
+// LOD-agnostic, so a single LOD pass is sufficient.
+//
+// Buildings are batched by spatial grid cell (default 1 km²) so each batch covers a
+// compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
+// avoids scanning the full PyLovo table for every batch.
+func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
+	batches, err := getGridBatches(
+		pool,
+		cfg.DB.Schemas.City2Tabula,
+		cfg.DB.Schemas.Lod2,
+		cfg.City2Tabula.LinkGridSize,
+		cfg.Batch.BuildingLimit,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to build spatial grid batches: %w", err)
+	}
+
+	if len(batches) == 0 {
+		utils.Warn.Println("No LOD2 buildings with footprints found. Nothing to link.")
+		return nil
+	}
+
+	total := 0
+	for _, b := range batches {
+		total += len(b)
+	}
+	utils.Info.Printf("Spatial grid batching: %d grid cells, %d buildings total (grid size: %dm)",
+		len(batches), total, cfg.City2Tabula.LinkGridSize)
+
+	jobQueue, err := PyLovoLinkJobQueue(cfg, batches)
+	if err != nil {
+		return fmt.Errorf("failed to build PyLovo link job queue: %w", err)
+	}
+
+	if jobQueue.Len() > 0 {
+		utils.PrintJobQueueInfo(jobQueue.Len(), len(jobQueue.Peek().Tasks), cfg.Batch)
+	}
+
+	return RunJobQueue(jobQueue, pool, cfg)
+}
+
+// getGridBatches divides LOD2 buildings into spatial batches using a square grid.
+// Each returned slice contains the building_feature_ids that fall within one grid cell.
+// Buildings with no footprint geometry or no object_id are excluded.
+// If buildingLimit > 0, at most that many buildings are included in total.
+func getGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
+	limitClause := ""
+	if buildingLimit > 0 {
+		limitClause = fmt.Sprintf("LIMIT %d", buildingLimit)
+	}
+
+	// ST_SquareGrid requires PostGIS >= 3.1.
+	// Buildings are grouped by grid cell; cells with no buildings are excluded.
+	q := fmt.Sprintf(`
+		WITH all_buildings AS (
+			SELECT building_feature_id, ST_Force2D(building_footprint_geom) AS geom
+			FROM %s.%s_building
+			WHERE building_footprint_geom IS NOT NULL
+			  AND object_id IS NOT NULL
+			%s
+		),
+		extent AS (
+			SELECT ST_Envelope(ST_Collect(geom)) AS bbox
+			FROM all_buildings
+		),
+		grid AS (
+			SELECT (ST_SquareGrid($1::double precision, bbox)).geom AS cell
+			FROM extent
+			WHERE bbox IS NOT NULL
+		)
+		SELECT array_agg(b.building_feature_id ORDER BY b.building_feature_id)
+		FROM all_buildings b
+		JOIN grid g ON ST_Intersects(b.geom, g.cell)
+		GROUP BY g.cell
+		HAVING count(*) > 0
+	`, c2tSchema, lodSchema, limitClause)
+
+	rows, err := pool.Query(context.Background(), q, gridSizeM)
+	if err != nil {
+		return nil, fmt.Errorf("grid batch query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var batches [][]int64
+	for rows.Next() {
+		var ids []int64
+		if err := rows.Scan(&ids); err != nil {
+			return nil, fmt.Errorf("scanning grid batch row: %w", err)
+		}
+		if len(ids) > 0 {
+			batches = append(batches, ids)
+		}
+	}
+	return batches, rows.Err()
 }
 
 // lodSchema returns the database schema name for the given LOD level.

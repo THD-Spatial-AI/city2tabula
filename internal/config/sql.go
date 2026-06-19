@@ -15,6 +15,8 @@ const (
 	SQLScriptDir              = SQLDir + "scripts" + string(os.PathSeparator)
 	SQLMainScriptDir          = SQLScriptDir + "main" + string(os.PathSeparator)          // Core feature extraction pipeline
 	SQLSupplementaryScriptDir = SQLScriptDir + "supplementary" + string(os.PathSeparator) // Supporting/setup scripts
+	// Link subdirectories — one per supported OSM/building data source
+	SQLPylvoLinkScriptDir     = SQLScriptDir + "link" + string(os.PathSeparator) + "pylovo" + string(os.PathSeparator) // PyLovo res/oth link pipeline
 
 	// Schema files
 	SQLSchemaFileDir           = SQLDir + "schema" + string(os.PathSeparator)
@@ -29,6 +31,7 @@ const (
 type SQLScripts struct {
 	MainScripts               []string // Core feature extraction pipeline (01-10)
 	SupplementaryScripts      []string // Supporting scripts (tabula extraction, etc.)
+	PyLovoLinkScripts         []string // PyLovo res/oth building link pipeline
 	MainTableScripts          []string // Schema creation scripts
 	SupplementaryTableScripts []string // Supplementary schema creation scripts
 	FunctionScripts           []string // Function scripts
@@ -49,6 +52,7 @@ type SQLParameters struct {
 	TabulaTable        string  `param:"tabula_table"`
 	TabulaVariantTable string  `param:"tabula_variant_table"`
 	RoomHeight         string  `param:"room_height"`
+	PylvoSchema        string  `param:"pylovo_schema"`
 }
 
 // GetSQLParameters returns SQL parameters for a specific LOD level
@@ -74,6 +78,7 @@ func (c *Config) GetSQLParameters(lod int, buildingIDs []int64) SQLParameters {
 		TabulaTable:        c.DB.Tables.Tabula,
 		TabulaVariantTable: c.DB.Tables.TabulaVariant,
 		RoomHeight:         c.City2Tabula.RoomHeight,
+		PylvoSchema:        c.DB.Schemas.Pylvo,
 	}
 }
 
@@ -86,6 +91,12 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 
 	// Load supplementary scripts
 	supplementaryScripts, err := loadSQLFilesFromDir(SQLSupplementaryScriptDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load PyLovo link scripts
+	pylovoLinkScripts, err := loadSQLFilesFromDir(SQLPylvoLinkScriptDir)
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +120,7 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 	return &SQLScripts{
 		MainScripts:               mainScripts,
 		SupplementaryScripts:      supplementaryScripts,
+		PyLovoLinkScripts:         pylovoLinkScripts,
 		MainTableScripts:          MainTableScripts,
 		SupplementaryTableScripts: SupplementaryTableScripts,
 		FunctionScripts:           functionScripts,
