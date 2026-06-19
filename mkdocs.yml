@@ -120,6 +120,7 @@ nav:
     - Generating Reports: validation/report.md
   - Code:
     - Job Queue & Worker Pipeline: code/job-queue.md
+    - Extending the Pipeline: code/extending-pipeline.md
     - SQL Extraction Pipeline:
       - Overview: code/sql-pipeline/index.md
       - 01 – Get Child Features: code/sql-pipeline/01-get-child-features.md
@@ -129,6 +130,7 @@ nav:
       - 05 — Volume: code/sql-pipeline/05-volume.md
       - 06 — Storeys: code/sql-pipeline/06-storeys.md
       - 07 — TABULA Labelling: code/sql-pipeline/07-tabula-labelling.md
+    - PyLovo Building Link: code/pylovo-link/index.md
 
 extra:
   version:

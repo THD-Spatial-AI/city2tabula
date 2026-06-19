@@ -4,7 +4,7 @@
 
 **Reads from:** `{city2tabula_schema}.{lod_schema}_child_feature_geom_dump`
 
-**Writes to:** `{city2tabula_schema}.{lod_schema}_child_feature_surface`
+**Writes to:** `{city2tabula_schema}.{lod_schema}_surface_raw`
 
 ---
 
@@ -75,7 +75,7 @@ FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
 WHERE building_feature_id IN {building_ids}
   AND building_feature_id NOT IN (
     SELECT DISTINCT building_feature_id
-    FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+    FROM {city2tabula_schema}.{lod_schema}_surface_raw
   )
 ```
 
@@ -287,4 +287,4 @@ The simplest attribute: the difference between the highest and lowest Z coordina
 
 ## What comes next
 
-Script 04 reads `_child_feature_surface` and aggregates the per-face attributes into a single summary row per building.
+Script 04 reads `_surface_raw` and aggregates the per-face attributes into a single summary row per building.

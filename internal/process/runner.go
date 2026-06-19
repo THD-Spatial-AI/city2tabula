@@ -94,22 +94,15 @@ func (r *Runner) runSingleTask(task *Task, conn *pgxpool.Pool, workerID int) err
 		return fmt.Errorf("failed to read SQL file %s: %w", task.SQLFile, err)
 	}
 
-	// Check if this is a LOD2 or LOD3 task
-	if strings.Contains(task.TaskType, "LOD2") || strings.Contains(task.TaskType, "LOD3") {
-		var lod int
-		if strings.Contains(task.TaskType, "LOD2") {
-			lod = 2
-		}
-		if strings.Contains(task.TaskType, "LOD3") {
-			lod = 3
-		}
-		if err := executeSQLScript(sqlScript, r.config, conn, lod, task.Params.BuildingIDs); err != nil {
-			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
-		}
-	} else {
-		if err := executeSQLScript(sqlScript, r.config, conn, 0, nil); err != nil {
-			return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
-		}
+	// task.LodLevel carries 2, 3, or -1 (no LOD context). Pass it directly so
+	// any task type — including future link types — gets the correct lod_schema
+	// substitution without requiring string parsing of the task name.
+	buildingIDs := task.Params.BuildingIDs
+	if task.LodLevel == -1 {
+		buildingIDs = nil
+	}
+	if err := executeSQLScript(sqlScript, r.config, conn, task.LodLevel, buildingIDs); err != nil {
+		return fmt.Errorf("task %s failed (SQL file: %s): %w", task.TaskType, task.SQLFile, err)
 	}
 
 	utils.Debug.Printf("[Worker %d] Successfully executed SQL file: %s", workerID, task.SQLFile)

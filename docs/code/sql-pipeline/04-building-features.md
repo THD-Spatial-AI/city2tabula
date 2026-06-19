@@ -1,14 +1,14 @@
 # Script 04 — Building Features
 
 **File:** `sql/scripts/main/04_calc_bld_feat.sql`  
-**Reads from:** `{city2tabula_schema}.{lod_schema}_child_feature_surface`  
-**Writes to:** `{city2tabula_schema}.{lod_schema}_building_feature`
+**Reads from:** `{city2tabula_schema}.{lod_schema}_surface_raw`  
+**Writes to:** `{city2tabula_schema}.{lod_schema}_building`
 
 ---
 
 ## Purpose
 
-Scripts 01–03 produce one row per polygon face. This script collapses all those face-level rows into **one summary row per building**. It aggregates surface areas, counts faces, computes building height, and classifies shape complexity into the `_building_feature` table.
+Scripts 01–03 produce one row per polygon face. This script collapses all those face-level rows into **one summary row per building**. It aggregates surface areas, counts faces, computes building height, and classifies shape complexity into the `_building` table.
 
 ---
 
@@ -19,7 +19,7 @@ Scripts 01–03 produce one row per polygon face. This script collapses all thos
 ```sql
 WITH new_buildings AS (
   SELECT DISTINCT building_feature_id
-  FROM {city2tabula_schema}.{lod_schema}_child_feature_surface
+  FROM {city2tabula_schema}.{lod_schema}_surface_raw
   WHERE building_feature_id IN {building_ids}
 )
 ```
