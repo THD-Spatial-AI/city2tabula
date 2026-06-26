@@ -25,8 +25,8 @@ WITH buildings AS (
     SELECT
         b.object_id,
         b.country_code,
-        b.building_footprint_geom                        AS geom_native,
-        ST_Area(ST_Force2D(b.building_footprint_geom))   AS area_3d
+        b.building_footprint_geom AS geom_native,
+        ST_Area(ST_Force2D(b.building_footprint_geom)) AS area_3d
     FROM {city2tabula_schema}.{lod_schema}_building b
     WHERE b.building_feature_id IN {building_ids}
       AND b.building_footprint_geom IS NOT NULL
@@ -66,9 +66,9 @@ res_candidates AS (
         b.geom_native,
         b.area_3d,
         r.osm_id,
-        'res'                                                                     AS pylovo_table,
+        'res' AS pylovo_table,
         ST_Area(ST_Intersection(b.geom_native, r.geom_native))
-          / NULLIF(LEAST(b.area_3d, ST_Area(r.geom_native)), 0)                  AS confidence
+          / NULLIF(LEAST(b.area_3d, ST_Area(r.geom_native)), 0) AS confidence
     FROM buildings b
     JOIN res_subset r ON ST_Intersects(b.geom_native, r.geom_native)
     ORDER BY b.object_id, confidence DESC
@@ -82,9 +82,9 @@ oth_candidates AS (
         b.geom_native,
         b.area_3d,
         o.osm_id,
-        'oth'                                                                     AS pylovo_table,
+        'oth' AS pylovo_table,
         ST_Area(ST_Intersection(b.geom_native, o.geom_native))
-          / NULLIF(LEAST(b.area_3d, ST_Area(o.geom_native)), 0)                  AS confidence
+          / NULLIF(LEAST(b.area_3d, ST_Area(o.geom_native)), 0) AS confidence
     FROM buildings b
     JOIN oth_subset o ON ST_Intersects(b.geom_native, o.geom_native)
     WHERE b.object_id NOT IN (
@@ -117,22 +117,22 @@ SELECT
     object_id,
     osm_id,
     pylovo_table,
-    1                       AS match_type,
-    confidence              AS match_confidence,
+    1 AS match_type,
+    confidence AS match_confidence,
     country_code,
     ST_Force2D(geom_native) AS geom,
-    {srid}::INTEGER         AS srid
+    {srid}::INTEGER AS srid
 FROM matched
 UNION ALL
 SELECT
     object_id,
-    NULL                    AS osm_id,
-    NULL                    AS pylovo_table,
-    2                       AS match_type,
-    NULL                    AS match_confidence,
+    NULL AS osm_id,
+    NULL AS pylovo_table,
+    2 AS match_type,
+    NULL AS match_confidence,
     country_code,
     ST_Force2D(geom_native) AS geom,
-    {srid}::INTEGER         AS srid
+    {srid}::INTEGER AS srid
 FROM unmatched
 ON CONFLICT (object_id, country_code) DO UPDATE
     SET osm_id           = EXCLUDED.osm_id,
