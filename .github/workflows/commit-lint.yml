@@ -1,0 +1,20 @@
+name: Commit Message Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lint:
+    name: Validate commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          git log --format="%H %s" \
+            ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} \
+            | python .github/scripts/lint_commits.py

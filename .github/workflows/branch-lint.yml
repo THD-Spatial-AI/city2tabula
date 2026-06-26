@@ -1,0 +1,16 @@
+name: Branch Name Lint
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  lint:
+    name: Validate branch name
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate branch name
+        run: |
+          python .github/scripts/lint_branch.py "${{ github.head_ref }}"

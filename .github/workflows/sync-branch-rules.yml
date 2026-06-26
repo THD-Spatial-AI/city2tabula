@@ -1,0 +1,50 @@
+name: Sync Branch Protection Rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      required_status_checks:
+        description: "Comma-separated CI check names to require (e.g. build,test) — leave empty to skip CI requirement"
+        type: string
+        default: ""
+      dry_run:
+        description: "Dry run — list changes without applying rules"
+        type: boolean
+        default: false
+
+jobs:
+  sync-thd:
+    name: Sync rules — THD-Spatial-AI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Apply branch protection rules
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT_THD }}
+          ORGS: THD-Spatial-AI
+          REQUIRED_STATUS_CHECKS: ${{ inputs.required_status_checks }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          TEMPLATE_REPO: ${{ github.repository }}
+        run: python .github/scripts/sync_branch_rules.py
+
+  sync-enerplanet:
+    name: Sync rules — enerplanet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Apply branch protection rules
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT_ENERPLANET }}
+          ORGS: enerplanet
+          REQUIRED_STATUS_CHECKS: ${{ inputs.required_status_checks }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          TEMPLATE_REPO: ${{ github.repository }}
+        run: python .github/scripts/sync_branch_rules.py

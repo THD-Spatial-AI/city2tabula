@@ -1,0 +1,53 @@
+name: Sync Legal Information
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - LICENSE
+      - mkdocs.yml
+      - CITATION.cff
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — list changes without creating PRs"
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    name: Sync copyright to all org repos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract copyright holder from LICENSE
+        id: copyright
+        run: |
+          HOLDER=$(grep -oP '(?<=Copyright \(c\) \d{4} ).+' LICENSE)
+          echo "holder=$HOLDER" >> "$GITHUB_OUTPUT"
+          echo "Extracted: $HOLDER"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Sync THD-Spatial-AI
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT_THD }}
+          COPYRIGHT_HOLDER: ${{ steps.copyright.outputs.holder }}
+          ORGS: THD-Spatial-AI
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          TEMPLATE_REPO: ${{ github.repository }}
+        run: python .github/scripts/sync_legal.py
+
+      - name: Sync enerplanet
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT_ENERPLANET }}
+          COPYRIGHT_HOLDER: ${{ steps.copyright.outputs.holder }}
+          ORGS: enerplanet
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          TEMPLATE_REPO: ${{ github.repository }}
+        run: python .github/scripts/sync_legal.py
