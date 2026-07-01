@@ -1,0 +1,24 @@
+# Host-specific env file — the Docker image gets its config from
+# environment/docker.env via docker-compose's env_file directive
+.env
+
+# Git and editor metadata
+.git
+.github
+.vscode
+
+# Build artefacts / logs / generated docs — not needed inside the image
+city2tabula
+city2tabula-*
+bin/
+build/
+*.out
+coverage.*
+*.coverprofile
+*.log
+logs/
+site/
+
+# Local test data mounted at runtime via the compose volume, not baked in
+data/
+testdata/
