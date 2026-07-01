@@ -140,5 +140,53 @@ setup.bat extract-features
 | Git                        | 2.25+   | required for City2TABULA | [git-scm.com](https://git-scm.com/downloads)                                                       |
 | CityDB Importer/Exporter   | v1.1.0 | Unzip and place the `citydb-tool` directory at your preferred location. | [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.1.0)                          |
 
-!!! info "Coming soon..."
-    Steps for local development setup will be added in future updates. For now, refer to the Docker setup instructions for a streamlined installation process.
+### Step 1. Clone the repository
+
+```bash
+git clone https://github.com/thd-spatial-ai/city2tabula.git
+cd city2tabula
+```
+
+### Step 2. Install PostgreSQL, PostGIS and the CityDB tool
+
+Install the versions listed in the prerequisites table above. Unzip the CityDB Importer/Exporter release and note the path to the extracted `citydb-tool-<version>` directory — you'll need it in Step 4.
+
+### Step 3. Build the binary
+
+```bash
+go build -o city2tabula ./cmd
+```
+
+### Step 4. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set at minimum:
+
+```bash
+COUNTRY              # e.g. germany — must match one of the supported TABULA/EPISCOPE countries
+DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME  # your local PostgreSQL instance
+CITYDB_SRID / CITYDB_SRS_NAME  # matching your COUNTRY, see the reference list in .env.example
+CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2
+```
+
+### Step 5. Add your data
+
+Place your 3D city data file(s) under `data/`, following the same layout as the Docker setup:
+
+```bash
+data/
+├── lod2/<country>/*(.gml | .json)
+└── lod3/<country>/*(.gml | .json)
+```
+
+### Step 6. Create the database and run the pipeline
+
+```bash
+./city2tabula -create-db          # creates CityDB + City2TABULA schemas and imports your data
+./city2tabula -extract-features   # runs the feature extraction pipeline
+```
+
+Use `./city2tabula -help` to see all available flags (e.g. `-reset-db`, `-link-pylovo`).
