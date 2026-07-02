@@ -4,7 +4,7 @@
 &nbsp;
 [![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)](https://city2tabula.readthedocs.io/en/latest/)
 &nbsp;
-[![GitHub release](https://img.shields.io/github/v/release/thd-spatial-ai/city2tabula.svg)](https://github.com/thd-spatial-ai/city2tabula/releases)
+[![GitHub release](https://img.shields.io/github/v/release/thd-spatial-ai/City2TABULA?include_prereleases&label=release&logo=github)](https://github.com/thd-spatial-ai/city2tabula/releases)
 
 !!! note
     This project is under active development and may change frequently.
