@@ -15,14 +15,21 @@
 --
 -- Two more triggers cover the other correction direction — hand-editing
 -- room_height or number_of_storeys directly (e.g. from a site visit or a
--- building register) instead of geometry:
+-- building register) instead of geometry. min_height stays fixed (it's derived
+-- from wall geometry, not user-correctable here), so min_height = room_height *
+-- number_of_storeys is kept true from whichever side gets edited:
 --   3. room_height changes
 --        -> number_of_storeys recomputed as min_height / room_height (mirrors script 06)
 --   4. number_of_storeys changes (directly, or cascaded from trigger 3)
+--        -> room_height recomputed as min_height / number_of_storeys (the mirror image of 3)
 --        -> area_total_floor recomputed as footprint_area * number_of_storeys (mirrors script 06)
 -- Trigger 4 firing is itself watched by trigger 2 (area_total_floor and
 -- number_of_storeys are both variant-matching dimensions), so editing either
 -- room_height or number_of_storeys directly re-matches the TABULA variant too.
+-- Trigger 4's own room_height update also re-fires trigger 3, which recomputes
+-- number_of_storeys right back to (within 2-decimal rounding of) what triggered
+-- it in the first place — a self-check, not an infinite loop, since it settles
+-- as soon as the recomputed room_height stops changing.
 --
 -- Deliberately out of scope here:
 --   - min_height / max_height: derived from wall/roof surface heights, not
@@ -40,11 +47,9 @@
 -- recomputed a second time, correctly but wastefully at 100k+ building scale, plus
 -- the extra lock activity across concurrent workers risks deadlock retries.
 -- All four triggers are therefore created DISABLED below and stay that way through
--- -create-db and -extract-features. Enable them once, after extraction finishes and
--- before making any manual correction (e.g. in QGIS):
---   ALTER TABLE {city2tabula_schema}.{lod_schema}_building ENABLE TRIGGER
---     {lod_schema}_trg_footprint_geom_change, {lod_schema}_trg_variant_dims_change,
---     {lod_schema}_trg_room_height_change, {lod_schema}_trg_storeys_change;
+-- -create-db. RunFeatureExtraction (internal/process/feature_extraction.go) turns
+-- them back on itself, per LOD schema, right after -extract-features finishes —
+-- no manual step needed before making a correction (e.g. in QGIS).
 
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_footprint_derived()
 RETURNS TRIGGER AS $$
@@ -213,6 +218,15 @@ ALTER TABLE {city2tabula_schema}.{lod_schema}_building
 -- Fires on a direct number_of_storeys edit, or one cascaded from the
 -- room-height trigger above — either way, area_total_floor (the "heated floor
 -- area" ignis uses as A_ref) needs to reflect the corrected storey count.
+--
+-- Also recomputes room_height, the mirror image of what the room-height
+-- trigger does to number_of_storeys: min_height = room_height * number_of_storeys
+-- must hold no matter which of the two a user edits directly (min_height itself
+-- stays fixed, since it's derived from wall geometry, not user-correctable here).
+-- Rounding room_height to 2 decimals (matching every other stored attribute) can
+-- make the room-height trigger's own recompute land a hair off the exact value
+-- just set here — e.g. 3 storeys becoming 2.99 — which is expected, not a bug:
+-- the same rounding trade-off already applies in the room-height-edit direction.
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_floor_area_from_storeys()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -222,7 +236,14 @@ BEGIN
             THEN ROUND((footprint_area * NEW.number_of_storeys)::numeric, 2)
             ELSE area_total_floor
         END,
-        area_total_floor_unit = 'sqm'
+        area_total_floor_unit = 'sqm',
+        room_height = CASE
+            WHEN min_height IS NOT NULL AND NEW.number_of_storeys IS NOT NULL
+                 AND NEW.number_of_storeys > 0
+            THEN ROUND((min_height / NEW.number_of_storeys)::numeric, 2)
+            ELSE room_height
+        END,
+        room_height_unit = 'm'
     WHERE id = NEW.id;
     RETURN NEW;
 END;
