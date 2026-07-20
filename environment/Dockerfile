@@ -37,7 +37,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 # -----------------------------
 # Install citydb-tool
 # -----------------------------
-RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.1.0/citydb-tool-1.1.0.zip -O /tmp/citydb-tool.zip \
+RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.3.2/citydb-tool-1.3.2.zip -O /tmp/citydb-tool.zip \
     && unzip /tmp/citydb-tool.zip -d /usr/local/citydb-tool \
     && rm /tmp/citydb-tool.zip
 
@@ -70,4 +70,4 @@ RUN echo 'export GOROOT=/usr/local/go' >> /home/appuser/.bashrc \
 # -----------------------------
 # Default command
 # -----------------------------
-CMD ["bash", "-lc", "echo 'Go:' $(go version); echo 'Java:' $(java -version 2>&1 | head -n 1); echo 'citydb-tool:' $(/usr/local/citydb-tool/citydb --version); exec bash"]
+CMD ["bash", "-lc", "echo 'Go:' $(go version); echo 'Java:' $(java -version 2>&1 | head -n 1); echo 'citydb-tool:' $(/usr/local/citydb-tool/citydb-tool-1.3.2/citydb --version); exec bash"]
