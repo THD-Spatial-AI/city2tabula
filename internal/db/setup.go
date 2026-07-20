@@ -95,6 +95,10 @@ func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 
 // ResetCity2TabulaSchemas drops the city2tabula and tabula schemas and rebuilds them from scratch.
 // Use this when you want to re-run the City2TABULA setup without touching CityDB.
+//
+// RunCity2TabulaDBSetup only (re)creates the tabula.tabula and city2tabula.tabula_variant
+// table shells; it does not reload the TABULA CSV. Without re-importing here, both tables
+// are left empty and every building's tabula_variant_code stays NULL after -extract-features.
 func ResetCity2TabulaSchemas(config *config.Config, conn *pgxpool.Pool) error {
 	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}
 	for _, schema := range schemas {
@@ -102,7 +106,10 @@ func ResetCity2TabulaSchemas(config *config.Config, conn *pgxpool.Pool) error {
 			utils.Warn.Printf("Warning dropping schema %s: %v", schema, err)
 		}
 	}
-	return RunCity2TabulaDBSetup(config, conn)
+	if err := RunCity2TabulaDBSetup(config, conn); err != nil {
+		return err
+	}
+	return importer.ImportSupplementaryData(conn, config)
 }
 
 // setupMainDB runs the main DB setup job queue: PostgreSQL functions and main table schemas.
