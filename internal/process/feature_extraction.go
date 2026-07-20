@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -62,7 +63,46 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 		utils.PrintJobQueueInfo(jobQueue.Len(), len(jobQueue.Peek().Tasks), cfg.Batch)
 	}
 
-	return RunJobQueue(jobQueue, pool, cfg)
+	if err := RunJobQueue(jobQueue, pool, cfg); err != nil {
+		return err
+	}
+
+	// Correction triggers (sql/schema/main/03_create_correction_triggers.sql) are
+	// installed disabled by -create-db, since they'd otherwise contend with this
+	// same bulk run. Turn them on now that extraction has populated the table, so
+	// manual corrections (e.g. in QGIS) work right away without a separate step.
+	if len(lod2BldIDs) > 0 {
+		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
+			return err
+		}
+	}
+	if len(lod3BldIDs) > 0 {
+		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// enableCorrectionTriggers turns on the four correction triggers for one LOD
+// schema's _building table (see sql/schema/main/03_create_correction_triggers.sql
+// for what each one recomputes).
+func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
+	table := fmt.Sprintf("%s.%s_building", cfg.DB.Schemas.City2Tabula, lodSchema)
+	triggers := []string{
+		lodSchema + "_trg_footprint_geom_change",
+		lodSchema + "_trg_variant_dims_change",
+		lodSchema + "_trg_room_height_change",
+		lodSchema + "_trg_storeys_change",
+	}
+	query := fmt.Sprintf(`ALTER TABLE %s ENABLE TRIGGER %s;`, table, strings.Join(triggers, ", "))
+
+	if _, err := pool.Exec(context.Background(), query); err != nil {
+		return fmt.Errorf("failed to enable correction triggers on %s: %w", table, err)
+	}
+	utils.Info.Printf("Correction triggers enabled on %s", table)
+	return nil
 }
 
 // RunPyLovoLinkBuild populates city2tabula.building_link by spatially joining 3D building
