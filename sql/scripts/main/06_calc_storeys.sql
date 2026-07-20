@@ -17,6 +17,6 @@ SET
         THEN 'm'
         ELSE bf.room_height_unit
     END,
-    area_total_floor = bf.footprint_area * bf.number_of_storeys,
+    area_total_floor = ROUND((bf.footprint_area * bf.number_of_storeys)::numeric, 2),
     area_total_floor_unit = 'sqm'
 WHERE bf.building_feature_id IN {building_ids};
