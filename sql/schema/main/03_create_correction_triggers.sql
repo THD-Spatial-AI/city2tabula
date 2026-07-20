@@ -33,15 +33,18 @@
 --   - Deleting a building row: no other row currently depends on it, so a plain
 --     DELETE needs no trigger.
 --
--- Operational note: these triggers also fire during a normal -extract-features
--- bulk run, because scripts 06/07 UPDATE the same watched columns. That just makes
--- the bulk run redundantly recompute the same (correct) values once more, not wrong,
--- but wasted work at 100k+ building scale. Disable both triggers for the duration of
--- a bulk (re-)extraction and re-enable them afterwards:
---   ALTER TABLE {city2tabula_schema}.{lod_schema}_building DISABLE TRIGGER
---     {lod_schema}_trg_footprint_geom_change, {lod_schema}_trg_variant_dims_change;
+-- Operational note: these triggers only matter once corrections start, which is
+-- always after -extract-features has already populated the tables. Bulk extraction
+-- (scripts 04-07) writes the exact same watched columns these triggers watch, so
+-- if the triggers were enabled during that run, every row would get redundantly
+-- recomputed a second time, correctly but wastefully at 100k+ building scale, plus
+-- the extra lock activity across concurrent workers risks deadlock retries.
+-- All four triggers are therefore created DISABLED below and stay that way through
+-- -create-db and -extract-features. Enable them once, after extraction finishes and
+-- before making any manual correction (e.g. in QGIS):
 --   ALTER TABLE {city2tabula_schema}.{lod_schema}_building ENABLE TRIGGER
---     {lod_schema}_trg_footprint_geom_change, {lod_schema}_trg_variant_dims_change;
+--     {lod_schema}_trg_footprint_geom_change, {lod_schema}_trg_variant_dims_change,
+--     {lod_schema}_trg_room_height_change, {lod_schema}_trg_storeys_change;
 
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_footprint_derived()
 RETURNS TRIGGER AS $$
@@ -86,6 +89,8 @@ CREATE TRIGGER {lod_schema}_trg_footprint_geom_change
     FOR EACH ROW
     WHEN (OLD.building_footprint_geom IS DISTINCT FROM NEW.building_footprint_geom)
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_footprint_derived();
+ALTER TABLE {city2tabula_schema}.{lod_schema}_building
+    DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
 
 -- Re-matches the closest TABULA variant using the same normalised-Euclidean-distance
 -- method as script 07, scoped to one building instead of the whole table. Stats
@@ -174,6 +179,8 @@ CREATE TRIGGER {lod_schema}_trg_variant_dims_change
     ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match();
+ALTER TABLE {city2tabula_schema}.{lod_schema}_building
+    DISABLE TRIGGER {lod_schema}_trg_variant_dims_change;
 
 -- Same formula as script 06: only overwrites number_of_storeys when both
 -- min_height and the new room_height are present and positive, otherwise
@@ -200,6 +207,8 @@ CREATE TRIGGER {lod_schema}_trg_room_height_change
     FOR EACH ROW
     WHEN (OLD.room_height IS DISTINCT FROM NEW.room_height)
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_storeys_from_room_height();
+ALTER TABLE {city2tabula_schema}.{lod_schema}_building
+    DISABLE TRIGGER {lod_schema}_trg_room_height_change;
 
 -- Fires on a direct number_of_storeys edit, or one cascaded from the
 -- room-height trigger above — either way, area_total_floor (the "heated floor
@@ -226,3 +235,5 @@ CREATE TRIGGER {lod_schema}_trg_storeys_change
     FOR EACH ROW
     WHEN (OLD.number_of_storeys IS DISTINCT FROM NEW.number_of_storeys)
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_floor_area_from_storeys();
+ALTER TABLE {city2tabula_schema}.{lod_schema}_building
+    DISABLE TRIGGER {lod_schema}_trg_storeys_change;
