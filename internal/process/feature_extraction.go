@@ -3,7 +3,6 @@ package process
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -96,10 +95,14 @@ func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 		lodSchema + "_trg_room_height_change",
 		lodSchema + "_trg_storeys_change",
 	}
-	query := fmt.Sprintf(`ALTER TABLE %s ENABLE TRIGGER %s;`, table, strings.Join(triggers, ", "))
 
-	if _, err := pool.Exec(context.Background(), query); err != nil {
-		return fmt.Errorf("failed to enable correction triggers on %s: %w", table, err)
+	// ALTER TABLE ... ENABLE TRIGGER only accepts one trigger name per statement,
+	// unlike a column list — so each trigger needs its own ALTER TABLE call.
+	for _, trigger := range triggers {
+		query := fmt.Sprintf(`ALTER TABLE %s ENABLE TRIGGER %s;`, table, trigger)
+		if _, err := pool.Exec(context.Background(), query); err != nil {
+			return fmt.Errorf("failed to enable trigger %s on %s: %w", trigger, table, err)
+		}
 	}
 	utils.Info.Printf("Correction triggers enabled on %s", table)
 	return nil
