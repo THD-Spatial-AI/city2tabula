@@ -31,11 +31,16 @@
 -- it in the first place — a self-check, not an infinite loop, since it settles
 -- as soon as the recomputed room_height stops changing.
 --
--- A fifth trigger stamps updated_at on every write to a building row, whether
--- it's a direct user correction or one of the derived-column UPDATEs the four
--- triggers above issue as a result. created_at is set once at INSERT (script 04)
--- and never changes, so updated_at > created_at is how to tell a row was ever
--- hand-corrected, and its value is when that last happened.
+-- A fifth trigger stamps updated_at on every write that actually changes the row
+-- (guarded by a WHEN clause, so a no-op UPDATE or an edit to some other column
+-- doesn't count), whether it's a direct user correction or one of the
+-- derived-column UPDATEs the four triggers above issue as a result. created_at is
+-- set once at INSERT (script 04) and never changes, so updated_at > created_at is
+-- how to tell a row was ever hand-corrected. It uses clock_timestamp() rather than
+-- NOW() so the value is the real wall-clock moment of that write — NOW() is fixed
+-- at transaction start, which would give every row touched by one multi-row
+-- transaction (e.g. QGIS's buffered "Save Edits" across a selection) the same
+-- timestamp.
 --
 -- Deliberately out of scope here:
 --   - min_height / max_height: derived from wall/roof surface heights, not
@@ -285,24 +290,45 @@ CREATE TRIGGER {lod_schema}_trg_storeys_change
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_storeys_change;
 
--- Stamps updated_at on any write to a building row. BEFORE UPDATE (not AFTER) so
--- the timestamp lands in the same row version being written, no follow-up UPDATE
--- needed. Fires for a direct user edit and for every cascade UPDATE the four
--- triggers above issue, so updated_at always reflects the most recent change from
--- any source.
-CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_touch_updated_at()
+-- Stamps updated_at on any write to a building row that actually changes it.
+-- BEFORE UPDATE (not AFTER) so the timestamp lands in the same row version being
+-- written, no follow-up UPDATE needed. Fires for a direct user edit and for every
+-- cascade UPDATE the four triggers above issue, so updated_at always reflects the
+-- most recent real change from any source.
+--
+-- Not templated per {lod_schema} like the four functions above: this body has no
+-- schema-specific reference (just NEW.updated_at), so it's defined once under
+-- {city2tabula_schema} and shared by both lod2's and lod3's triggers — the same
+-- pattern sql/functions/01_surface_area_corrected_geom.sql already uses for a
+-- schema-generic function. CREATE OR REPLACE makes re-running this script once per
+-- configured LOD schema harmless (redefines the same function identically).
+CREATE OR REPLACE FUNCTION {city2tabula_schema}.touch_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at := NOW();
+    NEW.updated_at := clock_timestamp();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS {lod_schema}_trg_touch_updated_at
     ON {city2tabula_schema}.{lod_schema}_building;
+-- WHEN diffs the row as jsonb rather than comparing NEW/OLD directly: a bare
+-- IS DISTINCT FROM on a row containing geometry columns resolves PostGIS's `=`
+-- operator per column, which is exactly the search_path-dependent ambiguity
+-- trg_footprint_geom_change's own WHEN clause (above) had to work around with an
+-- explicit public.ST_Equals call. to_jsonb serializes every column via its output
+-- function instead, so it never invokes that operator. Excluding updated_at and
+-- created_at keeps the comparison from being trivially true on its own columns;
+-- diffing generically (not a hardcoded column list) means it stays correct if a
+-- new correctable column is ever added to _building.
 CREATE TRIGGER {lod_schema}_trg_touch_updated_at
     BEFORE UPDATE ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW
-    EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_touch_updated_at();
+    WHEN (
+        (to_jsonb(NEW) - ARRAY['updated_at', 'created_at']::text[])
+        IS DISTINCT FROM
+        (to_jsonb(OLD) - ARRAY['updated_at', 'created_at']::text[])
+    )
+    EXECUTE FUNCTION {city2tabula_schema}.touch_updated_at();
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_touch_updated_at;

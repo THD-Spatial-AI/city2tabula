@@ -98,12 +98,25 @@ func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 	}
 
 	// ALTER TABLE ... ENABLE TRIGGER only accepts one trigger name per statement,
-	// unlike a column list — so each trigger needs its own ALTER TABLE call.
+	// unlike a column list — so each trigger needs its own ALTER TABLE call. All five
+	// are wrapped in one transaction so a concurrent UPDATE against this table either
+	// sees none of them enabled or all of them — never a partial state where, e.g.,
+	// the correction-cascade triggers are live but trg_touch_updated_at isn't yet.
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin trigger-enable transaction on %s: %w", table, err)
+	}
+	defer tx.Rollback(ctx) // no-op once Commit succeeds
+
 	for _, trigger := range triggers {
 		query := fmt.Sprintf(`ALTER TABLE %s ENABLE TRIGGER %s;`, table, trigger)
-		if _, err := pool.Exec(context.Background(), query); err != nil {
+		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("failed to enable trigger %s on %s: %w", trigger, table, err)
 		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit trigger-enable transaction on %s: %w", table, err)
 	}
 	utils.Info.Printf("Correction triggers enabled on %s", table)
 	return nil
