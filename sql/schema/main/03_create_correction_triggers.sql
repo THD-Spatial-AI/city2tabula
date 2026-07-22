@@ -89,10 +89,26 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS {lod_schema}_trg_footprint_geom_change
     ON {city2tabula_schema}.{lod_schema}_building;
+-- Not "OLD.building_footprint_geom IS DISTINCT FROM NEW...": IS DISTINCT FROM on
+-- geometry resolves PostGIS's `=` operator, which only resolves unambiguously
+-- when `public` (wherever the postgis extension lives) is in the session's
+-- search_path. city2tabula's own DB connection has that by default, but a
+-- pg_dump --schema=city2tabula / pg_restore round-trip (e.g. sharing a corrected
+-- dataset, see heat-demand-models/export-data.sh) narrows search_path to just
+-- city2tabula, which makes that operator ambiguous and silently drops this
+-- trigger on restore. public.ST_Equals is schema-qualified and side-steps the
+-- ambiguity regardless of search_path; it also happens to be exact vertex-level
+-- equality rather than the bare `=` operator's bounding-box-only comparison.
 CREATE TRIGGER {lod_schema}_trg_footprint_geom_change
     AFTER UPDATE OF building_footprint_geom ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW
-    WHEN (OLD.building_footprint_geom IS DISTINCT FROM NEW.building_footprint_geom)
+    WHEN (
+        (OLD.building_footprint_geom IS NULL) IS DISTINCT FROM (NEW.building_footprint_geom IS NULL)
+        OR (
+            OLD.building_footprint_geom IS NOT NULL AND NEW.building_footprint_geom IS NOT NULL
+            AND NOT public.ST_Equals(OLD.building_footprint_geom, NEW.building_footprint_geom)
+        )
+    )
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_footprint_derived();
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
