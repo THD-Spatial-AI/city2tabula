@@ -26,8 +26,13 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 			return fmt.Errorf("failed to get LOD%d building IDs: %w", lod, err)
 		}
 
+		ids, err = excludeProcessedBuildingIDs(pool, cfg, schema, ids)
+		if err != nil {
+			return fmt.Errorf("failed to filter already-processed LOD%d building IDs: %w", lod, err)
+		}
+
 		if len(ids) == 0 {
-			utils.Warn.Printf("No LOD%d buildings found in CityDB. Skipping LOD%d feature extraction.", lod, lod)
+			utils.Warn.Printf("No LOD%d buildings to extract (none in CityDB, or all already processed). Skipping LOD%d feature extraction.", lod, lod)
 			continue
 		}
 		utils.Info.Printf("Found %d buildings for LOD%d in CityDB", len(ids), lod)
@@ -82,6 +87,33 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	}
 
 	return nil
+}
+
+// excludeProcessedBuildingIDs drops any building_feature_id already present in
+// {lodSchema}_building from ids, so a repeat -extract-features run doesn't re-run
+// scripts 04-07 against buildings a user may have since hand-corrected — those
+// scripts have no skip-already-processed filter of their own, and re-writing a
+// corrected row would incorrectly mark it as freshly changed (see
+// sql/schema/main/03_create_correction_triggers.sql's trg_touch_updated_at).
+func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSchema string, ids []int64) ([]int64, error) {
+	processed, err := getProcessedBuildingFeatureIDs(pool, cfg.DB.Schemas.City2Tabula, lodSchema)
+	if err != nil {
+		return nil, err
+	}
+	if len(processed) == 0 {
+		return ids, nil
+	}
+
+	remaining := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if !processed[id] {
+			remaining = append(remaining, id)
+		}
+	}
+	if skipped := len(ids) - len(remaining); skipped > 0 {
+		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
+	}
+	return remaining, nil
 }
 
 // enableCorrectionTriggers turns on the five correction triggers for one LOD
