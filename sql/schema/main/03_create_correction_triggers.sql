@@ -31,6 +31,12 @@
 -- it in the first place — a self-check, not an infinite loop, since it settles
 -- as soon as the recomputed room_height stops changing.
 --
+-- A fifth trigger stamps updated_at on every write to a building row, whether
+-- it's a direct user correction or one of the derived-column UPDATEs the four
+-- triggers above issue as a result. created_at is set once at INSERT (script 04)
+-- and never changes, so updated_at > created_at is how to tell a row was ever
+-- hand-corrected, and its value is when that last happened.
+--
 -- Deliberately out of scope here:
 --   - min_height / max_height: derived from wall/roof surface heights, not
 --     something correctable from a footprint, storeys, or room-height edit.
@@ -45,8 +51,12 @@
 -- (scripts 04-07) writes the exact same watched columns these triggers watch, so
 -- if the triggers were enabled during that run, every row would get redundantly
 -- recomputed a second time, correctly but wastefully at 100k+ building scale, plus
--- the extra lock activity across concurrent workers risks deadlock retries.
--- All four triggers are therefore created DISABLED below and stay that way through
+-- the extra lock activity across concurrent workers risks deadlock retries. The
+-- fifth (updated_at) trigger has its own reason to stay off during bulk extraction:
+-- scripts 05-07 each UPDATE every row, so if it were enabled then, updated_at would
+-- already differ from created_at before any real correction ever happened, and the
+-- "has this row been hand-corrected" signal would be worthless.
+-- All five triggers are therefore created DISABLED below and stay that way through
 -- -create-db. RunFeatureExtraction (internal/process/feature_extraction.go) turns
 -- them back on itself, per LOD schema, right after -extract-features finishes —
 -- no manual step needed before making a correction (e.g. in QGIS).
@@ -274,3 +284,25 @@ CREATE TRIGGER {lod_schema}_trg_storeys_change
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_floor_area_from_storeys();
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_storeys_change;
+
+-- Stamps updated_at on any write to a building row. BEFORE UPDATE (not AFTER) so
+-- the timestamp lands in the same row version being written, no follow-up UPDATE
+-- needed. Fires for a direct user edit and for every cascade UPDATE the four
+-- triggers above issue, so updated_at always reflects the most recent change from
+-- any source.
+CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_touch_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS {lod_schema}_trg_touch_updated_at
+    ON {city2tabula_schema}.{lod_schema}_building;
+CREATE TRIGGER {lod_schema}_trg_touch_updated_at
+    BEFORE UPDATE ON {city2tabula_schema}.{lod_schema}_building
+    FOR EACH ROW
+    EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_touch_updated_at();
+ALTER TABLE {city2tabula_schema}.{lod_schema}_building
+    DISABLE TRIGGER {lod_schema}_trg_touch_updated_at;

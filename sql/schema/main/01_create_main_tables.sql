@@ -101,7 +101,13 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   surface_count_roof INTEGER,
   surface_count_wall INTEGER,
   building_centroid_geom GEOMETRY(Point, {srid}),
-  building_footprint_geom GEOMETRY(MultiPolygonZ, {srid})
+  building_footprint_geom GEOMETRY(MultiPolygonZ, {srid}),
+  -- created_at is set once by script 04's INSERT and never touched again.
+  -- updated_at only moves once the correction triggers are enabled (see
+  -- 03_create_correction_triggers.sql); comparing the two tells you both
+  -- whether a row has ever been hand-corrected and when it last happened.
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Resolved surface output. One row per surface after party-wall resolution.

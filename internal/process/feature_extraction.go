@@ -84,9 +84,9 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// enableCorrectionTriggers turns on the four correction triggers for one LOD
+// enableCorrectionTriggers turns on the five correction triggers for one LOD
 // schema's _building table (see sql/schema/main/03_create_correction_triggers.sql
-// for what each one recomputes).
+// for what each one recomputes; trg_touch_updated_at just stamps updated_at).
 func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
 	table := fmt.Sprintf("%s.%s_building", cfg.DB.Schemas.City2Tabula, lodSchema)
 	triggers := []string{
@@ -94,6 +94,7 @@ func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 		lodSchema + "_trg_variant_dims_change",
 		lodSchema + "_trg_room_height_change",
 		lodSchema + "_trg_storeys_change",
+		lodSchema + "_trg_touch_updated_at",
 	}
 
 	// ALTER TABLE ... ENABLE TRIGGER only accepts one trigger name per statement,
