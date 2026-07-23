@@ -132,7 +132,6 @@ Several columns are set to placeholder values that are not yet available at this
 | Column | Initial value | Updated by |
 |--------|--------------|-----------|
 | `construction_year` | 0 | External data (not automated) |
-| `heating_demand` | 0.0 | External energy model |
 | `has_attached_neighbour` | `FALSE` | Not yet implemented |
 | `surface_count_floor` | 0 | Not computed (ground is counted differently) |
 | `area_total_floor` | `= footprint_area` | Script 06 (overwritten) |

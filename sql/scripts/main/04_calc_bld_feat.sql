@@ -24,8 +24,6 @@ aggregated_surfaces AS (
         cfs.building_feature_id,
         MIN(cfs.building_object_id) AS object_id,
         0 as construction_year,
-        0.0 as heating_demand,
-        'kWh/m2a' AS heating_demand_unit,
         -- Rounded to 2 decimals: inputs are already 2-decimal (script 03), but
         -- SUM/addition of several such values can reintroduce float noise past
         -- the 2nd decimal, so every aggregate below is rounded again on the way out.
@@ -89,8 +87,6 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     country_code,
     building_feature_id,
     construction_year,
-    heating_demand,
-    heating_demand_unit,
     footprint_area,
     footprint_complexity,
     roof_complexity,
@@ -122,8 +118,6 @@ SELECT
     '{country_code}'  AS country_code,
     building_feature_id,
     construction_year,
-    heating_demand,
-    heating_demand_unit,
     footprint_area,
     footprint_complexity,
     roof_complexity,
