@@ -68,6 +68,8 @@ python -m venv .venv
 
 ## Testing
 
+![test coverage](https://codecov.io/gh/thd-spatial-ai/city2tabula/graphs/icicle.svg?token=R8I6Y22TRL)
+
 ```bash
 # Unit tests
 go test ./...
