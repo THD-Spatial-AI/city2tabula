@@ -264,14 +264,12 @@ func DropSchemaIfExists(conn *pgxpool.Pool, schemaName string) error {
 
 // ListCityDBSchemas lists all existing CityDB-related schemas (for debugging)
 func ListCityDBSchemas(conn *pgxpool.Pool, config *config.Config) ([]string, error) {
-	query := fmt.Sprintf(
-		`SELECT schema_name
+	query := `SELECT schema_name
         FROM information_schema.schemata
-        WHERE schema_name LIKE '%%citydb%%'
-           OR schema_name = '%s'
-           OR schema_name = '%s'
-        ORDER BY schema_name;`,
-		config.DB.Schemas.Lod2, config.DB.Schemas.Lod3)
+        WHERE schema_name LIKE '%citydb%'
+           OR schema_name = $1
+           OR schema_name = $2
+        ORDER BY schema_name;`
 
 	rows, err := conn.Query(context.Background(), query, config.DB.Schemas.Lod2, config.DB.Schemas.Lod3)
 	if err != nil {

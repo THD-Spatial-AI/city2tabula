@@ -86,7 +86,6 @@ func ConnectPool(config *config.Config) (*pgxpool.Pool, error) {
 
 // create extensions in the *current* DB (the one dsn points to)
 func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Config) error {
-	pool.Exec(ctx, `PostgreSQL version: `) // dummy to ensure connection is alive
 	if _, err := pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS postgis`); err != nil {
 		return fmt.Errorf("failed to enable PostGIS: %w", err)
 	}
