@@ -70,6 +70,8 @@ python -m venv .venv
 
 ![test coverage](https://codecov.io/gh/thd-spatial-ai/city2tabula/graphs/icicle.svg?token=R8I6Y22TRL)
 
+The top section in figure above represents the entire project. Proceeding with folders and finally individual files. The size and color of each slice is representing the number of statements and the coverage, respectively.
+
 ```bash
 # Unit tests
 go test ./...
