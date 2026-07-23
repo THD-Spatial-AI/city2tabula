@@ -173,7 +173,7 @@ func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 // compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
 // avoids scanning the full PyLovo table for every batch.
 func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
-	batches, err := getGridBatches(
+	batches, err := GetGridBatches(
 		pool,
 		cfg.DB.Schemas.City2Tabula,
 		cfg.DB.Schemas.Lod2,
@@ -208,11 +208,12 @@ func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
 	return RunJobQueue(jobQueue, pool, cfg)
 }
 
-// getGridBatches divides LOD2 buildings into spatial batches using a square grid.
+// GetGridBatches divides LOD2 buildings into spatial batches using a square grid.
 // Each returned slice contains the building_feature_ids that fall within one grid cell.
 // Buildings with no footprint geometry or no object_id are excluded.
 // If buildingLimit > 0, at most that many buildings are included in total.
-func getGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
+// Exported so integration tests (package process_test) can drive it directly.
+func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
 	limitClause := ""
 	if buildingLimit > 0 {
 		limitClause = fmt.Sprintf("LIMIT %d", buildingLimit)
