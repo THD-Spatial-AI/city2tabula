@@ -26,7 +26,10 @@ aggregated_surfaces AS (
         0 as construction_year,
         0.0 as heating_demand,
         'kWh/m2a' AS heating_demand_unit,
-        SUM(surface_area) FILTER (WHERE classname = 'GroundSurface') AS footprint_area,
+        -- Rounded to 2 decimals: inputs are already 2-decimal (script 03), but
+        -- SUM/addition of several such values can reintroduce float noise past
+        -- the 2nd decimal, so every aggregate below is rounded again on the way out.
+        ROUND(SUM(surface_area) FILTER (WHERE classname = 'GroundSurface')::numeric, 2) AS footprint_area,
         -- Footprint complexity: vertex count of the merged ground boundary.
         -- ≤ 4 vertices → simple rectangle; 5–10 → regular polygon; > 10 → complex shape.
         CASE
@@ -44,11 +47,11 @@ aggregated_surfaces AS (
         FALSE AS has_attached_neighbour,
         ARRAY[]::INTEGER[] AS attached_neighbour_id,
         0 AS total_attached_neighbour,
-        SUM(CASE WHEN classname = 'RoofSurface' THEN surface_area ELSE 0 END) AS area_total_roof,
+        ROUND(SUM(CASE WHEN classname = 'RoofSurface' THEN surface_area ELSE 0 END)::numeric, 2) AS area_total_roof,
         'sqm' AS area_total_roof_unit,
-        SUM(CASE WHEN classname = 'WallSurface' THEN surface_area ELSE 0 END) AS area_total_wall,
+        ROUND(SUM(CASE WHEN classname = 'WallSurface' THEN surface_area ELSE 0 END)::numeric, 2) AS area_total_wall,
         'sqm' AS area_total_wall_unit,
-        SUM(CASE WHEN classname = 'GroundSurface' THEN surface_area ELSE 0 END) AS area_total_floor,
+        ROUND(SUM(CASE WHEN classname = 'GroundSurface' THEN surface_area ELSE 0 END)::numeric, 2) AS area_total_floor,
         'sqm' AS area_total_floor_unit,
         COUNT(*) FILTER (WHERE classname = 'RoofSurface') AS surface_count_roof,
         COUNT(*) FILTER (WHERE classname = 'WallSurface') AS surface_count_wall,
@@ -57,8 +60,8 @@ aggregated_surfaces AS (
         MAX(height) FILTER (WHERE classname = 'WallSurface') AS min_height,
         'm' AS min_height_unit,
         -- Ridge height: eave height + max vertical span across all roof faces.
-        MAX(height) FILTER (WHERE classname = 'WallSurface') +
-        COALESCE(MAX(height) FILTER (WHERE classname = 'RoofSurface'), 0) AS max_height,
+        ROUND((MAX(height) FILTER (WHERE classname = 'WallSurface') +
+        COALESCE(MAX(height) FILTER (WHERE classname = 'RoofSurface'), 0))::numeric, 2) AS max_height,
         'm' AS max_height_unit,
         2.5 AS room_height,
         'm' AS room_height_unit,
@@ -85,6 +88,9 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     object_id,
     country_code,
     building_feature_id,
+    construction_year,
+    heating_demand,
+    heating_demand_unit,
     footprint_area,
     footprint_complexity,
     roof_complexity,
@@ -115,6 +121,9 @@ SELECT
     object_id,
     '{country_code}'  AS country_code,
     building_feature_id,
+    construction_year,
+    heating_demand,
+    heating_demand_unit,
     footprint_area,
     footprint_complexity,
     roof_complexity,
