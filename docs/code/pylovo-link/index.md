@@ -1,6 +1,6 @@
 # PyLovo Building Link
 
-The PyLovo link step connects 3D building footprints extracted by City2TABULA to the OSM building data held in a [PyLovo2EnerPlanET](https://github.com/enerplanet/pylovo2enerplanet) database. The result is the `city2tabula.building_link` table, which records whether each 3D building has a matching OSM building, which PyLovo table it belongs to (`res` for residential, `oth` for commercial/public), and how confident the spatial match is.
+The PyLovo link step connects 3D building footprints extracted by City2TABULA to the OSM building data held in an [enerplanet-pylovo](https://github.com/enerplanet/enerplanet-pylovo) database. The result is the `city2tabula.building_link` table, which records whether each 3D building has a matching OSM building, which PyLovo table it belongs to (`res` for residential, `oth` for commercial/public), and how confident the spatial match is.
 
 This step is optional. Feature extraction (`-extract-features`) runs independently; linking enriches the output with OSM semantics and is needed only when connecting City2TABULA output to EnerPlanET.
 
@@ -105,4 +105,4 @@ sql/scripts/link/
 A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag — no changes to the existing pipeline.
 
 !!! info "Pre-requisite"
-    `pylovo.res` and `pylovo.oth` must be populated by the [pylovo2enerplanet/datapipeline](https://github.com/enerplanet/pylovo2enerplanet/tree/main/datapipeline) before running `-link-pylovo`. The link step reads from PyLovo but does not modify it.
+    `pylovo.res` and `pylovo.oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`. The link step reads from PyLovo but does not modify it.

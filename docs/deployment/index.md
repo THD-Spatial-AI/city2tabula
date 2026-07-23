@@ -9,7 +9,7 @@ City2TABULA always produces the same core output — enriched building and surfa
 | **Steps run** | citydb-tool import → `-extract-features` | citydb-tool import → `-extract-features` → `-link-pylovo` |
 | **Final output** | `city2tabula.{lod}_building`, `city2tabula.{lod}_surface` | Standalone output, plus `city2tabula.building_link` |
 | **Who queries it** | Your own API, built against the schema directly | Application code joins through `building_link` |
-| **When to use it** | You only need City2TABULA's 3D building/surface data on its own terms | You need buildings that exist in *both* City2TABULA and a [PyLovo2EnerPlanET](https://github.com/enerplanet/pylovo2enerplanet) database — this is EnerPlanET's path |
+| **When to use it** | You only need City2TABULA's 3D building/surface data on its own terms | You need buildings that exist in *both* City2TABULA and an [enerplanet-pylovo](https://github.com/enerplanet/enerplanet-pylovo) database — this is EnerPlanET's path |
 
 ```mermaid
 flowchart TD
@@ -55,4 +55,4 @@ WHERE l.match_type = 1;
 Full detail on the matching algorithm, configuration (`PYLOVO_SCHEMA`, `PYLOVO_LINK_GRID_SIZE`), the `building_link` schema, and match types is in [PyLovo Building Link](../code/pylovo-link/index.md).
 
 !!! info "PyLovo must already have data"
-    `-link-pylovo` reads from `pylovo.res`/`pylovo.oth`; it doesn't populate them. Those tables must already be loaded via [pylovo2enerplanet/datapipeline](https://github.com/enerplanet/pylovo2enerplanet/tree/main/datapipeline) before this step will find any matches.
+    `-link-pylovo` reads from `pylovo.res`/`pylovo.oth`; it doesn't populate them. Those tables must already be loaded via [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before this step will find any matches.

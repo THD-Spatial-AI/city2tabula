@@ -39,7 +39,7 @@ func pylovoLinkFixtureBuildings(t *testing.T, ctx context.Context) (a, b, c stri
 }
 
 // seedPylovoTestTables creates minimal pylovo.res / pylovo.oth tables (normally
-// owned by the external PyLovo2EnerPlanET database, not this repo) under the
+// owned by the external enerplanet-pylovo database, not this repo) under the
 // "public" schema, matching the columns 01_build_pylovo_link.sql reads: osm_id and
 // geom in EPSG:3035 (PyLovo's native CRS, per that script's own comments).
 func seedPylovoTestTables(t *testing.T, ctx context.Context) {
