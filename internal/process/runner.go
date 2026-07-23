@@ -16,13 +16,19 @@ import (
 // Runner handles execution of tasks and jobs
 type Runner struct {
 	config *config.Config
+
+	// runTask defaults to r.runSingleTask; tests override it to inject canned
+	// errors (deadlock, generic, success-after-N) so RunTaskWithRetry's retry/
+	// backoff/exhaustion branches are testable fast, without needing a real
+	// Postgres deadlock or waiting through real retry delays.
+	runTask func(task *Task, conn *pgxpool.Pool, workerID int) error
 }
 
 // NewRunner creates a new runner instance
 func NewRunner(config *config.Config) *Runner {
-	return &Runner{
-		config: config,
-	}
+	r := &Runner{config: config}
+	r.runTask = r.runSingleTask
+	return r
 }
 
 // RunJob executes all tasks in a job in priority order
@@ -49,7 +55,7 @@ func (r *Runner) RunTaskWithRetry(task *Task, conn *pgxpool.Pool, config *config
 	maxRetries := retryConfig.MaxRetries
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		err := r.runSingleTask(task, conn, workerID)
+		err := r.runTask(task, conn, workerID)
 
 		if err == nil {
 			if attempt > 0 {
