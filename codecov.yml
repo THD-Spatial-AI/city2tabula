@@ -1,0 +1,10 @@
+# go.yml uploads coverage twice per commit: the "unit" job runs go test ./...
+# (no build tag) and the "integration" job runs go test -tags integration on the
+# DB-dependent packages. Without this, Codecov posts a status as soon as either
+# upload lands - since the unit job usually finishes first and barely touches
+# DB-dependent code, PRs would briefly show a failing patch-coverage check that
+# flips to passing once the integration job's upload arrives a bit later.
+# after_n_builds waits for both before posting a final status.
+codecov:
+  notify:
+    after_n_builds: 2
