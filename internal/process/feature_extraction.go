@@ -100,8 +100,20 @@ func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSche
 	if err != nil {
 		return nil, err
 	}
+
+	remaining := filterUnprocessedIDs(ids, processed)
+	if skipped := len(ids) - len(remaining); skipped > 0 {
+		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
+	}
+	return remaining, nil
+}
+
+// filterUnprocessedIDs returns the ids not already marked processed, preserving
+// input order. Pulled out of excludeProcessedBuildingIDs so this selection logic
+// is unit-testable without a database connection.
+func filterUnprocessedIDs(ids []int64, processed map[int64]bool) []int64 {
 	if len(processed) == 0 {
-		return ids, nil
+		return ids
 	}
 
 	remaining := make([]int64, 0, len(ids))
@@ -110,10 +122,7 @@ func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSche
 			remaining = append(remaining, id)
 		}
 	}
-	if skipped := len(ids) - len(remaining); skipped > 0 {
-		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
-	}
-	return remaining, nil
+	return remaining
 }
 
 // enableCorrectionTriggers turns on the five correction triggers for one LOD
