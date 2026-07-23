@@ -3,13 +3,42 @@
 package process_test
 
 import (
+	"bytes"
 	"context"
-	"os/exec"
-	"path/filepath"
 	"testing"
 
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
+
+// pgEnv authenticates pg_dump/pg_restore inside the container the same way the test DB
+// itself was configured in TestMain (POSTGRES_USER=test, POSTGRES_PASSWORD=test).
+var pgEnv = []string{"PGPASSWORD=test"}
+
+// execInContainer runs a command inside the running PostGIS container (rather than on the
+// host) so pg_dump/pg_restore always match the server's own version — a host-installed
+// client can be older or newer than the container's Postgres and refuse to run, which is
+// exactly what happened the first time this test ran in CI (client 16.14 vs. server 17.0).
+func execInContainer(t *testing.T, cmd []string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	exitCode, reader, err := testContainer.Exec(ctx, cmd, tcexec.WithEnv(pgEnv))
+	if err != nil {
+		t.Fatalf("failed to exec %v in container: %v", cmd, err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(reader); err != nil {
+		t.Fatalf("failed to read output of %v: %v", cmd, err)
+	}
+	output := buf.String()
+
+	if exitCode != 0 {
+		t.Fatalf("%v exited %d:\n%s", cmd, exitCode, output)
+	}
+	return output
+}
 
 // dumpAndRestoreCity2TabulaSchema replicates the export/import round trip used to share a
 // corrected dataset between machines (heat-demand-models/export-data.sh): pg_dump the
@@ -21,25 +50,23 @@ func dumpAndRestoreCity2TabulaSchema(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
 
-	dumpPath := filepath.Join(t.TempDir(), "city2tabula.dump")
+	const dumpPath = "/tmp/city2tabula.dump"
 
-	dump := exec.Command("pg_dump", "-Fc", "--schema="+config.City2TabulaSchema, testConnStr, "-f", dumpPath)
-	if out, err := dump.CombinedOutput(); err != nil {
-		t.Fatalf("pg_dump failed: %v\noutput:\n%s", err, out)
-	}
+	execInContainer(t, []string{
+		"pg_dump", "-h", "localhost", "-U", "test", "-d", "city2tabula_test",
+		"-Fc", "--schema=" + config.City2TabulaSchema, "-f", dumpPath,
+	})
 
 	if _, err := testPool.Exec(ctx, "DROP SCHEMA "+config.City2TabulaSchema+" CASCADE"); err != nil {
 		t.Fatalf("failed to drop %s schema before restore: %v", config.City2TabulaSchema, err)
 	}
 
-	restore := exec.Command("pg_restore", "-d", testConnStr, dumpPath)
-	out, err := restore.CombinedOutput()
-	// pg_restore exits non-zero on any warning (including the ambiguous-operator error this
+	// pg_restore exits non-zero on any error (including the ambiguous-operator error this
 	// test guards against), so a restore this test relies on failing loudly is the point —
-	// don't swallow it as a soft warning.
-	if err != nil {
-		t.Fatalf("pg_restore reported errors: %v\noutput:\n%s", err, out)
-	}
+	// execInContainer treats that as a hard failure rather than a swallowed warning.
+	execInContainer(t, []string{
+		"pg_restore", "-h", "localhost", "-U", "test", "-d", "city2tabula_test", dumpPath,
+	})
 }
 
 // TestFootprintGeomTrigger_SurvivesDumpRestore guards the bug from work-tasks#19 /

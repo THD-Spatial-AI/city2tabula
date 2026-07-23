@@ -26,6 +26,11 @@ var testPool *pgxpool.Pool
 // testConnStr holds the DSN for psql-based seed execution (COPY FROM stdin requires psql).
 var testConnStr string
 
+// testContainer is the running PostGIS container, exposed so tests that need pg_dump/
+// pg_restore can exec them inside it — guarantees a version match with the server
+// regardless of what (if anything) is installed on the host running `go test`.
+var testContainer testcontainers.Container
+
 func TestMain(m *testing.M) {
 	// SQL script paths in config are relative to the project root.
 	// Tests run from the package directory (internal/process/), so we go up two levels.
@@ -54,6 +59,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to start PostGIS container: %v", err)
 	}
 	defer container.Terminate(ctx)
+	testContainer = container
 
 	host, err := container.Host(ctx)
 	if err != nil {
