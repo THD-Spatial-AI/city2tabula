@@ -76,12 +76,12 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	// same bulk run. Turn them on now that extraction has populated the table, so
 	// manual corrections (e.g. in QGIS) work right away without a separate step.
 	if len(lod2BldIDs) > 0 {
-		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
+		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
 			return err
 		}
 	}
 	if len(lod3BldIDs) > 0 {
-		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
+		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
 			return err
 		}
 	}
@@ -125,10 +125,11 @@ func filterUnprocessedIDs(ids []int64, processed map[int64]bool) []int64 {
 	return remaining
 }
 
-// enableCorrectionTriggers turns on the five correction triggers for one LOD
+// EnableCorrectionTriggers turns on the five correction triggers for one LOD
 // schema's _building table (see sql/schema/main/03_create_correction_triggers.sql
 // for what each one recomputes; trg_touch_updated_at just stamps updated_at).
-func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
+// Exported so integration tests (package process_test) can drive it directly.
+func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
 	table := fmt.Sprintf("%s.%s_building", cfg.DB.Schemas.City2Tabula, lodSchema)
 	triggers := []string{
 		lodSchema + "_trg_footprint_geom_change",
