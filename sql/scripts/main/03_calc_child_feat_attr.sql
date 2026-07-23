@@ -214,14 +214,19 @@ SELECT
     -- (crossing sub-regions cancel). ST_MakeValid decomposes them into valid
     -- sub-polygons so ST_Area sums correctly. Called only for invalid surfaces;
     -- ST_IsValid is CSE'd with the is_valid column below (one evaluation per row).
-    CASE
-      WHEN objectclass_id IN (709, 710, 712)
-        THEN {city2tabula_schema}.surface_area_corrected_geom(valid_geom, nx, ny, nz)
-      ELSE NULL
-    END AS surface_area,
+    -- Rounded to 2 decimals (cm-level for lengths, cm² for areas) at the point of
+    -- computation — matches the ±0.04 m/° accuracy already validated against
+    -- reference data, so further digits are float noise, not real precision.
+    ROUND(
+      (CASE
+        WHEN objectclass_id IN (709, 710, 712)
+          THEN {city2tabula_schema}.surface_area_corrected_geom(valid_geom, nx, ny, nz)
+        ELSE NULL
+      END)::numeric, 2
+    ) AS surface_area,
     'sqm' AS surface_area_unit,
     -- ASIN(|nz|): 0° for vertical wall (nz=0), 90° for flat roof (|nz|=1).
-    DEGREES(ASIN(ABS(nz))) AS tilt,
+    ROUND(DEGREES(ASIN(ABS(nz)))::numeric, 2) AS tilt,
     'degrees' AS tilt_unit,
     -- (450 − atan2(ny, nx)) mod 360 converts math convention (CCW from east)
     -- to compass convention (CW from grid north). Suppressed (−1) when |nz| > 0.985
@@ -229,17 +234,19 @@ SELECT
     -- convergence_deg corrects grid north → geographic north (currently 0°; see Discussion).
     CASE
       WHEN ABS(nz) > 0.985 THEN -1
-      ELSE MOD(
-        MOD((450.0 - degrees(atan2(ny::numeric, nx::numeric)))::numeric + 360.0, 360.0)
-        + convergence_deg::numeric + 360.0,
-        360.0
+      ELSE ROUND(
+        MOD(
+          MOD((450.0 - degrees(atan2(ny::numeric, nx::numeric)))::numeric + 360.0, 360.0)
+          + convergence_deg::numeric + 360.0,
+          360.0
+        ), 2
       )
     END AS azimuth,
     'degrees' AS azimuth_unit,
     ST_IsValid(valid_geom) AS is_valid,
     is_planar,
     child_row_id,
-    (ST_ZMax(valid_geom) - ST_ZMin(valid_geom)) AS height,
+    ROUND((ST_ZMax(valid_geom) - ST_ZMin(valid_geom))::numeric, 2) AS height,
     'm',
     valid_geom AS geom
 FROM convergence_corrected;
