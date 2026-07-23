@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,5 +136,36 @@ func TestInitLogger_CreatesLogFileAndWritesToIt(t *testing.T) {
 	Info.Printf("marker line")
 	if !strings.Contains(buf.String(), "marker line") {
 		t.Error("expected Info logger to still be usable after InitLogger")
+	}
+}
+
+// TestInitLogger_DebugLevelRoutesDebugOutputToStdout covers the other side of
+// InitLogger's currentLogLevel <= LogLevelDebug branch: with LOG_LEVEL=DEBUG,
+// multiDebug must be io.MultiWriter(os.Stdout, logFile), not just the log file.
+// Proven by actually redirecting os.Stdout to a pipe and reading what Debug
+// writes to it - not just executing the line, but checking its real effect.
+func TestInitLogger_DebugLevelRoutesDebugOutputToStdout(t *testing.T) {
+	restoreLoggerState(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("LOG_LEVEL", "DEBUG")
+
+	origStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stdout = w
+	t.Cleanup(func() { os.Stdout = origStdout })
+
+	InitLogger()
+	Debug.Printf("debug-marker")
+	w.Close()
+
+	captured, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("failed to read captured stdout: %v", err)
+	}
+	if !strings.Contains(string(captured), "debug-marker") {
+		t.Errorf("expected DEBUG-level InitLogger to route Debug output to stdout too, got: %q", captured)
 	}
 }
