@@ -8,6 +8,16 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
 
+// TestExecuteSQLScript_NilConfigReturnsError covers the guard clause that
+// short-circuits before touching sqlScript, conn, or cfg.GetSQLParameters —
+// safe to call with a nil conn too, since the nil-cfg check returns first.
+func TestExecuteSQLScript_NilConfigReturnsError(t *testing.T) {
+	err := executeSQLScript("SELECT 1;", nil, nil, 2, nil)
+	if err == nil {
+		t.Fatal("expected an error when cfg is nil, got nil")
+	}
+}
+
 // TestGetSQLParameterMap verifies that getSQLParameterMap correctly converts struct into a map containing key value pair. The key and corresponding value should match the source data.
 //
 // Use case: replaceParameter get the map of SQL parameter registered in config package, allowing it to find the parameter by key and replace it with the corresponding 'param' value.

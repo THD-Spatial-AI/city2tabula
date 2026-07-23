@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -180,5 +181,26 @@ func TestLodSchema(t *testing.T) {
 				t.Errorf("lodSchema(%d) = %q, want %q", tc.lod, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestRunFeatureExtraction_UnsupportedLODReturnsErrorWithoutTouchingDB covers
+// RunFeatureExtraction's own propagation of lodSchema's error: an unsupported
+// LOD level in cfg.CityDB.LODLevels must fail on the very first iteration,
+// before pool is ever dereferenced - safe to pass nil for it here.
+func TestRunFeatureExtraction_UnsupportedLODReturnsErrorWithoutTouchingDB(t *testing.T) {
+	cfg := &config.Config{
+		DB: &config.DBConfig{
+			Schemas: &config.Schemas{Lod2: "lod2", Lod3: "lod3"},
+		},
+		CityDB: &config.CityDB{LODLevels: []int{99}},
+	}
+
+	err := RunFeatureExtraction(cfg, nil)
+	if err == nil {
+		t.Fatal("expected an error for an unsupported LOD level, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported LOD level") {
+		t.Errorf("expected the lodSchema error to propagate unchanged, got: %v", err)
 	}
 }
