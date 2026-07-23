@@ -118,6 +118,10 @@ func testConfig(dbName string) *config.Config {
 				Lod3: "lod3",
 			},
 		},
+		CityDB: &config.CityDB{
+			SRID:    "25832",
+			SRSName: "urn:ogc:def:crs:EPSG::25832",
+		},
 		Batch: &config.BatchConfig{Threads: 2},
 	}
 }

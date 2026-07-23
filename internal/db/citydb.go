@@ -24,6 +24,10 @@ func executeCityDBScript(cfg *config.Config, sqlFilePath, schemaName string) err
 		"-U", cfg.DB.User,
 		"-d", cfg.DB.Name,
 		"-p", cfg.DB.Port,
+		// Without this, psql prints a SQL error to stderr but still exits 0, so the
+		// already-exists/generic-failure branches below never fire - the script
+		// would silently "succeed" up to (and past) the first failing statement.
+		"-v", "ON_ERROR_STOP=1",
 		"-v", fmt.Sprintf("srid=%d", srid),
 		"-v", fmt.Sprintf("srs_name=%s", cfg.CityDB.SRSName),
 		"-f", sqlFilePath,
