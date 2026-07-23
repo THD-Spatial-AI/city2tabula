@@ -76,12 +76,12 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	// same bulk run. Turn them on now that extraction has populated the table, so
 	// manual corrections (e.g. in QGIS) work right away without a separate step.
 	if len(lod2BldIDs) > 0 {
-		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
+		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
 			return err
 		}
 	}
 	if len(lod3BldIDs) > 0 {
-		if err := enableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
+		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
 			return err
 		}
 	}
@@ -100,8 +100,20 @@ func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSche
 	if err != nil {
 		return nil, err
 	}
+
+	remaining := filterUnprocessedIDs(ids, processed)
+	if skipped := len(ids) - len(remaining); skipped > 0 {
+		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
+	}
+	return remaining, nil
+}
+
+// filterUnprocessedIDs returns the ids not already marked processed, preserving
+// input order. Pulled out of excludeProcessedBuildingIDs so this selection logic
+// is unit-testable without a database connection.
+func filterUnprocessedIDs(ids []int64, processed map[int64]bool) []int64 {
 	if len(processed) == 0 {
-		return ids, nil
+		return ids
 	}
 
 	remaining := make([]int64, 0, len(ids))
@@ -110,16 +122,14 @@ func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSche
 			remaining = append(remaining, id)
 		}
 	}
-	if skipped := len(ids) - len(remaining); skipped > 0 {
-		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
-	}
-	return remaining, nil
+	return remaining
 }
 
-// enableCorrectionTriggers turns on the five correction triggers for one LOD
+// EnableCorrectionTriggers turns on the five correction triggers for one LOD
 // schema's _building table (see sql/schema/main/03_create_correction_triggers.sql
 // for what each one recomputes; trg_touch_updated_at just stamps updated_at).
-func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
+// Exported so integration tests (package process_test) can drive it directly.
+func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
 	table := fmt.Sprintf("%s.%s_building", cfg.DB.Schemas.City2Tabula, lodSchema)
 	triggers := []string{
 		lodSchema + "_trg_footprint_geom_change",
@@ -163,7 +173,7 @@ func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 // compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
 // avoids scanning the full PyLovo table for every batch.
 func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
-	batches, err := getGridBatches(
+	batches, err := GetGridBatches(
 		pool,
 		cfg.DB.Schemas.City2Tabula,
 		cfg.DB.Schemas.Lod2,
@@ -198,11 +208,12 @@ func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
 	return RunJobQueue(jobQueue, pool, cfg)
 }
 
-// getGridBatches divides LOD2 buildings into spatial batches using a square grid.
+// GetGridBatches divides LOD2 buildings into spatial batches using a square grid.
 // Each returned slice contains the building_feature_ids that fall within one grid cell.
 // Buildings with no footprint geometry or no object_id are excluded.
 // If buildingLimit > 0, at most that many buildings are included in total.
-func getGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
+// Exported so integration tests (package process_test) can drive it directly.
+func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
 	limitClause := ""
 	if buildingLimit > 0 {
 		limitClause = fmt.Sprintf("LIMIT %d", buildingLimit)

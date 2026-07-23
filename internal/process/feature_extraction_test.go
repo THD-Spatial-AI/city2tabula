@@ -83,6 +83,68 @@ func TestPyLovoLinkJobQueue_WithBatches(t *testing.T) {
 	}
 }
 
+func TestFilterUnprocessedIDs(t *testing.T) {
+	cases := []struct {
+		name      string
+		ids       []int64
+		processed map[int64]bool
+		want      []int64
+	}{
+		{
+			name:      "nil processed map returns ids unchanged",
+			ids:       []int64{1, 2, 3},
+			processed: nil,
+			want:      []int64{1, 2, 3},
+		},
+		{
+			name:      "empty processed map returns ids unchanged",
+			ids:       []int64{1, 2, 3},
+			processed: map[int64]bool{},
+			want:      []int64{1, 2, 3},
+		},
+		{
+			name:      "partial overlap drops only processed ids, preserving order",
+			ids:       []int64{1, 2, 3, 4},
+			processed: map[int64]bool{2: true, 4: true},
+			want:      []int64{1, 3},
+		},
+		{
+			name:      "all ids already processed returns empty, not nil-vs-empty ambiguity",
+			ids:       []int64{1, 2},
+			processed: map[int64]bool{1: true, 2: true},
+			want:      []int64{},
+		},
+		{
+			name:      "no ids returns empty regardless of processed map",
+			ids:       []int64{},
+			processed: map[int64]bool{1: true},
+			want:      []int64{},
+		},
+		{
+			name:      "processed map with unrelated ids changes nothing",
+			ids:       []int64{1, 2, 3},
+			processed: map[int64]bool{99: true},
+			want:      []int64{1, 2, 3},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := filterUnprocessedIDs(tc.ids, tc.processed)
+
+			if len(got) != len(tc.want) {
+				t.Fatalf("filterUnprocessedIDs(%v, %v) = %v, want %v", tc.ids, tc.processed, got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("filterUnprocessedIDs(%v, %v) = %v, want %v", tc.ids, tc.processed, got, tc.want)
+					break
+				}
+			}
+		})
+	}
+}
+
 func TestLodSchema(t *testing.T) {
 	// Given
 	cfg := &config.Config{
