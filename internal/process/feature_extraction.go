@@ -26,8 +26,13 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 			return fmt.Errorf("failed to get LOD%d building IDs: %w", lod, err)
 		}
 
+		ids, err = excludeProcessedBuildingIDs(pool, cfg, schema, ids)
+		if err != nil {
+			return fmt.Errorf("failed to filter already-processed LOD%d building IDs: %w", lod, err)
+		}
+
 		if len(ids) == 0 {
-			utils.Warn.Printf("No LOD%d buildings found in CityDB. Skipping LOD%d feature extraction.", lod, lod)
+			utils.Warn.Printf("No LOD%d buildings to extract (none in CityDB, or all already processed). Skipping LOD%d feature extraction.", lod, lod)
 			continue
 		}
 		utils.Info.Printf("Found %d buildings for LOD%d in CityDB", len(ids), lod)
@@ -84,9 +89,36 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// enableCorrectionTriggers turns on the four correction triggers for one LOD
+// excludeProcessedBuildingIDs drops any building_feature_id already present in
+// {lodSchema}_building from ids, so a repeat -extract-features run doesn't re-run
+// scripts 04-07 against buildings a user may have since hand-corrected — those
+// scripts have no skip-already-processed filter of their own, and re-writing a
+// corrected row would incorrectly mark it as freshly changed (see
+// sql/schema/main/03_create_correction_triggers.sql's trg_touch_updated_at).
+func excludeProcessedBuildingIDs(pool *pgxpool.Pool, cfg *config.Config, lodSchema string, ids []int64) ([]int64, error) {
+	processed, err := getProcessedBuildingFeatureIDs(pool, cfg.DB.Schemas.City2Tabula, lodSchema)
+	if err != nil {
+		return nil, err
+	}
+	if len(processed) == 0 {
+		return ids, nil
+	}
+
+	remaining := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if !processed[id] {
+			remaining = append(remaining, id)
+		}
+	}
+	if skipped := len(ids) - len(remaining); skipped > 0 {
+		utils.Info.Printf("Skipping %d already-processed buildings in %s (already have a %s_building row)", skipped, lodSchema, lodSchema)
+	}
+	return remaining, nil
+}
+
+// enableCorrectionTriggers turns on the five correction triggers for one LOD
 // schema's _building table (see sql/schema/main/03_create_correction_triggers.sql
-// for what each one recomputes).
+// for what each one recomputes; trg_touch_updated_at just stamps updated_at).
 func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema string) error {
 	table := fmt.Sprintf("%s.%s_building", cfg.DB.Schemas.City2Tabula, lodSchema)
 	triggers := []string{
@@ -94,15 +126,29 @@ func enableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 		lodSchema + "_trg_variant_dims_change",
 		lodSchema + "_trg_room_height_change",
 		lodSchema + "_trg_storeys_change",
+		lodSchema + "_trg_touch_updated_at",
 	}
 
 	// ALTER TABLE ... ENABLE TRIGGER only accepts one trigger name per statement,
-	// unlike a column list — so each trigger needs its own ALTER TABLE call.
+	// unlike a column list — so each trigger needs its own ALTER TABLE call. All five
+	// are wrapped in one transaction so a concurrent UPDATE against this table either
+	// sees none of them enabled or all of them — never a partial state where, e.g.,
+	// the correction-cascade triggers are live but trg_touch_updated_at isn't yet.
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin trigger-enable transaction on %s: %w", table, err)
+	}
+	defer tx.Rollback(ctx) // no-op once Commit succeeds
+
 	for _, trigger := range triggers {
 		query := fmt.Sprintf(`ALTER TABLE %s ENABLE TRIGGER %s;`, table, trigger)
-		if _, err := pool.Exec(context.Background(), query); err != nil {
+		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("failed to enable trigger %s on %s: %w", trigger, table, err)
 		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit trigger-enable transaction on %s: %w", table, err)
 	}
 	utils.Info.Printf("Correction triggers enabled on %s", table)
 	return nil
