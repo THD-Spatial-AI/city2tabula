@@ -2,6 +2,7 @@ package importer
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -51,24 +52,10 @@ func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
 }
 
 func ImportCsvWithPsql(filePath string, config *config.Config) error {
-	// Convert to absolute path
-	absPath, err := filepath.Abs(filePath)
+	cmd, err := getCsvImportCommand(filePath, config)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %v", err)
+		return err
 	}
-
-	copyCommand := fmt.Sprintf("\\copy tabula.tabula FROM '%s' DELIMITER ',' CSV HEADER", absPath)
-
-	// Build psql command
-	cmd := exec.Command("psql",
-		"-h", config.DB.Host,
-		"-p", config.DB.Port,
-		"-U", config.DB.User,
-		"-d", config.DB.Name,
-		"-c", copyCommand)
-
-	// Set environment variables for psql
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PGPASSWORD=%s", config.DB.Password))
 
 	// Capture both stdout and stderr for better debugging
 	output, err := cmd.CombinedOutput()
@@ -79,4 +66,29 @@ func ImportCsvWithPsql(filePath string, config *config.Config) error {
 
 	utils.Info.Printf("psql success: %s", string(output))
 	return nil
+}
+
+// getCsvImportCommand builds the psql \copy command that loads filePath into
+// tabula.tabula. Command construction is separated from execution so tests can
+// assert on the resulting *exec.Cmd (args, env) without actually running psql.
+func getCsvImportCommand(filePath string, config *config.Config) (*exec.Cmd, error) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %v", err)
+	}
+
+	copyCommand := fmt.Sprintf("\\copy tabula.tabula FROM '%s' DELIMITER ',' CSV HEADER", absPath)
+
+	cmd := exec.Command("psql",
+		"-h", config.DB.Host,
+		"-p", config.DB.Port,
+		"-U", config.DB.User,
+		"-d", config.DB.Name,
+		"-c", copyCommand)
+
+	// Inherit the current environment (PATH, HOME, locale, ...) rather than
+	// replacing it outright - psql needs more than just PGPASSWORD to run correctly.
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", config.DB.Password))
+
+	return cmd, nil
 }
