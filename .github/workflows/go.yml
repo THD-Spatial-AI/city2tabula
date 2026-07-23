@@ -48,7 +48,7 @@ jobs:
         run: sudo apt-get install -y postgresql-client
 
       - name: Integration Tests
-        run: go test -tags integration -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./internal/process/
+        run: go test -tags integration -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./internal/process/ ./internal/db/ ./internal/importer/
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
