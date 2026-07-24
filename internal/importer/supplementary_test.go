@@ -107,3 +107,41 @@ func TestImportCsvWithPsql_ReturnsErrorOnFailure(t *testing.T) {
 		t.Error("expected error from psql against unreachable host, got nil")
 	}
 }
+
+// unreachableSupplementaryConfig points at both an unreachable Postgres host
+// and a Tabula data dir with no matching CSV - psql fails to even connect
+// before it would notice the missing file, so ImportTabulaData/
+// ImportCsvWithPsql fail for real without needing any database at all.
+func unreachableSupplementaryConfig() *config.Config {
+	return &config.Config{
+		DB: &config.DBConfig{
+			Host: "127.0.0.1", Port: "9999", Name: "nonexistent", User: "nobody", Password: "wrong",
+		},
+		Data:    &config.DataPaths{Tabula: "/nonexistent/"},
+		Country: "germany",
+	}
+}
+
+// TestImportTabulaData_ReturnsWrappedErrorOnFailure covers ImportTabulaData's
+// own error wrap around a real ImportCsvWithPsql failure - ImportTabulaData
+// never touches conn, so nil is safe here.
+func TestImportTabulaData_ReturnsWrappedErrorOnFailure(t *testing.T) {
+	err := ImportTabulaData(nil, unreachableSupplementaryConfig())
+	if err == nil {
+		t.Fatal("expected an error from psql against an unreachable host, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to import Tabula data") {
+		t.Errorf("expected ImportTabulaData's own error wrap, got: %v", err)
+	}
+}
+
+// TestImportSupplementaryData_ReturnsErrorWhenImportTabulaDataFails covers
+// ImportSupplementaryData's passthrough of ImportTabulaData's failure - the
+// failure happens on the very first step, before process.SupplementaryJobQueue
+// or conn are ever touched, so nil is safe here too.
+func TestImportSupplementaryData_ReturnsErrorWhenImportTabulaDataFails(t *testing.T) {
+	err := ImportSupplementaryData(nil, unreachableSupplementaryConfig())
+	if err == nil {
+		t.Fatal("expected ImportSupplementaryData to fail when ImportTabulaData fails, got nil")
+	}
+}
