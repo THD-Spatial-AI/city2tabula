@@ -6,6 +6,7 @@ import (
 	"context"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -100,15 +101,38 @@ func TestRunCity2TabulaDBSetup_Success(t *testing.T) {
 	}
 }
 
-// TestSetupMainDB_LoadSQLScriptsFailurePropagates and its supplementary
-// counterpart drive the LoadSQLScripts error-wrap in each of RunCity2TabulaDBSetup's
-// two internal steps - filesystem-only, no DB touched (the failure happens
-// before any SQL runs).
+// TestRunCity2TabulaDBSetup_LoadSQLScriptsFailurePropagates drives setupMainDB's
+// own "failed to build main DB setup queue" wrap. City2Tabula/Tabula schema
+// names must be non-empty here: CreateSchemas quotes its identifier
+// (`CREATE SCHEMA IF NOT EXISTS ""`is valid SQL), so an empty schema name
+// would let CreateSchemas succeed and this test would - misleadingly - be
+// failing at a different, earlier step than the one it claims to cover.
 func TestRunCity2TabulaDBSetup_LoadSQLScriptsFailurePropagates(t *testing.T) {
-	t.Chdir(t.TempDir())
+	ctx := context.Background()
 	cfg := testConfig("citytabula_dbtest")
+	cfg.DB.Schemas.City2Tabula = "rc2t_loadsql_fail_c2t"
+	cfg.DB.Schemas.Tabula = "rc2t_loadsql_fail_tabula"
+	dropSchemasOnCleanup(t, ctx, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Tabula)
 
-	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err == nil {
-		t.Error("expected RunCity2TabulaDBSetup to propagate a LoadSQLScripts failure, got nil")
+	t.Chdir(t.TempDir())
+
+	err := db.RunCity2TabulaDBSetup(cfg, testPool)
+	if err == nil {
+		t.Fatal("expected RunCity2TabulaDBSetup to propagate a LoadSQLScripts failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to build main DB setup queue") {
+		t.Errorf("expected setupMainDB's own error wrap, got: %v", err)
 	}
 }
+
+// NOTE: setupMainDB's and setupSupplementaryDB's "main/supplementary DB setup
+// failed" wraps (around process.RunJobQueue's error) are currently dead code:
+// RunJobQueue (internal/process/worker.go) always returns nil once its queue
+// is non-empty - Worker.Start logs a failed job via utils.Error.Printf and
+// just `continue`s, never surfacing the error past the WaitGroup. Confirmed
+// empirically: a schema name that breaks the DDL's raw SQL substitution logs
+// real ERROR/WARN lines for every failing task, yet RunCity2TabulaDBSetup
+// still returns nil. See the coverage-push memory/PR description for this
+// finding - it's a real bug affecting every RunJobQueue caller (DB setup,
+// feature extraction, PyLovo link build), not a test gap, and is out of
+// scope to fix as part of this coverage-only change.
