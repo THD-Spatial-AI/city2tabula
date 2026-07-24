@@ -8,7 +8,7 @@ type Flags struct {
 	ResetCityDB     bool
 	ResetC2T        bool
 	ExtractFeatures bool
-	LinkPylovo       bool
+	LinkPylovo      bool
 	ShowVersion     bool
 	ShowV           bool
 }
@@ -112,7 +112,7 @@ type Messages struct {
 	ResetCityDB     ResetCityDBMsg
 	ResetC2T        ResetC2TMsg
 	ExtractFeatures ExtractFeaturesMsg
-	LinkPylovo       LinkPylovoMsg
+	LinkPylovo      LinkPylovoMsg
 }
 
 var AllMessages = Messages{
@@ -121,5 +121,5 @@ var AllMessages = Messages{
 	ResetCityDB:     ResetCityDBMessages,
 	ResetC2T:        ResetC2TMessages,
 	ExtractFeatures: ExtractFeaturesMessages,
-	LinkPylovo:       LinkPylovoMessages,
+	LinkPylovo:      LinkPylovoMessages,
 }
