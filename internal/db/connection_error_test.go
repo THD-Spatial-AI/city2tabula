@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
@@ -43,6 +44,27 @@ func TestConnectPool_PropagatesEnsureDatabaseFailure(t *testing.T) {
 	pool, err := db.ConnectPool(cfg)
 	if err == nil {
 		t.Fatal("expected ConnectPool to fail when EnsureDatabase fails, got nil")
+	}
+	if pool != nil {
+		t.Error("expected a nil pool on failure")
+	}
+}
+
+// TestConnectPool_ParseConfigFailure covers ConnectPool's own "parse pool
+// config failed" wrap: EnsureDatabase succeeds against the real bootstrap
+// DB (real host/port), then a negative Batch.Threads makes the DSN's
+// pool_max_conns=%d segment parse as an invalid (too small) value, failing
+// pgxpool.ParseConfig itself - no unreachable target DB needed.
+func TestConnectPool_ParseConfigFailure(t *testing.T) {
+	cfg := testConfig("connect_pool_parseconfig_test")
+	cfg.Batch.Threads = -1
+
+	pool, err := db.ConnectPool(cfg)
+	if err == nil {
+		t.Fatal("expected a parse pool config error for a negative pool_max_conns, got nil")
+	}
+	if !strings.Contains(err.Error(), "parse pool config failed") {
+		t.Errorf("expected ConnectPool's own error wrap, got: %v", err)
 	}
 	if pool != nil {
 		t.Error("expected a nil pool on failure")
