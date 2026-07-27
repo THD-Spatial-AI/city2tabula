@@ -152,7 +152,7 @@ func TestDockerfile_UsesInjectedEnvNotBakedConfig(t *testing.T) {
 				"CITYDB_SRS_NAME":  "Amersfoort / RD New",
 				"CITYDB_TOOL_PATH": "/usr/local/citydb-tool/citydb-tool-1.1.0",
 			},
-			Cmd: []string{"./city2tabula", "-create-db"},
+			Cmd: []string{"./c2t", "-create-db"},
 		},
 		Started: true,
 	})

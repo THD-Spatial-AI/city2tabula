@@ -138,7 +138,7 @@ MyNewStepMessages = MyNewStepMsg{
 
 ### 6. Wire the flag in main
 
-In `cmd/main.go`, add one block:
+In `cmd/c2t/main.go`, add one block:
 
 ```go
 if f.MyNewStep {
@@ -195,7 +195,7 @@ The PyLovo link step was added following this exact pattern.
 | 3 | Orchestrator | `internal/process/orchestrator.go` | Added `PyLovoLink` JobType and `PyLovoLinkJobQueue()` queue builder. |
 | 4 | Run function | `internal/process/feature_extraction.go` | Added `RunPyLovoLinkBuild()` with spatial grid batching (`getGridBatches`). IoU join requires buildings to be geographically co-located so the bounding box pre-filter stays tight. |
 | 5 | Flag | `internal/flags/flags.go` | Added `-link-pylovo`, named after the data source. A future OGR2OGR source gets its own `-link-ogr2ogr` flag and subdirectory with no changes to existing code. |
-| 6 | Main | `cmd/main.go` | Added `if f.LinkPylovo` block. |
+| 6 | Main | `cmd/c2t/main.go` | Added `if f.LinkPylovo` block. |
 
 ---
 

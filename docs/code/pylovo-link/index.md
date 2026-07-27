@@ -51,7 +51,7 @@ Feature extraction must have run first so that `lod2_building` is populated with
 
 ```bash
 # Run PyLovo link
-./city2tabula -link-pylovo
+./c2t -link-pylovo
 ```
 
 ---

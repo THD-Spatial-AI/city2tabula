@@ -40,7 +40,7 @@ EnerPlanET's grid-model generation needs buildings that exist in **both** City2T
 After `-extract-features`, run the additional link step:
 
 ```bash
-./city2tabula -link-pylovo
+./c2t -link-pylovo
 ```
 
 This populates `city2tabula.building_link` with an IoU spatial match between each City2TABULA building and PyLovo's `res`/`oth` tables. Query it for `match_type = 1` to get buildings confirmed in both databases:
