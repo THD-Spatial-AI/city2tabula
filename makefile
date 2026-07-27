@@ -37,13 +37,13 @@ dev: ## Start development environment with shell
 	cd environment && docker compose --env-file docker.env up -d && docker exec -it city2tabula-environment bash
 
 create-db: up ## Create database and setup schemas
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -create-db
+	cd environment && docker exec -it city2tabula-environment ./c2t -create-db
 
 extract-features: up ## Extract building features
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -extract-features
+	cd environment && docker exec -it city2tabula-environment ./c2t -extract-features
 
 reset-db: up ## Reset the entire database
-	cd environment && docker exec -it city2tabula-environment ./city2tabula -reset-db
+	cd environment && docker exec -it city2tabula-environment ./c2t -reset-db
 
 ##@ Complete Workflows
 configure: ## Interactive configuration: select country and enter password

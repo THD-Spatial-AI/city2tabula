@@ -1,6 +1,6 @@
 # Pipeline Performance
 
-End-to-end runtime and memory benchmarks for the `city2tabula -extract-features` command across three municipality-scale datasets.
+End-to-end runtime and memory benchmarks for the `c2t -extract-features` command across three municipality-scale datasets.
 
 ---
 
@@ -23,7 +23,7 @@ All datasets were fully loaded into 3DCityDB before timing started. No import or
 **Wall time and Go process RSS** — `/usr/bin/time -v`:
 
 ```bash
-/usr/bin/time -v ./city2tabula -extract-features 2>&1 | tee run_<city>.log
+/usr/bin/time -v ./c2t -extract-features 2>&1 | tee run_<city>.log
 ```
 
 **PostgreSQL RSS** — sampled every 500 ms while the pipeline ran:

@@ -154,7 +154,7 @@ Install the versions listed in the prerequisites table above. Unzip the CityDB I
 ### Step 3. Build the binary
 
 ```bash
-go build -o city2tabula ./cmd
+go build -o c2t ./cmd/c2t
 ```
 
 ### Step 4. Configure environment variables
@@ -185,8 +185,8 @@ data/
 ### Step 6. Create the database and run the pipeline
 
 ```bash
-./city2tabula -create-db          # creates CityDB + City2TABULA schemas and imports your data
-./city2tabula -extract-features   # runs the feature extraction pipeline
+./c2t -create-db          # creates CityDB + City2TABULA schemas and imports your data
+./c2t -extract-features   # runs the feature extraction pipeline
 ```
 
-Use `./city2tabula -help` to see all available flags (e.g. `-reset-db`, `-link-pylovo`).
+Use `./c2t -help` to see all available flags (e.g. `-reset-db`, `-link-pylovo`).
