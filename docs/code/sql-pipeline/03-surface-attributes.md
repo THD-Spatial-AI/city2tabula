@@ -222,7 +222,10 @@ With the unit normal `(nx, ny, nz)` available, the attributes are:
 
 ```sql
 -- Tilt: angle of the normal above the horizontal plane
-DEGREES(ASIN(ABS(nz))) AS tilt
+CASE
+  WHEN ABS(nz) > 0.985 THEN 90.0  -- near-horizontal; snapped to flat
+  ELSE DEGREES(ASIN(ABS(nz)))
+END AS tilt
 ```
 
 <figure markdown="span">
@@ -231,7 +234,7 @@ DEGREES(ASIN(ABS(nz))) AS tilt
   <figcaption>Figure 1: Tilt and normal vector components</figcaption>
 </figure>
 
-`nz` is the vertical component of the unit normal. For a vertical wall, `nz = 0`, giving `ASIN(0) = 0°`. For a flat horizontal surface, `|nz| = 1`, giving `ASIN(1) = 90°`.
+`nz` is the vertical component of the unit normal. For a vertical wall, `nz = 0`, giving `ASIN(0) = 0°`. For a flat horizontal surface, `|nz| = 1`, giving `ASIN(1) = 90°`. For `|nz| > 0.985` (tilt > ~80°), `tilt` is snapped to exactly `90°` rather than reporting the raw computed value — the same near-horizontal band where the underlying geometry math is close enough to flat that the residual angle is noise, not signal (see azimuth below, which treats the same band as undefined for the same reason).
 
 ```sql
 -- Azimuth: compass bearing of the horizontal normal component
@@ -276,7 +279,7 @@ The simplest attribute: the difference between the highest and lowest Z coordina
 | Column | Description |
 |--------|------------|
 | `surface_area` | True 3D area of the face (sqm) |
-| `tilt` | Inclination from horizontal (degrees; 0° = wall, 90° = flat roof) |
+| `tilt` | Inclination from horizontal (degrees; 0° = wall, 90° = flat roof — snapped to 90° for `\|nz\| > 0.985`) |
 | `azimuth` | Compass bearing of outward-facing normal (degrees; −1 = undefined) |
 | `is_valid` | `ST_IsValid` result for the polygon |
 | `is_planar` | Whether all vertices lie on a single plane |
