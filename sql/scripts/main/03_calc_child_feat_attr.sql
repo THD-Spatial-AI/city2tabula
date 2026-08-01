@@ -226,7 +226,13 @@ SELECT
     ) AS surface_area,
     'sqm' AS surface_area_unit,
     -- ASIN(|nz|): 0° for vertical wall (nz=0), 90° for flat roof (|nz|=1).
-    ROUND(DEGREES(ASIN(ABS(nz)))::numeric, 2) AS tilt,
+    -- Snapped to 90 (flat) when |nz| > 0.985 — the same near-horizontal band
+    -- where azimuth below is undefined — instead of reporting the raw near-90
+    -- value from that numerically unstable region.
+    CASE
+      WHEN ABS(nz) > 0.985 THEN 90.0
+      ELSE ROUND(DEGREES(ASIN(ABS(nz)))::numeric, 2)
+    END AS tilt,
     'degrees' AS tilt_unit,
     -- (450 − atan2(ny, nx)) mod 360 converts math convention (CCW from east)
     -- to compass convention (CW from grid north). Suppressed (−1) when |nz| > 0.985
