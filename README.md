@@ -1,5 +1,4 @@
 ![city2tabula logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
-
 [![go](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
 &nbsp;
 [![codecov](https://codecov.io/gh/thd-spatial-ai/city2tabula/branch/main/graph/badge.svg)](https://codecov.io/gh/thd-spatial-ai/city2tabula)
