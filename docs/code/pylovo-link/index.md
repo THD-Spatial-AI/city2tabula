@@ -47,7 +47,7 @@ flowchart TD
 
 ## Running the link step
 
-Feature extraction must have run first so that `lod2_building` is populated with footprint geometries.
+[Feature extraction](https://thd-spatial-ai.github.io/city2tabula/installation/setup/) must have run first so that `lod2_building` is populated with footprint geometries.
 
 ```bash
 # Run PyLovo link
