@@ -13,7 +13,7 @@ func LoadBaseConfig() Config {
 	return Config{
 		DB:          loadDBConfig(""),
 		Data:        loadDataPaths(),
-		CityDB:      loadCityDBConfig(),
+		CityDB:      loadCityDBConfig(""),
 		City2Tabula: loadCity2TabulaConfig(),
 		Batch:       loadBatchConfig(),
 		RetryConfig: DefaultRetryConfig(),

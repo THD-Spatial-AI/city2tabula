@@ -40,6 +40,8 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.3.2/citydb-tool-1.3.2.zip -O /tmp/citydb-tool.zip \
     && unzip /tmp/citydb-tool.zip -d /usr/local/citydb-tool \
     && rm /tmp/citydb-tool.zip
+# Known path inside the image — .env/docker.env never needs to set this.
+ENV CITYDB_TOOL_PATH="/usr/local/citydb-tool/citydb-tool-1.3.2"
 
 # -----------------------------
 # Copy and build project (as root)

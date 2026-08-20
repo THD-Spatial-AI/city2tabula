@@ -150,7 +150,7 @@ func TestDockerfile_UsesInjectedEnvNotBakedConfig(t *testing.T) {
 				"DB_SSL_MODE":      "disable",
 				"CITYDB_SRID":      "28992",
 				"CITYDB_SRS_NAME":  "Amersfoort / RD New",
-				"CITYDB_TOOL_PATH": "/usr/local/citydb-tool/citydb-tool-1.1.0",
+				"CITYDB_TOOL_PATH": "/usr/local/citydb-tool/citydb-tool-1.3.2",
 			},
 			Cmd: []string{"./c2t", "-create-db"},
 		},

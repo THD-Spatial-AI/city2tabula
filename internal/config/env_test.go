@@ -112,8 +112,6 @@ func TestConfig_Validate(t *testing.T) {
 		cfg.DB.User = ""
 		cfg.DB.Password = ""
 		cfg.CityDB.ToolPath = ""
-		cfg.CityDB.SRID = ""
-		cfg.CityDB.SRSName = ""
 		cfg.Country = ""
 
 		err := cfg.Validate()
@@ -122,7 +120,7 @@ func TestConfig_Validate(t *testing.T) {
 		}
 		for _, want := range []string{
 			"DB_NAME", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD",
-			"CITYDB_TOOL_PATH", "CITYDB_SRID", "CITYDB_SRS_NAME", "COUNTRY",
+			"CITYDB_TOOL_PATH", "COUNTRY",
 		} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("expected error to mention %q, got: %v", want, err)

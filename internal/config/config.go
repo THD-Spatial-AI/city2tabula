@@ -41,7 +41,7 @@ func LoadConfig() Config {
 		CountryCode: code,
 		DB:          loadDBConfig(code),
 		Data:        loadDataPaths(),
-		CityDB:      loadCityDBConfig(),
+		CityDB:      loadCityDBConfig(country),
 		City2Tabula: loadCity2TabulaConfig(),
 		Batch:       loadBatchConfig(),
 		RetryConfig: DefaultRetryConfig(),
