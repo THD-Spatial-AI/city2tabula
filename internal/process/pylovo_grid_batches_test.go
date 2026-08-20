@@ -110,6 +110,52 @@ func TestGetGridBatches_BuildingLimitCapsTotal(t *testing.T) {
 	}
 }
 
+// TestGetGridBatches_ExcludesAlreadyLinkedBuildings drives the incremental anti-join:
+// a building already present in building_link (matched on object_id + country_code,
+// as -link-pylovo itself keys uniqueness) must not reappear in a later GetGridBatches
+// call, while the rest of the fixture's eligible buildings still do. This is what
+// keeps re-running -link-pylovo after a small on-request import cheap.
+func TestGetGridBatches_ExcludesAlreadyLinkedBuildings(t *testing.T) {
+	cfg, _ := setupCorrectionAuditFixture(t)
+	ctx := context.Background()
+
+	want := eligibleBuildingFeatureIDs(t, ctx)
+	if len(want) < 2 {
+		t.Fatal("fixture needs at least 2 eligible buildings to test exclusion vs retention")
+	}
+
+	var linkedObjectID string
+	var linkedFeatureID int64
+	if err := testPool.QueryRow(ctx, `
+		SELECT object_id, building_feature_id FROM city2tabula.lod2_building
+		WHERE object_id IS NOT NULL AND building_footprint_geom IS NOT NULL
+		ORDER BY object_id LIMIT 1`,
+	).Scan(&linkedObjectID, &linkedFeatureID); err != nil {
+		t.Fatalf("failed to pick a building to pre-link: %v", err)
+	}
+
+	if _, err := testPool.Exec(ctx, `
+		INSERT INTO city2tabula.building_link (object_id, match_type, country_code, srid)
+		VALUES ($1, 2, 'DE', 25832)`,
+		linkedObjectID,
+	); err != nil {
+		t.Fatalf("failed to seed building_link row: %v", err)
+	}
+
+	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0)
+	if err != nil {
+		t.Fatalf("GetGridBatches: %v", err)
+	}
+
+	got := batchUnion(batches)
+	if got[linkedFeatureID] {
+		t.Errorf("expected already-linked building_feature_id %d to be excluded, but it was present", linkedFeatureID)
+	}
+	if len(got) != len(want)-1 {
+		t.Errorf("expected %d buildings (all eligible minus the linked one), got %d", len(want)-1, len(got))
+	}
+}
+
 // TestGetGridBatches_SmallerGridProducesMoreCells is a coarse but real correctness
 // check that gridSizeM actually drives the cell count, not a hardcoded single cell:
 // a much smaller grid over the same fixture must split it into more (non-empty)
