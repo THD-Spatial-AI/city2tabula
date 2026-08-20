@@ -18,7 +18,7 @@ The interactive reference lives in its own standalone page, [`openapi/index.html
 | 4 | `GET /api/v1/buildings` | Building + surface attributes, once data exists. |
 | 5 | `GET /api/v1/geometry` | Footprint geometry, only if something needs to render it. |
 
-`buildings` and `geometry` are separate endpoints on purpose: nothing in a calculation pipeline (e.g. BuEM) needs geometry, only a visualization consumer does, so it isn't fetched unless actually needed.
+`buildings` and `geometry` are separate endpoints on purpose: a calculation consumer doesn't need geometry, only a visualization consumer does, so it isn't fetched unless actually needed.
 
 ## Triggering a run
 
@@ -53,7 +53,7 @@ curl "http://localhost:5000/api/v1/buildings?country=germany&osm_ids=123456,7890
 Each building's `surfaces` array carries per-element area/azimuth/tilt.
 
 !!! warning "Tilt convention"
-    `tilt` here is 0=vertical wall, 90=flat roof — the opposite of common building-energy conventions (e.g. BuEM's 0=horizontal roof, 90=vertical wall). Invert before feeding it to a consumer that expects that convention.
+    `tilt` here is 0=vertical wall, 90=flat roof — the opposite of the common building-energy convention (0=horizontal roof, 90=vertical wall). Invert before feeding it to a consumer that expects that convention.
 
 ## Reading geometry
 

@@ -387,8 +387,8 @@ components:
           type: number
           nullable: true
           description: |
-            Degrees. 0=vertical wall, 90=flat roof — the *opposite* of common
-            building-energy conventions (e.g. BuEM's 0=horizontal roof,
+            Degrees. 0=vertical wall, 90=flat roof — the *opposite* of the
+            common building-energy convention (0=horizontal roof,
             90=vertical wall). Invert before feeding into a consumer that
             expects that convention.
         is_valid:

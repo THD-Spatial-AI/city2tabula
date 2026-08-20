@@ -11,11 +11,10 @@ import (
 )
 
 // Building is one LOD2 building's thematic (non-geometric) 3D attributes,
-// joined to its PyLovo OSM match. Callers (the EnerPlanET backend's BuEM
-// client) map these onto whatever shape BuEM's envelope block actually
-// needs. No geometry here on purpose — nothing in the calculation path
-// needs it; see BuildingGeometryByObjectIDs for that, fetched separately
-// only when something (e.g. a frontend) actually wants to render it.
+// joined to its PyLovo OSM match. No geometry here on purpose — a
+// calculation consumer doesn't need it; see BuildingGeometryByObjectIDs
+// for that, fetched separately only when something (e.g. a frontend)
+// actually wants to render it.
 type Building struct {
 	ObjectID          string    `json:"object_id"`
 	OSMID             string    `json:"osm_id"`
@@ -34,13 +33,12 @@ type Building struct {
 
 // Surface is one envelope surface (wall, roof, or ground) belonging to a
 // Building — the per-element area/azimuth/tilt that Building's own
-// aggregate totals (RoofAreaSqm etc.) don't carry, and that BuEM's
-// envelope.elements needs one entry per surface for. Party walls are
-// already excluded upstream (sql/scripts/main/08_build_surface.sql), so
-// every surface here is exposed building fabric. Type is the raw CityGML
+// aggregate totals (RoofAreaSqm etc.) don't carry. Party walls are already
+// excluded upstream (sql/scripts/main/08_build_surface.sql), so every
+// surface here is exposed building fabric. Type is the raw CityGML
 // classname (WallSurface, RoofSurface, GroundSurface) — callers map this
-// onto whatever vocabulary their target schema expects. IsValid/IsPlanar
-// are not filtered here; callers should check them before trusting
+// onto whatever vocabulary their own schema expects. IsValid/IsPlanar are
+// not filtered here; callers should check them before trusting
 // Area/Azimuth/Tilt, since a degenerate source surface can still produce a
 // row.
 type Surface struct {
@@ -49,8 +47,9 @@ type Surface struct {
 	AreaSqm *float64 `json:"area,omitempty"`
 	// Azimuth is -1 (undefined) for near-horizontal surfaces.
 	Azimuth *float64 `json:"azimuth,omitempty"`
-	// Tilt: 0=vertical wall, 90=flat roof — inverted from BuEM's own
-	// convention (0=horizontal roof, 90=vertical wall); invert before mapping.
+	// Tilt: 0=vertical wall, 90=flat roof — the opposite of the common
+	// building-energy convention (0=horizontal roof, 90=vertical wall);
+	// invert before mapping to a schema that uses that convention.
 	Tilt     *float64 `json:"tilt,omitempty"`
 	IsValid  *bool    `json:"is_valid,omitempty"`
 	IsPlanar *bool    `json:"is_planar,omitempty"`
