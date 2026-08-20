@@ -12,17 +12,42 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Ensure the target database exists by connecting to the bootstrap "postgres" DB
-func EnsureDatabase(cfg *config.Config) error {
-	bootstrapDSN := fmt.Sprintf(
+// bootstrapDSN connects to the "postgres" maintenance DB, used for operations
+// (existence checks, CREATE DATABASE) that can't run against the target DB itself.
+func bootstrapDSN(cfg *config.Config) string {
+	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
 		cfg.DB.Host, cfg.DB.Port, cfg.DB.User, cfg.DB.Password, cfg.DB.SSLMode,
 	)
+}
 
+// DatabaseExists reports whether cfg.DB.Name already exists as a Postgres database.
+// Used by the on-request HTTP server (internal/api) to decide whether a country is
+// being touched for the first time (needs the full CreateCompleteDatabase flow) or
+// already has a database (an incremental ImportAllData is enough).
+func DatabaseExists(cfg *config.Config) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := pgx.Connect(ctx, bootstrapDSN)
+	conn, err := pgx.Connect(ctx, bootstrapDSN(cfg))
+	if err != nil {
+		return false, fmt.Errorf("connect to bootstrap DB failed: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	var exists bool
+	if err := conn.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, cfg.DB.Name).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check database %s exists: %w", cfg.DB.Name, err)
+	}
+	return exists, nil
+}
+
+// Ensure the target database exists by connecting to the bootstrap "postgres" DB
+func EnsureDatabase(cfg *config.Config) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := pgx.Connect(ctx, bootstrapDSN(cfg))
 	if err != nil {
 		return fmt.Errorf("connect to bootstrap DB failed: %w", err)
 	}
