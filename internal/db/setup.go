@@ -20,8 +20,10 @@ type SetupOperation struct {
 	Priority int
 }
 
-// CreateCompleteDatabase creates the complete City2TABULA database with CityDB infrastructure
-func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
+// CreateCompleteDatabase creates the complete City2TABULA database with CityDB
+// infrastructure. bbox/bboxMode are an optional spatial filter for the CityDB
+// import (see ImportCityDBData); pass "" for the existing whole-directory behaviour.
+func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool, bbox, bboxMode string) error {
 
 	// Step 1: Create CityDB infrastructure
 	if err := CreateCityDB(config); err != nil {
@@ -34,7 +36,7 @@ func CreateCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 	}
 
 	// Step 3: Import data
-	if err := ImportAllData(config, conn); err != nil {
+	if err := ImportAllData(config, conn, bbox, bboxMode); err != nil {
 		return fmt.Errorf("failed to import data: %w", err)
 	}
 
@@ -50,7 +52,7 @@ func ResetCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 	}
 
 	// Step 2: Recreate everything
-	if err := CreateCompleteDatabase(config, conn); err != nil {
+	if err := CreateCompleteDatabase(config, conn, "", ""); err != nil {
 		return fmt.Errorf("failed to recreate database: %w", err)
 	}
 
@@ -73,7 +75,7 @@ func ResetCityDBOnly(config *config.Config, conn *pgxpool.Pool) error {
 	}
 
 	// Step 3: Re-import CityDB data only
-	if err := importer.ImportCityDBData(conn, config); err != nil {
+	if err := importer.ImportCityDBData(conn, config, "", ""); err != nil {
 		return fmt.Errorf("failed to import CityDB data: %w", err)
 	}
 
@@ -138,12 +140,14 @@ func setupSupplementaryDB(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
-// ImportAllData imports all data (supplementary + CityDB)
-func ImportAllData(config *config.Config, conn *pgxpool.Pool) error {
+// ImportAllData imports all data (supplementary + CityDB). bbox/bboxMode are
+// an optional spatial filter for the CityDB import (see ImportCityDBData);
+// pass "" for the existing whole-directory behaviour.
+func ImportAllData(config *config.Config, conn *pgxpool.Pool, bbox, bboxMode string) error {
 	if err := importer.ImportSupplementaryData(conn, config); err != nil {
 		return fmt.Errorf("failed to import supplementary data: %w", err)
 	}
-	if err := importer.ImportCityDBData(conn, config); err != nil {
+	if err := importer.ImportCityDBData(conn, config, bbox, bboxMode); err != nil {
 		return fmt.Errorf("failed to import CityDB data: %w", err)
 	}
 	return nil

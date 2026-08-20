@@ -52,7 +52,7 @@ func main() {
 	// Execute commands based on flags
 	if f.CreateDB {
 		utils.Info.Println(flagMessages.CreateDB.Progress)
-		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
+		if err := db.CreateCompleteDatabase(&config, pool, "", ""); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
 				if strings.Contains(config.DB.Host, "docker") {
 					utils.Error.Println(flagMessages.CreateDB.Error)

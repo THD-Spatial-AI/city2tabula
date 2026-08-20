@@ -133,7 +133,7 @@ func TestImportAllData_Success(t *testing.T) {
 	}
 	setupMinimalTabulaTable(t, ctx)
 
-	if err := db.ImportAllData(cfg, testPool); err != nil {
+	if err := db.ImportAllData(cfg, testPool, "", ""); err != nil {
 		t.Fatalf("ImportAllData: %v", err)
 	}
 
@@ -196,7 +196,7 @@ func TestImportAllData_ImportCityDBDataFailure(t *testing.T) {
 	}
 	setupMinimalTabulaTable(t, ctx)
 
-	err := db.ImportAllData(cfg, testPool)
+	err := db.ImportAllData(cfg, testPool, "", "")
 	if err == nil {
 		t.Fatal("expected an error when ImportCityDBData fails, got nil")
 	}

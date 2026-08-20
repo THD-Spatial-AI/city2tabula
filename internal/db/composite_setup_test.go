@@ -58,7 +58,7 @@ func TestCreateCompleteDatabase_CreateCityDBFailure(t *testing.T) {
 	cfg.CityDB.SQLScripts.CreateDB = writeSQLFixture(t, `THIS IS NOT VALID SQL;`)
 	cfg.CityDB.SQLScripts.CreateSchema = writeSQLFixture(t, `CREATE SCHEMA :"schema_name";`)
 
-	err := db.CreateCompleteDatabase(cfg, testPool)
+	err := db.CreateCompleteDatabase(cfg, testPool, "", "")
 	if err == nil {
 		t.Fatal("expected an error when CreateCityDB fails, got nil")
 	}
@@ -79,7 +79,7 @@ func TestCreateCompleteDatabase_RunCity2TabulaDBSetupFailure(t *testing.T) {
 
 	t.Chdir(t.TempDir()) // no sql/ tree here -> LoadSQLScripts fails
 
-	err := db.CreateCompleteDatabase(cfg, testPool)
+	err := db.CreateCompleteDatabase(cfg, testPool, "", "")
 	if err == nil {
 		t.Fatal("expected an error when RunCity2TabulaDBSetup fails, got nil")
 	}
@@ -109,7 +109,7 @@ func TestCreateCompleteDatabase_ImportAllDataFailure(t *testing.T) {
 	cfg.Country = "germany"
 	cfg.Data = &config.DataPaths{Tabula: t.TempDir() + string(filepath.Separator)} // no matching CSV in here
 
-	err := db.CreateCompleteDatabase(cfg, testPool)
+	err := db.CreateCompleteDatabase(cfg, testPool, "", "")
 	if err == nil {
 		t.Fatal("expected an error when ImportAllData fails (no real TABULA CSV), got nil")
 	}
@@ -207,7 +207,7 @@ func TestImportAllData_ImportSupplementaryDataFailure(t *testing.T) {
 	cfg.Country = "germany"
 	cfg.Data = &config.DataPaths{Tabula: t.TempDir() + string(filepath.Separator)}
 
-	err := db.ImportAllData(cfg, testPool)
+	err := db.ImportAllData(cfg, testPool, "", "")
 	if err == nil {
 		t.Fatal("expected an error when ImportSupplementaryData fails (no real TABULA CSV), got nil")
 	}

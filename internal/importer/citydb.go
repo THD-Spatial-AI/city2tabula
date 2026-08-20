@@ -12,8 +12,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ImportCityDBData orchestrates the import of CityDB data into the database
-func ImportCityDBData(conn *pgxpool.Pool, config *config.Config) error {
+// ImportCityDBData orchestrates the import of CityDB data into the database.
+// bbox/bboxMode are an optional spatial filter passed straight through to
+// citydb-tool (xmin,ymin,xmax,ymax[,srid]) — pass "" for the existing
+// whole-directory behaviour.
+func ImportCityDBData(conn *pgxpool.Pool, config *config.Config, bbox, bboxMode string) error {
 
 	// Construct the path to the CityDB executable
 	cityDBExecPath := path.Join(config.CityDB.ToolPath, "citydb")
@@ -30,12 +33,12 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config) error {
 	}
 
 	// Import LOD2 data (both CityGML and CityJSON formats)
-	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod2, config.DB.Schemas.Lod2, "LOD2", config); err != nil {
+	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod2, config.DB.Schemas.Lod2, "LOD2", config, bbox, bboxMode); err != nil {
 		return err
 	}
 
 	// Import LOD3 data (both CityGML and CityJSON formats)
-	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod3, config.DB.Schemas.Lod3, "LOD3", config); err != nil {
+	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod3, config.DB.Schemas.Lod3, "LOD3", config, bbox, bboxMode); err != nil {
 		return err
 	}
 	return nil
@@ -53,7 +56,7 @@ func testCityDBExecPath(cityDBExecPath string) error {
 
 // importCityDBFiles imports CityGML and CityJSON files from a directory into the given schema.
 // If dataPath does not exist the LOD level is skipped with a warning — this makes LOD3 optional.
-func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, config *config.Config) error {
+func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, config *config.Config, bbox, bboxMode string) error {
 	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
 		utils.Warn.Printf("Data path not found for %s: %s — skipping", lodLevel, dataPath)
 		return nil
@@ -68,7 +71,7 @@ func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, conf
 	}
 
 	for _, f := range formats {
-		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, f.cmdFlag, config)
+		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, f.cmdFlag, config, bbox, bboxMode)
 		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", lodLevel, f.label)); err != nil {
 			return err
 		}
@@ -91,8 +94,10 @@ func executeCityDBCommand(cmd *exec.Cmd, description string) error {
 }
 
 // getCityDBImportCommand creates a CityDB import command for the specified format.
+// bbox/bboxMode add citydb-tool's own spatial filter (-b/--bbox-mode) when bbox
+// is non-empty; pass "" to import the whole directory as before.
 // Callers must verify that dataPath exists before calling this function.
-func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, config *config.Config) *exec.Cmd {
+func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, config *config.Config, bbox, bboxMode string) *exec.Cmd {
 	args := []string{
 		"import",
 		"--log-level=debug",
@@ -109,6 +114,10 @@ func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, c
 
 	if config.CityDB.ImportLimit > 0 {
 		args = append(args, fmt.Sprintf("--limit=%d", config.CityDB.ImportLimit))
+	}
+
+	if bbox != "" {
+		args = append(args, fmt.Sprintf("--bbox=%s", bbox), fmt.Sprintf("--bbox-mode=%s", bboxMode))
 	}
 
 	args = append(args, dataPath)

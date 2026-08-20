@@ -11,6 +11,8 @@ type Flags struct {
 	LinkPylovo      bool
 	ShowVersion     bool
 	ShowV           bool
+	Bbox            string
+	BboxMode        string
 }
 
 func ParseFlags() *Flags {
@@ -24,6 +26,8 @@ func ParseFlags() *Flags {
 	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
 	flag.BoolVar(&f.ShowV, "v", false, "print version and exit (shorthand)")
+	flag.StringVar(&f.Bbox, "bbox", "", "Bounding box spatial filter for -import-data, format xmin,ymin,xmax,ymax[,srid] (passed through to citydb-tool)")
+	flag.StringVar(&f.BboxMode, "bbox-mode", "intersects", "Bounding box filter mode for -bbox: intersects, contains, or on_tile")
 	flag.Parse()
 	return f
 }
