@@ -48,13 +48,8 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 }
 
 // ImportTabulaData orchestrates the import of Tabula data into the database.
-// tabula.tabula holds one country's static TABULA reference data, unrelated
-// to any bbox — skip re-importing it if this database's copy already has
-// rows, so a second on-request/-import-data run against an
-// already-provisioned country doesn't fail on a duplicate-key COPY. conn is
-// nil in some unit tests that never reach a real database (see
-// ImportCsvWithPsql's own failure tests); the check is skipped in that case
-// since there is nothing to query.
+// Skips the copy if this database already has rows, since the data is static
+// per country. conn may be nil in tests that never reach a real database.
 func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
 	if conn != nil {
 		exists, err := tabulaDataExists(conn, config)

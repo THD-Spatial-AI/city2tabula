@@ -18,11 +18,8 @@ import (
 )
 
 // deggendorfTile is a small (~3MB) real CityGML tile from Bavaria's open data.
-// Using one real tile (rather than the full data/lod2/germany country directory)
-// keeps this test fast while still exercising the real citydb-tool binary and
-// the --bbox flag against real geometry — the one part of this session's changes
-// no other test touches, since internal/importer's own tests use a fake citydb
-// executable by design (see its comments: "isn't available in the test environment").
+// One tile keeps this test fast while still exercising the real citydb-tool
+// binary and the --bbox flag against real geometry.
 const deggendorfTile = "data/lod2/deggendorf/786_5416.gml"
 
 // skipUnlessRealResourcesAvailable skips the test unless this machine has a real
@@ -141,14 +138,11 @@ func e2eConfig(t *testing.T, host, port, dbName, toolPath string) *config.Config
 }
 
 // TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings drives RunForRegion
-// end to end against a real citydb-tool binary and a real GML tile: bbox-scoped
-// import into an already-provisioned database (the "country touched before, new
-// bbox requested" case — the common path for repeated on-request calls), then
-// extraction and PyLovo linking. A generous WGS84 bbox comfortably covering
-// Bavaria is used since the tile's exact native-CRS extent isn't known up front —
-// the point is proving the --bbox plumbing reaches citydb-tool and a real run
-// completes, not exercising tight bbox filtering (covered by internal/importer's
-// unit tests).
+// end to end against a real citydb-tool binary and GML tile: bbox-scoped import
+// into an already-provisioned database, then extraction and PyLovo linking.
+// The bbox is generous since the tile's exact extent isn't known up front —
+// this proves the --bbox plumbing works, not tight filtering (unit-tested
+// separately in internal/importer).
 func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "DEBUG")
 	utils.InitLogger()

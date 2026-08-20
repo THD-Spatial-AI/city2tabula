@@ -31,11 +31,8 @@ func main() {
 	utils.Error.Fatal(http.ListenAndServe(addr, router.New(h)))
 }
 
-// validateBaseConfig checks the process-wide settings the server needs at
-// startup (DB connection, CityDB tool path) — country-specific settings
-// (COUNTRY, DB_NAME suffix, CITYDB_SRID/SRS_NAME) are resolved per request
-// instead, so config.Config.Validate() (built for the CLI's single-country
-// model) doesn't apply here.
+// validateBaseConfig checks process-wide settings only — country-specific
+// ones are resolved per request, so config.Config.Validate() doesn't apply.
 func validateBaseConfig(cfg config.Config) error {
 	missing := []string{}
 	if strings.TrimSpace(cfg.DB.Host) == "" {

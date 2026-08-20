@@ -36,13 +36,9 @@ func (w *Worker) Start(jobChan <-chan *Job, conn *pgxpool.Pool, wg *sync.WaitGro
 	}
 }
 
-// RunJobQueue drains a JobQueue into a channel and processes it with a pool of workers.
-// Worker count is controlled by cfg.Batch.Threads (defaults to CPU count).
-// See docs/code/job-queue.md for a full explanation of the pipeline. A worker
-// that hits a failed job logs it and moves on to the next one rather than
-// stopping (see Worker.Start), so this still returns an aggregate error if
-// any job failed, instead of reporting success just because every worker
-// eventually drained its channel.
+// RunJobQueue drains a JobQueue into a channel and processes it with a pool of
+// workers (count from cfg.Batch.Threads). Returns an aggregate error if any
+// job failed. See docs/code/job-queue.md for the full pipeline.
 func RunJobQueue(queue *JobQueue, conn *pgxpool.Pool, cfg *config.Config) error {
 	if queue.IsEmpty() {
 		return nil

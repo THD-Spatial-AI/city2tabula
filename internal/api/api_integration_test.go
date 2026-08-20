@@ -23,14 +23,10 @@ import (
 )
 
 // This file tests the HTTP layer (handler/router/server wiring, JSON shapes,
-// query parsing) against directly-seeded data. It deliberately does not drive
-// a real pipeline run through the HTTP /runs endpoint — RunForRegion and
-// CountBuildingLink/BuildingsByOSMIDs themselves are covered end to end,
-// against a real citydb-tool binary, by
-// internal/onrequest's TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings.
-// Server.StartRun's goroutine/status-transition wiring around that call is not
-// yet covered by an automated test — flagged as a known gap, not silently
-// skipped.
+// query parsing) against directly-seeded data; it does not drive a real
+// pipeline run through /runs (see internal/onrequest's
+// TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings for that).
+// Server.StartRun's goroutine/status-transition wiring is not yet covered.
 
 // baseServerConfig builds the process-wide config a server.Server needs, by
 // hand (bypasses config.LoadEnv/.env — see onrequest's e2eConfig for why).
