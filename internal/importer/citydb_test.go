@@ -50,7 +50,7 @@ func TestGetCityDBImportCommand_ArgsStructure(t *testing.T) {
 	cfg := minimalCityDBConfig()
 
 	// When
-	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg)
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "", "")
 
 	// Then: data path is the final argument
 	args := cmd.Args
@@ -64,6 +64,38 @@ func TestGetCityDBImportCommand_ArgsStructure(t *testing.T) {
 			t.Errorf("unexpected --limit flag when ImportLimit=0, args: %v", args)
 		}
 	}
+
+	// Then: no --bbox flag when bbox is empty
+	for _, a := range args {
+		if strings.HasPrefix(a, "--bbox") {
+			t.Errorf("unexpected --bbox flag when bbox=\"\", args: %v", args)
+		}
+	}
+}
+
+func TestGetCityDBImportCommand_WithBbox(t *testing.T) {
+	// Given
+	cfg := minimalCityDBConfig()
+
+	// When
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "11.0,48.0,11.5,48.5,4326", "contains")
+
+	// Then: --bbox and --bbox-mode flags are present
+	var foundBbox, foundMode bool
+	for _, a := range cmd.Args {
+		if a == "--bbox=11.0,48.0,11.5,48.5,4326" {
+			foundBbox = true
+		}
+		if a == "--bbox-mode=contains" {
+			foundMode = true
+		}
+	}
+	if !foundBbox {
+		t.Errorf("expected --bbox flag in args, got %v", cmd.Args)
+	}
+	if !foundMode {
+		t.Errorf("expected --bbox-mode flag in args, got %v", cmd.Args)
+	}
 }
 
 func TestGetCityDBImportCommand_WithImportLimit(t *testing.T) {
@@ -72,7 +104,7 @@ func TestGetCityDBImportCommand_WithImportLimit(t *testing.T) {
 	cfg.CityDB.ImportLimit = 10
 
 	// When
-	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg)
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "", "")
 
 	// Then: --limit flag is present
 	found := false
@@ -101,7 +133,7 @@ func TestGetCityDBImportCommand_FormatAndSchema(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.format, func(t *testing.T) {
 			// When
-			cmd := getCityDBImportCommand("/bin/citydb", "/data", tc.schema, tc.format, cfg)
+			cmd := getCityDBImportCommand("/bin/citydb", "/data", tc.schema, tc.format, cfg, "", "")
 
 			// Then: format and schema appear in args
 			foundFormat, foundSchema := false, false
@@ -128,7 +160,7 @@ func TestImportCityDBFiles_MissingPathReturnsNil(t *testing.T) {
 	cfg := minimalCityDBConfig()
 
 	// When
-	err := importCityDBFiles("/bin/citydb", "/nonexistent/path/xyz", "lod2", "LOD2", cfg)
+	err := importCityDBFiles("/bin/citydb", "/nonexistent/path/xyz", "lod2", "LOD2", cfg, "", "")
 
 	// Then: missing path is treated as optional — skip with no error
 	if err != nil {
@@ -181,7 +213,7 @@ func TestImportCityDBFiles_BothFormatsAttemptedOnSuccess(t *testing.T) {
 	exe := writeFakeExecutable(t, exeDir, 0, logPath)
 	cfg := minimalCityDBConfig()
 
-	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg); err != nil {
+	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg, "", ""); err != nil {
 		t.Fatalf("importCityDBFiles: %v", err)
 	}
 
@@ -206,7 +238,7 @@ func TestImportCityDBFiles_CityGMLFailureShortCircuitsCityJSON(t *testing.T) {
 	exe := writeFakeExecutable(t, exeDir, 1, logPath) // always fails
 	cfg := minimalCityDBConfig()
 
-	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg); err == nil {
+	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg, "", ""); err == nil {
 		t.Fatal("expected an error when the citygml import fails, got nil")
 	}
 
@@ -239,7 +271,7 @@ func TestImportCityDBData_Success(t *testing.T) {
 	cfg.Data = &config.DataPaths{Lod2: lod2Dir, Lod3: lod3Dir}
 	cfg.DB.Schemas = &config.Schemas{Lod2: "lod2", Lod3: "lod3"}
 
-	if err := ImportCityDBData(nil, cfg); err != nil {
+	if err := ImportCityDBData(nil, cfg, "", ""); err != nil {
 		t.Fatalf("ImportCityDBData: %v", err)
 	}
 

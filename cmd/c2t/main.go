@@ -52,7 +52,7 @@ func main() {
 	// Execute commands based on flags
 	if f.CreateDB {
 		utils.Info.Println(flagMessages.CreateDB.Progress)
-		if err := db.CreateCompleteDatabase(&config, pool); err != nil {
+		if err := db.CreateCompleteDatabase(&config, pool, "", ""); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
 				if strings.Contains(config.DB.Host, "docker") {
 					utils.Error.Println(flagMessages.CreateDB.Error)
@@ -82,6 +82,14 @@ func main() {
 			utils.Error.Fatalf(flagMessages.ResetCityDB.Error+": %v", err)
 		}
 		utils.Info.Println(flagMessages.ResetCityDB.Success)
+	}
+
+	if f.ImportData {
+		utils.Info.Println(flagMessages.ImportData.Progress)
+		if err := db.ImportAllData(&config, pool, f.Bbox, f.BboxMode); err != nil {
+			utils.Error.Fatalf(flagMessages.ImportData.Error+": %v", err)
+		}
+		utils.Info.Println(flagMessages.ImportData.Success)
 	}
 
 	if f.ResetC2T {

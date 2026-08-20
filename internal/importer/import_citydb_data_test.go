@@ -40,7 +40,7 @@ func TestImportCityDBData_TestExecPathFailure(t *testing.T) {
 	writeFakeExecutable(t, toolDir, 1, filepath.Join(toolDir, "log.txt")) // fails everything, including -help
 	cfg := cityDBDataConfig(t, toolDir, "/nonexistent/lod2", "/nonexistent/lod3")
 
-	err := ImportCityDBData(nil, cfg)
+	err := ImportCityDBData(nil, cfg, "", "")
 	if err == nil {
 		t.Fatal("expected an error when the CityDB exec path test fails, got nil")
 	}
@@ -52,7 +52,7 @@ func TestImportCityDBData_LOD2ImportFailure(t *testing.T) {
 	lod2Dir := t.TempDir() // exists -> importCityDBFiles won't skip it
 	cfg := cityDBDataConfig(t, toolDir, lod2Dir, "/nonexistent/lod3")
 
-	err := ImportCityDBData(nil, cfg)
+	err := ImportCityDBData(nil, cfg, "", "")
 	if err == nil {
 		t.Fatal("expected an error when the LOD2 import fails, got nil")
 	}
@@ -67,7 +67,7 @@ func TestImportCityDBData_LOD3ImportFailure(t *testing.T) {
 	lod3Dir := t.TempDir()
 	cfg := cityDBDataConfig(t, toolDir, "/nonexistent/lod2", lod3Dir)
 
-	err := ImportCityDBData(nil, cfg)
+	err := ImportCityDBData(nil, cfg, "", "")
 	if err == nil {
 		t.Fatal("expected an error when the LOD3 import fails, got nil")
 	}

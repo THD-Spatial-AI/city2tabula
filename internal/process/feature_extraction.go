@@ -210,7 +210,10 @@ func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
 
 // GetGridBatches divides LOD2 buildings into spatial batches using a square grid.
 // Each returned slice contains the building_feature_ids that fall within one grid cell.
-// Buildings with no footprint geometry or no object_id are excluded.
+// Buildings with no footprint geometry or no object_id are excluded, as are buildings
+// already present in building_link — this is what makes re-running -link-pylovo after
+// a small on-request import cheap: only newly imported buildings get re-batched,
+// mirroring the excludeProcessedBuildingIDs pattern used by feature extraction.
 // If buildingLimit > 0, at most that many buildings are included in total.
 // Exported so integration tests (package process_test) can drive it directly.
 func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
@@ -223,10 +226,13 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 	// Buildings are grouped by grid cell; cells with no buildings are excluded.
 	q := fmt.Sprintf(`
 		WITH all_buildings AS (
-			SELECT building_feature_id, ST_Force2D(building_footprint_geom) AS geom
-			FROM %s.%s_building
-			WHERE building_footprint_geom IS NOT NULL
-			  AND object_id IS NOT NULL
+			SELECT ab.building_feature_id, ST_Force2D(ab.building_footprint_geom) AS geom
+			FROM %s.%s_building ab
+			LEFT JOIN %s.building_link bl
+				ON bl.object_id = ab.object_id AND bl.country_code = ab.country_code
+			WHERE ab.building_footprint_geom IS NOT NULL
+			  AND ab.object_id IS NOT NULL
+			  AND bl.object_id IS NULL
 			%s
 		),
 		extent AS (
@@ -243,7 +249,7 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 		JOIN grid g ON ST_Intersects(b.geom, g.cell)
 		GROUP BY g.cell
 		HAVING count(*) > 0
-	`, c2tSchema, lodSchema, limitClause)
+	`, c2tSchema, lodSchema, c2tSchema, limitClause)
 
 	rows, err := pool.Query(context.Background(), q, gridSizeM)
 	if err != nil {

@@ -66,12 +66,6 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.CityDB.ToolPath) == "" {
 		missing = append(missing, "CITYDB_TOOL_PATH")
 	}
-	if strings.TrimSpace(c.CityDB.SRID) == "" {
-		missing = append(missing, "CITYDB_SRID")
-	}
-	if strings.TrimSpace(c.CityDB.SRSName) == "" {
-		missing = append(missing, "CITYDB_SRS_NAME")
-	}
 	if strings.TrimSpace(c.Country) == "" {
 		missing = append(missing, "COUNTRY")
 	}

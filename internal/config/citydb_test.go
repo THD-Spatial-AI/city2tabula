@@ -13,7 +13,7 @@ func TestLoadCityDBConfig_Defaults(t *testing.T) {
 	t.Setenv("IMPORT_LIMIT", "")
 
 	// When
-	cfg := loadCityDBConfig()
+	cfg := loadCityDBConfig("")
 
 	// Then
 	if cfg.ToolPath != "" {
@@ -27,12 +27,51 @@ func TestLoadCityDBConfig_Defaults(t *testing.T) {
 	}
 }
 
+func TestLoadCityDBConfig_DerivesSRIDFromCountry(t *testing.T) {
+	t.Setenv("CITYDB_SRS_NAME", "")
+	t.Setenv("CITYDB_SRID", "")
+
+	cfg := loadCityDBConfig("germany")
+
+	if cfg.SRID != "25832" {
+		t.Errorf("SRID: got %q, want %q (derived from country)", cfg.SRID, "25832")
+	}
+	if cfg.SRSName != "ETRS89 / UTM zone 32N" {
+		t.Errorf("SRSName: got %q, want the derived value", cfg.SRSName)
+	}
+}
+
+func TestLoadCityDBConfig_ExplicitSRIDOverridesDerivation(t *testing.T) {
+	t.Setenv("CITYDB_SRID", "9999")
+	t.Setenv("CITYDB_SRS_NAME", "Custom CRS")
+
+	cfg := loadCityDBConfig("germany")
+
+	if cfg.SRID != "9999" {
+		t.Errorf("SRID: got %q, want the explicit override %q", cfg.SRID, "9999")
+	}
+	if cfg.SRSName != "Custom CRS" {
+		t.Errorf("SRSName: got %q, want the explicit override", cfg.SRSName)
+	}
+}
+
+func TestLoadCityDBConfig_UnsupportedCountryLeavesSRIDEmpty(t *testing.T) {
+	t.Setenv("CITYDB_SRS_NAME", "")
+	t.Setenv("CITYDB_SRID", "")
+
+	cfg := loadCityDBConfig("narnia")
+
+	if cfg.SRID != "" || cfg.SRSName != "" {
+		t.Errorf("SRID/SRSName: got %q/%q, want both empty for an unsupported country", cfg.SRID, cfg.SRSName)
+	}
+}
+
 func TestLoadCityDBConfig_SQLScriptPaths(t *testing.T) {
 	// Given
 	t.Setenv("CITYDB_TOOL_PATH", "/opt/citydb")
 
 	// When
-	cfg := loadCityDBConfig()
+	cfg := loadCityDBConfig("")
 
 	// Then: script paths are derived from CITYDB_TOOL_PATH
 	base := filepath.Join("/opt/citydb", "3dcitydb", "postgresql", "sql-scripts")
@@ -73,7 +112,7 @@ func TestLoadCityDBConfig_ImportLimit(t *testing.T) {
 			t.Setenv("IMPORT_LIMIT", tc.envVal)
 
 			// When
-			cfg := loadCityDBConfig()
+			cfg := loadCityDBConfig("")
 
 			// Then
 			if cfg.ImportLimit != tc.want {

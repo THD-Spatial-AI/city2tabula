@@ -56,4 +56,6 @@ FROM
     {tabula_schema}.{tabula_table}
 WHERE
     "Code_BuildingVariant" IS NOT NULL
-    AND "Number_BuildingVariant" = 1; -- Only insert the first variant for each building
+    AND "Number_BuildingVariant" = 1 -- Only insert the first variant for each building
+ON CONFLICT (tabula_variant_code_id) DO NOTHING; -- tabula_variant is country-wide static data,
+    -- re-imported unchanged on every incremental -import-data/on-request run

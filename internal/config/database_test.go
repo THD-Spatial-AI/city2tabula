@@ -10,7 +10,7 @@ func TestLoadDBConfig(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "mypass")
 	t.Setenv("DB_SSL_MODE", "require")
 
-	db := loadDBConfig()
+	db := loadDBConfig("")
 
 	if db.Host != "myhost" {
 		t.Errorf("Host = %q, want %q", db.Host, "myhost")
@@ -41,12 +41,36 @@ func TestLoadDBConfig(t *testing.T) {
 	}
 }
 
+func TestLoadDBConfig_CountrySuffix(t *testing.T) {
+	t.Setenv("DB_NAME", "city2tabula")
+
+	db := loadDBConfig("DE")
+
+	if db.Name != "city2tabula_de" {
+		t.Errorf("Name = %q, want %q", db.Name, "city2tabula_de")
+	}
+}
+
+func TestDBNameForCountry(t *testing.T) {
+	cases := []struct{ name, code, want string }{
+		{"city2tabula", "DE", "city2tabula_de"},
+		{"city2tabula", "AT", "city2tabula_at"},
+		{"", "DE", ""},                     // no base name -> no suffix
+		{"city2tabula", "", "city2tabula"}, // unsupported country -> unsuffixed, Validate() catches it
+	}
+	for _, c := range cases {
+		if got := dbNameForCountry(c.name, c.code); got != c.want {
+			t.Errorf("dbNameForCountry(%q, %q) = %q, want %q", c.name, c.code, got, c.want)
+		}
+	}
+}
+
 func TestLoadDBConfig_Defaults(t *testing.T) {
 	for _, key := range []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE"} {
 		t.Setenv(key, "")
 	}
 
-	db := loadDBConfig()
+	db := loadDBConfig("")
 
 	if db.Host != "localhost" {
 		t.Errorf("Host = %q, want default %q", db.Host, "localhost")

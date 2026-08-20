@@ -22,11 +22,20 @@ type CityDB struct {
 	}
 }
 
-// loadCityDBConfig loads CityDB configuration
-func loadCityDBConfig() *CityDB {
+// loadCityDBConfig loads CityDB configuration. country (normalized, e.g.
+// "germany") derives SRID/SRSName from SRIDForCountry when CITYDB_SRID/
+// CITYDB_SRS_NAME aren't set explicitly — country is "" for the process-wide
+// base config (see LoadBaseConfig), which has no SRID to derive yet.
+func loadCityDBConfig(country string) *CityDB {
 	cityDBToolPath := GetEnv("CITYDB_TOOL_PATH", "")
 	cityDBSRSName := GetEnv("CITYDB_SRS_NAME", "")
 	cityDBSRID := GetEnv("CITYDB_SRID", "")
+	if cityDBSRID == "" && cityDBSRSName == "" && country != "" {
+		if srid, srsName, err := SRIDForCountry(country); err == nil {
+			cityDBSRID = srid
+			cityDBSRSName = srsName
+		}
+	}
 	cityDBLODLevels := []int{2, 3}
 
 	importLimit := 0

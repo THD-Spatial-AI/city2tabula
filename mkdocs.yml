@@ -113,6 +113,7 @@ nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
   - Deployment Guide: deployment/index.md
+  - API reference: api.md
   - Data: example/example.md
   - Validation:
     - Results: validation/index.md

@@ -168,9 +168,10 @@ Edit `.env` and set at minimum:
 ```bash
 COUNTRY              # e.g. germany — must match one of the supported TABULA/EPISCOPE countries
 DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME  # your local PostgreSQL instance
-CITYDB_SRID / CITYDB_SRS_NAME  # matching your COUNTRY, see the reference list in .env.example
-CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2
+CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed in Docker — baked into the image)
 ```
+
+CITYDB_SRID/CITYDB_SRS_NAME are derived automatically from COUNTRY — only set them if your country isn't in that lookup table (`internal/config/srid.go`).
 
 ### Step 5. Add your data
 
