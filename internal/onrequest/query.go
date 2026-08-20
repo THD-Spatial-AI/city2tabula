@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
@@ -56,7 +57,38 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 		return nil, fmt.Errorf("failed to query buildings for %s: %w", cfg.Country, err)
 	}
 	defer rows.Close()
+	return scanBuildingRows(rows)
+}
 
+// BuildingsByBBox returns 3D attributes for every LOD2 building in cfg's
+// country whose footprint intersects bbox, independent of whether a PyLovo
+// building_link row exists for it yet. osm_id/match_type are left at their
+// zero value on every returned Building — callers that need the PyLovo
+// match should use BuildingsByOSMIDs instead.
+func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, bbox Bbox) ([]Building, error) {
+	q := fmt.Sprintf(`
+		SELECT
+			b.object_id, '', 0,
+			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
+			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
+			b.tabula_variant_code,
+			COALESCE(ST_AsGeoJSON(ST_Force2D(b.building_footprint_geom)), '')
+		FROM %[1]s.%[2]s_building b
+		WHERE b.country_code = $1
+		  AND b.building_footprint_geom IS NOT NULL
+		  AND ST_Intersects(b.building_footprint_geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
+		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+	)
+
+	rows, err := pool.Query(ctx, q, cfg.CountryCode, bbox.Xmin, bbox.Ymin, bbox.Xmax, bbox.Ymax, cfg.CityDB.SRID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query buildings in bbox for %s: %w", cfg.Country, err)
+	}
+	defer rows.Close()
+	return scanBuildingRows(rows)
+}
+
+func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 	var buildings []Building
 	for rows.Next() {
 		var b Building

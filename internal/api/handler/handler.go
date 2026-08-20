@@ -126,20 +126,17 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"count": count})
 }
 
-// Buildings handles GET /api/v1/buildings?country=..&osm_ids=a,b,c — 3D
-// attributes for already-linked buildings, keyed by PyLovo's osm_id.
+// Buildings handles GET /api/v1/buildings?country=..&osm_ids=a,b,c (3D
+// attributes for already PyLovo-linked buildings, keyed by osm_id) or
+// GET /api/v1/buildings?country=..&xmin=..&ymin=..&xmax=..&ymax=.. (every
+// building in a bbox, independent of PyLovo linkage). osm_ids takes
+// precedence if both are present.
 func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
 		writeError(w, http.StatusBadRequest, "country query param is required")
 		return
 	}
-	osmIDsParam := r.URL.Query().Get("osm_ids")
-	if osmIDsParam == "" {
-		writeError(w, http.StatusBadRequest, "osm_ids query param is required")
-		return
-	}
-	osmIDs := strings.Split(osmIDsParam, ",")
 
 	cfg, pool, err := h.srv.PoolFor(country)
 	if err != nil {
@@ -147,7 +144,15 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buildings, err := onrequest.BuildingsByOSMIDs(r.Context(), pool, cfg, osmIDs)
+	var buildings []onrequest.Building
+	if osmIDsParam := r.URL.Query().Get("osm_ids"); osmIDsParam != "" {
+		buildings, err = onrequest.BuildingsByOSMIDs(r.Context(), pool, cfg, strings.Split(osmIDsParam, ","))
+	} else if bbox, bboxErr := parseBboxParams(r); bboxErr == nil {
+		buildings, err = onrequest.BuildingsByBBox(r.Context(), pool, cfg, bbox)
+	} else {
+		writeError(w, http.StatusBadRequest, "osm_ids or xmin/ymin/xmax/ymax query params are required")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

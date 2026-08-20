@@ -199,6 +199,36 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 		t.Errorf("buildings[0] = %+v, want object_id=%q osm_id=%q", buildings[0], objectID, osmID)
 	}
 
+	// Buildings by bbox: same seeded building, found without any osm_id/PyLovo
+	// link — a fresh region with no building_link rows yet must still be able
+	// to serve envelope data by bbox alone.
+	bboxURL := fmt.Sprintf("%s/api/v1/buildings?country=germany&xmin=%f&ymin=%f&xmax=%f&ymax=%f",
+		ts.URL, xmin, ymin, xmax, ymax)
+	resp4, err := http.Get(bboxURL)
+	if err != nil {
+		t.Fatalf("GET /buildings?bbox: %v", err)
+	}
+	defer resp4.Body.Close()
+	if resp4.StatusCode != http.StatusOK {
+		t.Fatalf("GET /buildings?bbox: status = %d, want 200", resp4.StatusCode)
+	}
+	var buildingsByBBox []struct {
+		ObjectID string `json:"object_id"`
+		OSMID    string `json:"osm_id"`
+	}
+	if err := json.NewDecoder(resp4.Body).Decode(&buildingsByBBox); err != nil {
+		t.Fatalf("decode /buildings?bbox response: %v", err)
+	}
+	if len(buildingsByBBox) != 1 {
+		t.Fatalf("expected exactly 1 building, got %d", len(buildingsByBBox))
+	}
+	if buildingsByBBox[0].ObjectID != objectID {
+		t.Errorf("buildingsByBBox[0].ObjectID = %q, want %q", buildingsByBBox[0].ObjectID, objectID)
+	}
+	if buildingsByBBox[0].OSMID != "" {
+		t.Errorf("buildingsByBBox[0].OSMID = %q, want empty — bbox mode doesn't join building_link", buildingsByBBox[0].OSMID)
+	}
+
 	// RunStatus for an unknown id: 404.
 	resp3, err := http.Get(ts.URL + "/api/v1/runs/does-not-exist")
 	if err != nil {
