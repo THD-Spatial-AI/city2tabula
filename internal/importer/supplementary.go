@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
@@ -27,12 +28,19 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 		return fmt.Errorf("failed to setup DB queue: %w", err)
 	}
 
-	// Supplementary scripts must run in order, so we use a single worker here.
+	// Supplementary scripts must run in order, so we use a single worker here
+	// rather than process.RunJobQueue, which would spawn cfg.Batch.Threads of
+	// them and let scripts run out of order.
 	jobChan := jobQueue.ToChannel()
+	var failures atomic.Int64
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go process.NewWorker(1).Start(jobChan, conn, &wg, config)
+	go process.NewWorker(1).Start(jobChan, conn, &wg, config, &failures)
 	wg.Wait()
+
+	if n := failures.Load(); n > 0 {
+		return fmt.Errorf("%d supplementary script(s) failed, see logs above for details", n)
+	}
 
 	utils.Info.Println("Supplementary data imported successfully")
 	return nil

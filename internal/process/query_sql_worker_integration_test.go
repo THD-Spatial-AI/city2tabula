@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -87,7 +88,9 @@ func TestRunTaskWithRetry_ExecuteSQLScriptFailureIsWrapped(t *testing.T) {
 // TestWorkerStart_ContinuesPastFailedJob covers Worker.Start's error-continue
 // branch: the first job's task fails for real (invalid SQL), the second job's
 // task is real valid SQL that leaves a detectable side effect - proving Start
-// drains the whole channel instead of exiting after the first failure.
+// drains the whole channel instead of exiting after the first failure, while
+// still counting it into failures so RunJobQueue can report the run as failed
+// overall instead of silently succeeding.
 func TestWorkerStart_ContinuesPastFailedJob(t *testing.T) {
 	ctx := context.Background()
 	cfg := pipelineConfig(pipelineTestCase{country: "germany", srid: "25832"})
@@ -120,10 +123,11 @@ func TestWorkerStart_ContinuesPastFailedJob(t *testing.T) {
 	queue.Enqueue(succeedingJob)
 	jobChan := queue.ToChannel()
 
+	var failures atomic.Int64
 	var wg sync.WaitGroup
 	wg.Add(1)
 	worker := process.NewWorker(1)
-	worker.Start(jobChan, testPool, &wg, cfg)
+	worker.Start(jobChan, testPool, &wg, cfg, &failures)
 	wg.Wait() // Start itself calls wg.Done() via defer; Wait just confirms it returned.
 
 	var exists bool
@@ -134,6 +138,9 @@ func TestWorkerStart_ContinuesPastFailedJob(t *testing.T) {
 	}
 	if !exists {
 		t.Error("expected the second job's task to have run despite the first job's failure — Start likely exited early instead of continuing")
+	}
+	if got := failures.Load(); got != 1 {
+		t.Errorf("failures = %d, want 1 — the first job's failure should be counted", got)
 	}
 }
 
