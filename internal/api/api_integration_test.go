@@ -184,6 +184,9 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	var buildings []struct {
 		ObjectID string `json:"object_id"`
 		OSMID    string `json:"osm_id"`
+		Surfaces []struct {
+			Type string `json:"type"`
+		} `json:"surfaces"`
 	}
 	if err := json.NewDecoder(resp2.Body).Decode(&buildings); err != nil {
 		t.Fatalf("decode /buildings response: %v", err)
@@ -193,6 +196,9 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	}
 	if buildings[0].ObjectID != objectID || buildings[0].OSMID != osmID {
 		t.Errorf("buildings[0] = %+v, want object_id=%q osm_id=%q", buildings[0], objectID, osmID)
+	}
+	if len(buildings[0].Surfaces) == 0 {
+		t.Error("expected at least one surface for the seeded building, got none")
 	}
 
 	// Buildings by bbox: same seeded building, found without any osm_id/PyLovo
@@ -223,6 +229,37 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	}
 	if buildingsByBBox[0].OSMID != "" {
 		t.Errorf("buildingsByBBox[0].OSMID = %q, want empty — bbox mode doesn't join building_link", buildingsByBBox[0].OSMID)
+	}
+
+	// Geometry: fetched separately from /buildings, keyed by object_id.
+	geometryURL := fmt.Sprintf("%s/api/v1/geometry?country=germany&object_ids=%s", ts.URL, objectID)
+	resp5, err := http.Get(geometryURL)
+	if err != nil {
+		t.Fatalf("GET /geometry: %v", err)
+	}
+	defer resp5.Body.Close()
+	if resp5.StatusCode != http.StatusOK {
+		t.Fatalf("GET /geometry: status = %d, want 200", resp5.StatusCode)
+	}
+	var geometry []struct {
+		ObjectID         string          `json:"object_id"`
+		FootprintGeoJSON json.RawMessage `json:"footprint_geojson"`
+	}
+	if err := json.NewDecoder(resp5.Body).Decode(&geometry); err != nil {
+		t.Fatalf("decode /geometry response: %v", err)
+	}
+	if len(geometry) != 1 {
+		t.Fatalf("expected exactly 1 geometry row, got %d", len(geometry))
+	}
+	if geometry[0].ObjectID != objectID {
+		t.Errorf("geometry[0].ObjectID = %q, want %q", geometry[0].ObjectID, objectID)
+	}
+	var footprint struct{ Type string `json:"type"` }
+	if err := json.Unmarshal(geometry[0].FootprintGeoJSON, &footprint); err != nil {
+		t.Fatalf("footprint_geojson is not valid nested JSON: %v", err)
+	}
+	if footprint.Type == "" {
+		t.Error("expected footprint_geojson to have a GeoJSON type")
 	}
 
 	// RunStatus for an unknown id: 404.

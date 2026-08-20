@@ -161,6 +161,37 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buildings)
 }
 
+// Geometry handles GET /api/v1/geometry?country=..&object_ids=a,b,c — footprint
+// geometry for the given buildings. Separate from Buildings since nothing in
+// the calculation path needs geometry; fetched only when something (e.g. a
+// frontend) actually wants to render it.
+func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
+	country := r.URL.Query().Get("country")
+	if country == "" {
+		writeError(w, http.StatusBadRequest, "country query param is required")
+		return
+	}
+	objectIDsParam := r.URL.Query().Get("object_ids")
+	if objectIDsParam == "" {
+		writeError(w, http.StatusBadRequest, "object_ids query param is required")
+		return
+	}
+
+	cfg, pool, err := h.srv.PoolFor(country)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(r.Context(), pool, cfg, strings.Split(objectIDsParam, ","))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, geometry)
+}
+
 func parseBboxParams(r *http.Request) (onrequest.Bbox, error) {
 	q := r.URL.Query()
 	vals := make([]float64, 4)
