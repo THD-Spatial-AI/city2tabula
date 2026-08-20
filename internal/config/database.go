@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 // Table name constants
 const (
 	Tabula        = "tabula"
@@ -53,12 +55,13 @@ type DBConfig struct {
 	SQL     *SQLScripts
 }
 
-// loadDBConfig loads database configuration from environment
-func loadDBConfig() *DBConfig {
+// loadDBConfig loads database configuration from environment. countryCode isolates
+// each country's raw 3DCityDB data in its own database (see dbNameForCountry).
+func loadDBConfig(countryCode string) *DBConfig {
 	return &DBConfig{
 		Host:     GetEnv("DB_HOST", "localhost"),
 		Port:     GetEnv("DB_PORT", "5432"),
-		Name:     GetEnv("DB_NAME", ""),
+		Name:     dbNameForCountry(GetEnv("DB_NAME", ""), countryCode),
 		User:     GetEnv("DB_USER", "postgres"),
 		Password: GetEnv("DB_PASSWORD", ""),
 		SSLMode:  GetEnv("DB_SSL_MODE", ""),
@@ -68,6 +71,18 @@ func loadDBConfig() *DBConfig {
 		Schemas: loadSchemas(),
 		SQL:     nil,
 	}
+}
+
+// dbNameForCountry suffixes name with the country's ISO2 code (e.g. "city2tabula_de").
+// 3DCityDB stores one SRS per database, and different countries use different
+// national CRSs, so each country gets its own database rather than sharing one.
+// Falls back to the bare name when name or countryCode is empty, so an unsupported
+// country (caught later by Validate()) never produces a trailing "_".
+func dbNameForCountry(name, countryCode string) string {
+	if name == "" || countryCode == "" {
+		return name
+	}
+	return name + "_" + strings.ToLower(countryCode)
 }
 
 // loadSchemas loads schema configuration

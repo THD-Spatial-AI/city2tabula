@@ -39,7 +39,7 @@ func LoadConfig() Config {
 	return Config{
 		Country:     country,
 		CountryCode: code,
-		DB:          loadDBConfig(),
+		DB:          loadDBConfig(code),
 		Data:        loadDataPaths(),
 		CityDB:      loadCityDBConfig(),
 		City2Tabula: loadCity2TabulaConfig(),
