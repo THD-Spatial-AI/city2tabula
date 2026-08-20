@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -46,8 +47,26 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 	return nil
 }
 
-// ImportTabulaData orchestrates the import of Tabula data into the database
+// ImportTabulaData orchestrates the import of Tabula data into the database.
+// tabula.tabula holds one country's static TABULA reference data, unrelated
+// to any bbox — skip re-importing it if this database's copy already has
+// rows, so a second on-request/-import-data run against an
+// already-provisioned country doesn't fail on a duplicate-key COPY. conn is
+// nil in some unit tests that never reach a real database (see
+// ImportCsvWithPsql's own failure tests); the check is skipped in that case
+// since there is nothing to query.
 func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
+	if conn != nil {
+		exists, err := tabulaDataExists(conn)
+		if err != nil {
+			return fmt.Errorf("failed to check existing tabula data: %w", err)
+		}
+		if exists {
+			utils.Info.Println("Tabula data already imported, skipping")
+			return nil
+		}
+	}
+
 	csvFilePath := config.Data.Tabula + config.Country + ".csv"
 
 	utils.Info.Printf("Importing Tabula data from %s", csvFilePath)
@@ -57,6 +76,14 @@ func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
 	}
 	utils.Info.Printf("Tabula data imported from %s", csvFilePath)
 	return nil
+}
+
+func tabulaDataExists(conn *pgxpool.Pool) (bool, error) {
+	var exists bool
+	if err := conn.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM tabula.tabula)`).Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to query tabula.tabula: %w", err)
+	}
+	return exists, nil
 }
 
 func ImportCsvWithPsql(filePath string, config *config.Config) error {

@@ -207,6 +207,32 @@ func TestImportSupplementaryData_SupplementaryJobQueueFailure(t *testing.T) {
 	}
 }
 
+// TestImportTabulaData_SkipsWhenAlreadyImported covers the fix for a real bug
+// found running the on-request server live: a second -import-data/on-request
+// run against an already-provisioned country database used to fail outright
+// with a duplicate-key error from re-running the CSV \copy. Seeds one row
+// directly (bypassing psql) then points Data.Tabula at a CSV path that would
+// fail if ImportTabulaData actually tried to import it, proving the skip
+// happened rather than merely proving no error occurred.
+func TestImportTabulaData_SkipsWhenAlreadyImported(t *testing.T) {
+	ctx := context.Background()
+	cfg := testConfig()
+	setupMinimalTabulaFixture(t, ctx, cfg)
+	cfg.Country = "germany"
+	cfg.Data = &config.DataPaths{Tabula: "/nonexistent/"}
+
+	if _, err := testPool.Exec(ctx, `
+		INSERT INTO tabula.tabula (id, "Code_BuildingVariant", "Number_BuildingVariant", "Year1_Building", "Year2_Building", "V_C", "A_C_National", "n_Storey", "Code_ComplexFootprint", "Code_AttachedNeighbours", "Code_ComplexRoof", "A_Roof_1", "A_Wall_1", "A_Wall_2", "A_C_ExtDim", "Code_BuildingSizeClass")
+		VALUES (1, 'TEST.VARIANT.001', 1, 1990, 2000, 500.0, 150.0, 3, 'Regular', 'B_Alone', 'Simple', 60.0, 40.0, 40.0, 145.0, 'SFH')`,
+	); err != nil {
+		t.Fatalf("failed to seed tabula.tabula: %v", err)
+	}
+
+	if err := importer.ImportTabulaData(testPool, cfg); err != nil {
+		t.Fatalf("ImportTabulaData: %v — should have skipped the (nonexistent) CSV entirely", err)
+	}
+}
+
 // TestImportSupplementaryData_Success drives the whole function to its real
 // success return: ImportTabulaData imports the minimal fixture CSV for real,
 // then the real sql/scripts/supplementary/01_extract_tabula_attributes.sql
@@ -265,5 +291,39 @@ func TestImportSupplementaryData_Success(t *testing.T) {
 		if c.got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, c.got, c.want)
 		}
+	}
+}
+
+// TestImportSupplementaryData_IdempotentOnSecondRun covers the fix for a real
+// bug found running the on-request server live: a second on-request run for
+// an already-imported country used to fail on 01_extract_tabula_attributes.sql
+// re-inserting the same tabula_variant_code_id. Running the whole function
+// twice against the same database must succeed both times and leave exactly
+// one row, not two.
+func TestImportSupplementaryData_IdempotentOnSecondRun(t *testing.T) {
+	ctx := context.Background()
+	cfg := testConfig()
+	setupMinimalTabulaFixture(t, ctx, cfg)
+
+	dataDir := t.TempDir()
+	writeMinimalTabulaCSV(t, dataDir, "germany")
+	cfg.Data = &config.DataPaths{Tabula: dataDir + string(filepath.Separator)}
+	cfg.Country = "germany"
+
+	if err := importer.ImportSupplementaryData(testPool, cfg); err != nil {
+		t.Fatalf("first ImportSupplementaryData: %v", err)
+	}
+	if err := importer.ImportSupplementaryData(testPool, cfg); err != nil {
+		t.Fatalf("second ImportSupplementaryData: %v", err)
+	}
+
+	var count int
+	if err := testPool.QueryRow(ctx,
+		`SELECT count(*) FROM city2tabula.tabula_variant WHERE tabula_variant_code_id = 1`,
+	).Scan(&count); err != nil {
+		t.Fatalf("failed to count tabula_variant rows: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("tabula_variant row count = %d, want 1 — second run should not have duplicated it", count)
 	}
 }
