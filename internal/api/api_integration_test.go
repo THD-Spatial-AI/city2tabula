@@ -203,7 +203,9 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 
 	// Buildings by bbox: same seeded building, found without any osm_id/PyLovo
 	// link — a fresh region with no building_link rows yet must still be able
-	// to serve envelope data by bbox alone.
+	// to serve envelope data by bbox alone. The fixture is a dense real tile
+	// (259 buildings), so the padded bbox picks up neighbours too — assert
+	// the seeded building is present, not that it's the only result.
 	bboxURL := fmt.Sprintf("%s/api/v1/buildings?country=germany&xmin=%f&ymin=%f&xmax=%f&ymax=%f",
 		ts.URL, xmin, ymin, xmax, ymax)
 	resp4, err := http.Get(bboxURL)
@@ -221,14 +223,24 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if err := json.NewDecoder(resp4.Body).Decode(&buildingsByBBox); err != nil {
 		t.Fatalf("decode /buildings?bbox response: %v", err)
 	}
-	if len(buildingsByBBox) != 1 {
-		t.Fatalf("expected exactly 1 building, got %d", len(buildingsByBBox))
+	if len(buildingsByBBox) == 0 {
+		t.Fatal("expected at least the seeded building, got none")
 	}
-	if buildingsByBBox[0].ObjectID != objectID {
-		t.Errorf("buildingsByBBox[0].ObjectID = %q, want %q", buildingsByBBox[0].ObjectID, objectID)
+	var seeded *struct {
+		ObjectID string `json:"object_id"`
+		OSMID    string `json:"osm_id"`
 	}
-	if buildingsByBBox[0].OSMID != "" {
-		t.Errorf("buildingsByBBox[0].OSMID = %q, want empty — bbox mode doesn't join building_link", buildingsByBBox[0].OSMID)
+	for i := range buildingsByBBox {
+		if buildingsByBBox[i].ObjectID == objectID {
+			seeded = &buildingsByBBox[i]
+			break
+		}
+	}
+	if seeded == nil {
+		t.Fatalf("expected %q among %d bbox results, not found", objectID, len(buildingsByBBox))
+	}
+	if seeded.OSMID != "" {
+		t.Errorf("seeded building's OSMID = %q, want empty — bbox mode doesn't join building_link", seeded.OSMID)
 	}
 
 	// Geometry: fetched separately from /buildings, keyed by object_id.
