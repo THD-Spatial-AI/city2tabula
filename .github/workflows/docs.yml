@@ -33,6 +33,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Lint OpenAPI specification
+        run: npx @redocly/cli lint docs/openapi/openapi.yaml --format=github-actions
+
       - name: Build site
         run: mkdocs build --strict
 

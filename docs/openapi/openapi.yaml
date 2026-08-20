@@ -1,0 +1,410 @@
+openapi: 3.0.3
+
+info:
+  title: City2TABULA API
+  version: 1.0.0
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  description: |
+    City2TABULA extracts 3D building geometry and TABULA/EPISCOPE building-energy
+    attributes from CityGML/CityJSON source data into PostgreSQL/PostGIS. This API
+    triggers extraction on request for a country and bounding box, then serves the
+    result: building attributes, per-surface envelope data, and (separately)
+    footprint geometry.
+
+    ## Workflow
+
+    1. `GET /coverage` — cheap check for whether a bbox already has data.
+    2. `POST /runs` — if not, trigger extraction for that country/bbox. Returns a
+       `run_id` immediately; extraction runs in the background.
+    3. `GET /runs/{id}` — poll until `status` is `completed`, `no_data`, or `failed`.
+    4. `GET /buildings` — read building + surface attributes, once data exists.
+    5. `GET /geometry` — read footprint geometry, only if something needs to render it.
+
+    `buildings` never carries geometry, and `geometry` never carries thematic
+    attributes — they're separate endpoints on purpose, since nothing in a
+    calculation pipeline needs geometry, only a visualization consumer does.
+
+    ## Per-country databases
+
+    Each country's raw 3D data lives in its own database, created on first use.
+    A `country` value must match one of City2TABULA's supported TABULA/EPISCOPE
+    countries (e.g. `germany`, `united_kingdom`) — see `internal/config/srid.go`
+    in the source repository for the full list.
+
+    ## Authentication
+
+    None. This API has no authentication of its own and is not behind a reverse
+    proxy — it is meant to be reachable only from trusted internal callers on the
+    same network. Do not expose it directly to the public internet as-is.
+
+    ## Run tracking
+
+    Run state is held in memory only, not persisted. A server restart loses
+    in-flight run records; the ground truth after a successful run is the
+    `building_link` table itself, so a lost run record just means re-checking
+    `coverage` and re-triggering if still needed.
+
+servers:
+  - url: http://localhost:5000
+    description: Local default (SERVER_PORT env var overrides the port)
+
+# No authentication exists on this API today (see the Authentication section
+# above) — declared explicitly (empty, not omitted) so that stays a documented
+# fact, not something a reader has to infer from its absence.
+security: []
+
+paths:
+  /api/v1/health:
+    get:
+      summary: Liveness check
+      operationId: health
+      responses:
+        "200":
+          description: Server is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/v1/runs:
+    post:
+      summary: Trigger a bbox-scoped extraction run
+      operationId: triggerRun
+      description: |
+        Starts import → extract → link for one country/bbox in the background and
+        returns immediately with a run id to poll via `GET /runs/{id}`. Runs are
+        serialized — only one runs at a time across all countries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunRequest"
+      responses:
+        "202":
+          description: Run accepted and started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "400":
+          description: Missing/invalid country, or an unsupported country
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/runs/{id}:
+    get:
+      summary: Poll a run's status
+      operationId: getRunStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The `run_id` returned by `POST /runs`
+      responses:
+        "200":
+          description: Current run state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: No run with this id (never existed, or the server restarted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/coverage:
+    get:
+      summary: Count already-linked buildings in a bbox
+      operationId: getCoverage
+      description: |
+        Read-only check against `building_link` — a nonzero count means the bbox
+        already has extracted, PyLovo-link-processed data, so triggering a new run
+        is probably unnecessary.
+      parameters:
+        - $ref: "#/components/parameters/Country"
+        - $ref: "#/components/parameters/Xmin"
+        - $ref: "#/components/parameters/Ymin"
+        - $ref: "#/components/parameters/Xmax"
+        - $ref: "#/components/parameters/Ymax"
+      responses:
+        "200":
+          description: Count of already-linked buildings in the bbox
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 42
+        "400":
+          description: Missing/invalid country or bbox parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/buildings:
+    get:
+      summary: Building attributes and envelope surfaces
+      operationId: getBuildings
+      description: |
+        Returns thematic (non-geometric) 3D attributes, with each building's
+        envelope surfaces embedded. Two mutually exclusive query modes —
+        `osm_ids` takes precedence if both are supplied:
+
+        - **By `osm_ids`**: only buildings already matched to a PyLovo building
+          via `building_link` (`osm_id`/`match_type` populated).
+        - **By bbox**: every building whose footprint intersects the bbox,
+          independent of whether a PyLovo link exists yet (`osm_id` empty,
+          `match_type` 0 on every result).
+      parameters:
+        - $ref: "#/components/parameters/Country"
+        - name: osm_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated PyLovo OSM building ids
+          example: "123456,789012"
+        - $ref: "#/components/parameters/Xmin"
+        - $ref: "#/components/parameters/Ymin"
+        - $ref: "#/components/parameters/Xmax"
+        - $ref: "#/components/parameters/Ymax"
+      responses:
+        "200":
+          description: Matching buildings (empty array if none)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Building"
+        "400":
+          description: Missing country, or neither osm_ids nor a full bbox given
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/geometry:
+    get:
+      summary: Building footprint geometry
+      operationId: getGeometry
+      description: |
+        Footprint geometry only, for the given building object ids — fetched
+        separately from `/buildings` since nothing in the calculation path needs
+        it, only a visualization consumer would.
+      parameters:
+        - $ref: "#/components/parameters/Country"
+        - name: object_ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated City2TABULA building object ids
+          example: "DEHB01AL3AU0004T,DEHB01ALf0000SC4"
+      responses:
+        "200":
+          description: Footprint geometry per building (empty array if none matched)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BuildingGeometry"
+        "400":
+          description: Missing country or object_ids
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  parameters:
+    Country:
+      name: country
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Normalized, lowercase country name (e.g. `germany`, `united_kingdom`)
+      example: germany
+    Xmin:
+      name: xmin
+      in: query
+      schema:
+        type: number
+        format: double
+      description: WGS84 (EPSG:4326) bbox minimum longitude
+    Ymin:
+      name: ymin
+      in: query
+      schema:
+        type: number
+        format: double
+      description: WGS84 (EPSG:4326) bbox minimum latitude
+    Xmax:
+      name: xmax
+      in: query
+      schema:
+        type: number
+        format: double
+      description: WGS84 (EPSG:4326) bbox maximum longitude
+    Ymax:
+      name: ymax
+      in: query
+      schema:
+        type: number
+        format: double
+      description: WGS84 (EPSG:4326) bbox maximum latitude
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    RunRequest:
+      type: object
+      required: [country]
+      properties:
+        country:
+          type: string
+          example: germany
+        xmin:
+          type: number
+          format: double
+        ymin:
+          type: number
+          format: double
+        xmax:
+          type: number
+          format: double
+        ymax:
+          type: number
+          format: double
+        bbox_mode:
+          type: string
+          enum: [intersects, contains, on_tile]
+          default: intersects
+          description: citydb-tool's spatial filter mode for the bbox
+
+    Run:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        country:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, no_data, failed]
+          description: |
+            `no_data` means the pipeline ran successfully but found no source data
+            for the requested bbox — distinct from `failed`, a real error.
+        error:
+          type: string
+          description: Present only when status is `failed`
+
+    Building:
+      type: object
+      description: One LOD2 building's thematic 3D attributes, no geometry.
+      properties:
+        object_id:
+          type: string
+        osm_id:
+          type: string
+          description: Empty when this result came from the bbox query mode
+        match_type:
+          type: integer
+          description: 0 when unlinked (bbox mode); PyLovo match type otherwise
+        min_height:
+          type: number
+          nullable: true
+        max_height:
+          type: number
+          nullable: true
+        room_height:
+          type: number
+          nullable: true
+        number_of_storeys:
+          type: integer
+          nullable: true
+        footprint_area:
+          type: number
+          nullable: true
+        area_total_roof:
+          type: number
+          nullable: true
+        area_total_wall:
+          type: number
+          nullable: true
+        area_total_floor:
+          type: number
+          nullable: true
+        tabula_variant_code:
+          type: string
+          nullable: true
+        surfaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/Surface"
+
+    Surface:
+      type: object
+      description: One envelope surface (wall, roof, or ground) of a building.
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          description: Raw CityGML classname
+          enum: [WallSurface, RoofSurface, GroundSurface]
+        area:
+          type: number
+          nullable: true
+        azimuth:
+          type: number
+          nullable: true
+          description: Degrees, compass convention. -1 (undefined) for near-horizontal surfaces.
+        tilt:
+          type: number
+          nullable: true
+          description: |
+            Degrees. 0=vertical wall, 90=flat roof — the *opposite* of common
+            building-energy conventions (e.g. BuEM's 0=horizontal roof,
+            90=vertical wall). Invert before feeding into a consumer that
+            expects that convention.
+        is_valid:
+          type: boolean
+          nullable: true
+          description: Whether the source surface geometry passed validation
+        is_planar:
+          type: boolean
+          nullable: true
+
+    BuildingGeometry:
+      type: object
+      properties:
+        object_id:
+          type: string
+        footprint_geojson:
+          type: object
+          nullable: true
+          description: GeoJSON geometry (MultiPolygon), native SRID (see the building's country)
