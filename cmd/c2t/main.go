@@ -84,6 +84,14 @@ func main() {
 		utils.Info.Println(flagMessages.ResetCityDB.Success)
 	}
 
+	if f.ImportData {
+		utils.Info.Println(flagMessages.ImportData.Progress)
+		if err := db.ImportAllData(&config, pool, f.Bbox, f.BboxMode); err != nil {
+			utils.Error.Fatalf(flagMessages.ImportData.Error+": %v", err)
+		}
+		utils.Info.Println(flagMessages.ImportData.Success)
+	}
+
 	if f.ResetC2T {
 		utils.Info.Println(flagMessages.ResetC2T.Progress)
 		if err := db.ResetCity2TabulaSchemas(&config, pool); err != nil {

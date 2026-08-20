@@ -6,6 +6,7 @@ type Flags struct {
 	CreateDB        bool
 	ResetDB         bool
 	ResetCityDB     bool
+	ImportData      bool
 	ResetC2T        bool
 	ExtractFeatures bool
 	LinkPylovo      bool
@@ -20,7 +21,7 @@ func ParseFlags() *Flags {
 	flag.BoolVar(&f.CreateDB, "create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
 	flag.BoolVar(&f.ResetDB, "reset-db", false, "Reset everything: drop all schemas and recreate the complete database")
 	flag.BoolVar(&f.ResetCityDB, "reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
-	// flag.BoolVar(&f.ImportData, "import-data", false, "Import data into existing CityDB schemas (useful if you want to keep existing City2TABULA schemas and import new 3D city data)")
+	flag.BoolVar(&f.ImportData, "import-data", false, "Import data into existing CityDB schemas (useful if you want to keep existing City2TABULA schemas and import new 3D city data)")
 	flag.BoolVar(&f.ResetC2T, "reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline")
 	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
@@ -107,6 +108,11 @@ var (
 		Success:  "OSM link table built successfully",
 		Error:    "Failed to build OSM link table",
 	}
+	ImportDataMessages = ImportDataMsg{
+		Progress: "Importing data into existing CityDB schemas...",
+		Success:  "Data imported successfully",
+		Error:    "Failed to import data",
+	}
 )
 
 // Define a struct to hold all messages for easy access
@@ -117,6 +123,7 @@ type Messages struct {
 	ResetC2T        ResetC2TMsg
 	ExtractFeatures ExtractFeaturesMsg
 	LinkPylovo      LinkPylovoMsg
+	ImportData      ImportDataMsg
 }
 
 var AllMessages = Messages{
@@ -126,4 +133,5 @@ var AllMessages = Messages{
 	ResetC2T:        ResetC2TMessages,
 	ExtractFeatures: ExtractFeaturesMessages,
 	LinkPylovo:      LinkPylovoMessages,
+	ImportData:      ImportDataMessages,
 }
