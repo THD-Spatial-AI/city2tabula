@@ -57,7 +57,7 @@ func ImportSupplementaryData(conn *pgxpool.Pool, config *config.Config) error {
 // since there is nothing to query.
 func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
 	if conn != nil {
-		exists, err := tabulaDataExists(conn)
+		exists, err := tabulaDataExists(conn, config)
 		if err != nil {
 			return fmt.Errorf("failed to check existing tabula data: %w", err)
 		}
@@ -78,10 +78,11 @@ func ImportTabulaData(conn *pgxpool.Pool, config *config.Config) error {
 	return nil
 }
 
-func tabulaDataExists(conn *pgxpool.Pool) (bool, error) {
+func tabulaDataExists(conn *pgxpool.Pool, config *config.Config) (bool, error) {
+	table := fmt.Sprintf("%s.%s", config.DB.Schemas.Tabula, config.DB.Tables.Tabula)
 	var exists bool
-	if err := conn.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM tabula.tabula)`).Scan(&exists); err != nil {
-		return false, fmt.Errorf("failed to query tabula.tabula: %w", err)
+	if err := conn.QueryRow(context.Background(), fmt.Sprintf(`SELECT EXISTS (SELECT 1 FROM %s)`, table)).Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to query %s: %w", table, err)
 	}
 	return exists, nil
 }
