@@ -173,6 +173,8 @@ CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed
 
 CITYDB_SRID/CITYDB_SRS_NAME are derived automatically from COUNTRY — only set them if your country isn't in that lookup table (`internal/config/srid.go`).
 
+`DB_NAME` is a base name. The tool appends the country's ISO 3166-1 alpha-2 code (`DB_NAME=city2tabula` + `COUNTRY=netherlands` → `city2tabula_nl`) and creates the database if it is absent. Point it at an existing database by giving that database the suffixed name.
+
 ### Step 5. Add your data
 
 Place your 3D city data file(s) under `data/`, following the same layout as the Docker setup:
