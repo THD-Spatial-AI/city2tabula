@@ -165,6 +165,7 @@ func resetSchemas(t *testing.T) {
 			TRUNCATE city2tabula.lod2_building         CASCADE;
 			TRUNCATE city2tabula.lod2_child_feature            CASCADE;
 			TRUNCATE city2tabula.lod2_surface_raw    CASCADE;
+			TRUNCATE city2tabula.lod2_surface                  CASCADE;
 			TRUNCATE city2tabula.lod2_child_feature_geom_dump  CASCADE;
 			TRUNCATE city2tabula.tabula_variant                CASCADE;
 		EXCEPTION WHEN undefined_table OR invalid_schema_name THEN
@@ -270,6 +271,25 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 	}
 	if surfaceLinkCount == 0 {
 		t.Error("script 08 failed: lod2_surface is empty, expected surface rows")
+	}
+
+	// Regression (#121): script 08 must carry every polygon face through, not
+	// collapse a multi-face surface feature (a 3DBAG WallSurface is one feature
+	// covering all of a building's walls) to one row. On a fresh DB, with no
+	// party-wall detection wired in, lod2_surface should hold exactly the raw
+	// faces that pass script 08's filters.
+	var rawEligible, resolved int
+	if err := testPool.QueryRow(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM city2tabula.lod2_surface_raw
+			 WHERE building_object_id IS NOT NULL AND surface_object_id IS NOT NULL
+			   AND (is_party_wall IS NULL OR is_party_wall = FALSE)),
+			(SELECT COUNT(*) FROM city2tabula.lod2_surface)
+	`).Scan(&rawEligible, &resolved); err != nil {
+		t.Fatalf("failed to compare raw vs resolved surface counts: %v", err)
+	}
+	if resolved != rawEligible {
+		t.Errorf("script 08 dropped faces: lod2_surface has %d rows, expected %d (all eligible raw faces)", resolved, rawEligible)
 	}
 
 	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links, %d surfaces with objectids",

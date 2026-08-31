@@ -17,7 +17,7 @@ Given a batch of building IDs, the pipeline:
 5. Approximates building volume from height × footprint area.
 6. Refines the storey count and total floor area.
 7. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
-8. Builds the resolved surface output table, excluding party-wall surfaces.
+8. Writes the resolved surface table: one row per polygon face, party-wall surfaces excluded.
 
 ---
 
@@ -33,7 +33,7 @@ flowchart TD
     F -->|script 06| G["_building<br>Storeys + floor area refined"]
     G -->|script 07| H["_building<br>TABULA variant code assigned"]
     I[("tabula.tabula_variant<br>(reference archetypes)")] -->|script 07| H
-    D -->|script 08| J["_surface<br>Resolved surface output<br>geometry + attributes"]
+    D -->|script 08| J["_surface<br>One row per face<br>party walls excluded"]
 ```
 
 ---
@@ -49,7 +49,7 @@ flowchart TD
 | [05 — Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
 | [06 — Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
 | [07 — TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
-| 08 — Build surface | Populate resolved surface output with geometry and attributes | `_surface` |
+| 08 — Build surface | Copy each surface face into the resolved table, excluding party walls | `_surface` |
 
 ---
 
