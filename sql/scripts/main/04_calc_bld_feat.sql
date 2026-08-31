@@ -10,8 +10,8 @@
 --   footprint_complexity — based on vertex count of the merged GroundSurface boundary.
 --   roof_complexity      — based on number of distinct RoofSurface polygons.
 --
--- surface_count_floor is initialised to 0 here; area_total_floor is later overwritten
--- in script 06 as footprint_area × number_of_storeys (total heated floor area estimate).
+-- area_total_floor is the raw GroundSurface area sum here; script 06 overwrites it
+-- with footprint_area × number_of_storeys (total heated floor area estimate).
 
 WITH new_buildings AS (
     -- Select only buildings that haven't been processed yet
@@ -53,7 +53,7 @@ aggregated_surfaces AS (
         'sqm' AS area_total_floor_unit,
         COUNT(*) FILTER (WHERE classname = 'RoofSurface') AS surface_count_roof,
         COUNT(*) FILTER (WHERE classname = 'WallSurface') AS surface_count_wall,
-        0 AS surface_count_floor,
+        COUNT(*) FILTER (WHERE classname = 'GroundSurface') AS surface_count_floor,
         -- Eave height: max vertical span across all wall faces.
         MAX(height) FILTER (WHERE classname = 'WallSurface') AS min_height,
         'm' AS min_height_unit,

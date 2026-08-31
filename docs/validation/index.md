@@ -349,6 +349,9 @@ The `is_valid` and `is_planar` flags are derived from PostGIS `ST_IsValid` and a
 
 ### Height Errors
 
+!!! note "Predates the surface-attachment change"
+    These figures were measured while script 01 assigned surfaces by `ST_3DIntersects` against the building solid, which pulled in geometry from adjacent buildings and, for 3DBAG, from other LoD levels. Script 01 now follows the CityDB `boundary` property instead. The stratification below still describes that earlier run; re-validation against the relational attachment is pending.
+
 Max height shows a consistent positive bias across all three datasets (Deggendorf +2.82 m, Freiburg +2.71 m, Vienna +4.19 m). This systematic offset reflects the geometry-based derivation: `max_height` is taken from the highest vertex across all surfaces assigned to a building, which can include vertices from adjacent building geometry incorrectly included during the `ST_3DIntersects` surface assignment step.
 
 The larger Vienna height RMSE (12.3 m vs 3.5–4.5 m for Germany) is consistent with Vienna's LoD2.1 geometry being structurally more complex — more surfaces per building means more opportunities for mis-assignment.

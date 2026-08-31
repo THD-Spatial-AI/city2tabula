@@ -262,6 +262,39 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Errorf("scripts 01–03 failed: %d surface rows are missing building_object_id or surface_object_id", missingSurfaceObjectIDs)
 	}
 
+	// Regression (#115): 3DBAG ships every building at LoD 1.2/1.3/2.2. Script 01
+	// must attach only the requested LoD's surface set via the `boundary` property,
+	// not every geometry that intersects the solid, so each building has exactly
+	// one GroundSurface.
+	var multiGroundBuildings int
+	if err := testPool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM (
+			SELECT building_feature_id FROM city2tabula.lod2_surface_raw
+			WHERE classname = 'GroundSurface'
+			GROUP BY building_feature_id HAVING COUNT(*) <> 1
+		) x`,
+	).Scan(&multiGroundBuildings); err != nil {
+		t.Fatalf("failed to query ground-surface count: %v", err)
+	}
+	if multiGroundBuildings > 0 {
+		t.Errorf("script 01 attached more than one LoD representation: %d buildings have != 1 GroundSurface", multiGroundBuildings)
+	}
+
+	// script 04: surface_count_{roof,wall,floor} must account for every extracted
+	// surface face, so a consumer's "expected" total matches what it loads.
+	var surfaceCountMismatch int
+	if err := testPool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM city2tabula.lod2_building b
+		 WHERE b.surface_count_roof + b.surface_count_wall + b.surface_count_floor
+		     <> (SELECT COUNT(*) FROM city2tabula.lod2_surface_raw r
+		         WHERE r.building_feature_id = b.building_feature_id)`,
+	).Scan(&surfaceCountMismatch); err != nil {
+		t.Fatalf("failed to query surface-count consistency: %v", err)
+	}
+	if surfaceCountMismatch > 0 {
+		t.Errorf("script 04 surface counts do not sum to the extracted surface rows for %d buildings", surfaceCountMismatch)
+	}
+
 	// Verify script 08 built the surface link table.
 	var surfaceLinkCount int
 	if err := testPool.QueryRow(ctx,
