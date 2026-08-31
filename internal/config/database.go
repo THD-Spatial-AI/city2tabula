@@ -18,6 +18,9 @@ const (
 	TabulaSchema      = "tabula"
 	City2TabulaSchema = "city2tabula"
 	PylvoSchemaName   = "public" // default PyLovo schema; override with PYLOVO_SCHEMA env var
+	// PylvoFDWSchemaName is where -link-pylovo imports pylovo.res/oth as foreign
+	// tables when PYLOVO_FDW_HOST is set. It replaces PYLOVO_SCHEMA in FDW mode.
+	PylvoFDWSchemaName = "pylovo"
 )
 
 // Tables holds all table name configurations

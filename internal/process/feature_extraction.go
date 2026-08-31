@@ -173,6 +173,10 @@ func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 // compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
 // avoids scanning the full PyLovo table for every batch.
 func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
+	if err := setupPylovoFDW(context.Background(), pool, cfg); err != nil {
+		return fmt.Errorf("failed to set up PyLovo FDW: %w", err)
+	}
+
 	batches, err := GetGridBatches(
 		pool,
 		cfg.DB.Schemas.City2Tabula,

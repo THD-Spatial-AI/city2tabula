@@ -60,10 +60,31 @@ flowchart TD
 
 | Variable | Default | Description |
 |---|---|---|
-| `PYLOVO_SCHEMA` | `public` | PostgreSQL schema containing `res` and `oth` tables |
+| `PYLOVO_SCHEMA` | `public` | Schema holding local `res` and `oth` tables. Ignored when `PYLOVO_FDW_HOST` is set. |
 | `PYLOVO_LINK_GRID_SIZE` | `1000` | Grid cell side length in metres. Smaller values give tighter pre-filtering but create more jobs. |
+| `PYLOVO_FDW_HOST` | _(empty)_ | Host of the central PyLovo database. Empty keeps the local-table behaviour above; set it to enable federated access. |
+| `PYLOVO_FDW_PORT` | `5432` | Port of the central PyLovo database. |
+| `PYLOVO_FDW_DBNAME` | _(empty)_ | Database name on the central PyLovo server. Required when `PYLOVO_FDW_HOST` is set. |
+| `PYLOVO_FDW_USER` | _(empty)_ | Login role for the FDW connection. Needs `SELECT` on `res` and `oth` only. Required when `PYLOVO_FDW_HOST` is set. |
+| `PYLOVO_FDW_PASSWORD` | _(empty)_ | Password for `PYLOVO_FDW_USER`. Required when `PYLOVO_FDW_HOST` is set. |
 
 Set these in your `.env` file alongside the existing database variables.
+
+### Federated PyLovo access
+
+Each country has its own City2TABULA database, so `pylovo.res` and `pylovo.oth`
+cannot be a local join. When `PYLOVO_FDW_HOST` is set, `-link-pylovo` connects
+the current database to the central PyLovo database through
+[`postgres_fdw`](https://www.postgresql.org/docs/current/postgres-fdw.html)
+before the link runs: it creates the `postgres_fdw` extension, a foreign server
+`pylovo_srv`, a user mapping for the connecting role, and schema `pylovo`
+holding foreign tables `res` and `oth`. The server, mapping and schema are
+dropped and recreated on every run, so changing the host or credentials in
+`.env` takes effect without any manual SQL.
+
+The link SQL is identical in both modes. The bbox pre-filter still runs; over
+FDW it currently pulls the `res`/`oth` geometry per batch and filters locally,
+which is acceptable at city scale but not yet optimised for country-wide runs.
 
 ---
 
@@ -105,4 +126,4 @@ sql/scripts/link/
 A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag — no changes to the existing pipeline.
 
 !!! info "Pre-requisite"
-    `pylovo.res` and `pylovo.oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`. The link step reads from PyLovo but does not modify it.
+    `res` and `oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`, either as local tables in `PYLOVO_SCHEMA` or in the central database named by `PYLOVO_FDW_*`. The link step reads from PyLovo but does not modify it.

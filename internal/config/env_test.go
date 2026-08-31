@@ -128,6 +128,29 @@ func TestConfig_Validate(t *testing.T) {
 		}
 	})
 
+	t.Run("FDW host set with no credentials reports the missing FDW fields", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.PylovoFDW = &PylovoFDW{Host: "pylovo.example"}
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected an error, got nil")
+		}
+		for _, want := range []string{"PYLOVO_FDW_DBNAME", "PYLOVO_FDW_USER", "PYLOVO_FDW_PASSWORD"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("expected error to mention %q, got: %v", want, err)
+			}
+		}
+	})
+
+	t.Run("FDW left unset does not add requirements", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.PylovoFDW = &PylovoFDW{}
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("unexpected error with FDW disabled: %v", err)
+		}
+	})
+
 	t.Run("unsupported country reports separately from missing fields", func(t *testing.T) {
 		cfg := validTestConfig()
 		cfg.CountryCode = ""

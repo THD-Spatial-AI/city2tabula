@@ -13,6 +13,13 @@
 --
 -- Existing rows for buildings in {building_ids} are deleted and re-inserted so
 -- this script is safe to re-run after updated PyLovo data.
+--
+-- When {pylovo_schema} is a postgres_fdw foreign schema (PYLOVO_FDW_HOST set),
+-- batch_bbox is computed from local rows, so postgres_fdw cannot push it into the
+-- remote query: the full res/oth geometry crosses the connection once per batch,
+-- then ST_Intersects filters locally. Fine at city scale (grid batching keeps the
+-- table read bounded per run); revisit for country-scale runs by passing the
+-- batch bbox in as a literal parameter so the filter ships to the PyLovo side.
 
 DELETE FROM {city2tabula_schema}.building_link
 WHERE object_id IN (
