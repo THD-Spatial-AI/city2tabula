@@ -108,10 +108,12 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Resolved surface output. One row per surface after party-wall resolution.
+-- Resolved surface output. One row per surface polygon face, party walls excluded.
 -- Populated by script 08 from lod2_surface_raw; re-run script 08 after
 -- neighbour detection to apply party-wall exclusions.
--- surface_feature_id is session-local but retained for within-session cityviz queries.
+-- surface_object_id / surface_feature_id are the source surface feature and are
+-- shared across every face of a multi-face feature (e.g. a 3DBAG WallSurface), so
+-- neither is unique in this table; the row id is the only unique key.
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_surface CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,8 +130,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     is_party_wall      BOOLEAN,
     neighbour_building_id INTEGER,
     geom               GEOMETRY(POLYGONZ, {srid}),
-    created_at         TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (building_object_id, surface_object_id)
+    created_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Indexes
@@ -153,8 +154,8 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_building_footprint_idx
 -- Fast lookup: all surfaces for a given building
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_building_idx
     ON {city2tabula_schema}.{lod_schema}_surface (building_object_id);
--- Enforce: each surface belongs to exactly one building after resolution
-CREATE UNIQUE INDEX IF NOT EXISTS {lod_schema}_surface_surface_idx
+-- Lookup by source surface feature (non-unique: one feature has many faces)
+CREATE INDEX IF NOT EXISTS {lod_schema}_surface_surface_idx
     ON {city2tabula_schema}.{lod_schema}_surface (surface_object_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_geom_idx
     ON {city2tabula_schema}.{lod_schema}_surface USING GIST (geom);

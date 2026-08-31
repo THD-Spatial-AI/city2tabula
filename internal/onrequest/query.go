@@ -42,6 +42,8 @@ type Building struct {
 // Area/Azimuth/Tilt, since a degenerate source surface can still produce a
 // row.
 type Surface struct {
+	// Row identifier, unique per face. Not the CityGML surface id, which is
+	// shared by every face of a multi-face surface feature.
 	ID      string   `json:"id"`
 	Type    string   `json:"type"`
 	AreaSqm *float64 `json:"area,omitempty"`
@@ -161,8 +163,10 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		byObjectID[buildings[i].ObjectID] = &buildings[i]
 	}
 
+	// id (row UUID), not surface_object_id: one source surface feature has many
+	// faces and shares its surface_object_id across all of them.
 	q := fmt.Sprintf(`
-		SELECT building_object_id, surface_object_id, surface_type,
+		SELECT building_object_id, id::text, surface_type,
 		       surface_area, azimuth, tilt, is_valid, is_planar
 		FROM %s.%s_surface
 		WHERE building_object_id = ANY($1)`,
