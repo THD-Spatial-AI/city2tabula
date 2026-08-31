@@ -70,6 +70,18 @@ func (c Config) Validate() error {
 		missing = append(missing, "COUNTRY")
 	}
 
+	if c.PylovoFDW.Enabled() {
+		if strings.TrimSpace(c.PylovoFDW.DBName) == "" {
+			missing = append(missing, "PYLOVO_FDW_DBNAME")
+		}
+		if strings.TrimSpace(c.PylovoFDW.User) == "" {
+			missing = append(missing, "PYLOVO_FDW_USER")
+		}
+		if strings.TrimSpace(c.PylovoFDW.Password) == "" {
+			missing = append(missing, "PYLOVO_FDW_PASSWORD")
+		}
+	}
+
 	if len(missing) > 0 {
 		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
 	}

@@ -50,6 +50,46 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+// TestLoadConfig_PylovoFDW checks that setting PYLOVO_FDW_HOST both populates
+// PylovoFDW and overrides the PyLovo schema to the fixed FDW import target,
+// ignoring PYLOVO_SCHEMA.
+func TestLoadConfig_PylovoFDW(t *testing.T) {
+	t.Setenv("COUNTRY", "germany")
+	t.Setenv("DB_NAME", "testdb")
+	t.Setenv("DB_PASSWORD", "testpass")
+	t.Setenv("PYLOVO_SCHEMA", "should_be_ignored")
+	t.Setenv("PYLOVO_FDW_HOST", "pylovo.example")
+	t.Setenv("PYLOVO_FDW_DBNAME", "pylovo_db")
+	t.Setenv("PYLOVO_FDW_USER", "c2t_reader")
+	t.Setenv("PYLOVO_FDW_PASSWORD", "secret")
+
+	cfg := LoadConfig()
+
+	if !cfg.PylovoFDW.Enabled() {
+		t.Fatal("PylovoFDW.Enabled() = false, want true")
+	}
+	if cfg.DB.Schemas.Pylvo != PylvoFDWSchemaName {
+		t.Errorf("Pylvo schema = %q, want %q", cfg.DB.Schemas.Pylvo, PylvoFDWSchemaName)
+	}
+}
+
+// TestLoadConfig_NoPylovoFDW is the default path: PYLOVO_SCHEMA still wins.
+func TestLoadConfig_NoPylovoFDW(t *testing.T) {
+	t.Setenv("COUNTRY", "germany")
+	t.Setenv("DB_NAME", "testdb")
+	t.Setenv("DB_PASSWORD", "testpass")
+	t.Setenv("PYLOVO_SCHEMA", "my_pylovo")
+
+	cfg := LoadConfig()
+
+	if cfg.PylovoFDW.Enabled() {
+		t.Error("PylovoFDW.Enabled() = true with no PYLOVO_FDW_HOST")
+	}
+	if cfg.DB.Schemas.Pylvo != "my_pylovo" {
+		t.Errorf("Pylvo schema = %q, want %q", cfg.DB.Schemas.Pylvo, "my_pylovo")
+	}
+}
+
 // TestLoadConfig_UnsupportedCountry covers LoadConfig's own handling of
 // CountryCode's error return - it must still assemble a Config (with an
 // empty CountryCode), leaving Validate() to catch it later rather than
