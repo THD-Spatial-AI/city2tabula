@@ -43,8 +43,11 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   height_unit VARCHAR CHECK (height_unit IN ('m')),
   surface_area DOUBLE PRECISION,
   surface_area_unit VARCHAR CHECK (surface_area_unit IN ('sqm')),
+  -- tilt: angle from vertical, asin(|nz|). 0 = wall, 90 = flat roof. Complement of
+  -- the usual from-horizontal slope angle; a consumer converts with 90 - tilt.
   tilt DOUBLE PRECISION,
   tilt_unit VARCHAR CHECK (tilt_unit IN ('degrees')),
+  -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined.
   azimuth DOUBLE PRECISION,
   azimuth_unit VARCHAR CHECK (azimuth_unit IN ('degrees')),
   is_valid BOOLEAN,
@@ -122,7 +125,10 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     surface_feature_id INTEGER,
     surface_type       VARCHAR(50),
     surface_area       DOUBLE PRECISION,
+    -- tilt: angle from vertical, 0 = wall, 90 = flat roof. Complement of the
+    -- usual from-horizontal slope angle; a consumer converts with 90 - tilt.
     tilt               DOUBLE PRECISION,
+    -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined.
     azimuth            DOUBLE PRECISION,
     height             DOUBLE PRECISION,
     is_valid           BOOLEAN,

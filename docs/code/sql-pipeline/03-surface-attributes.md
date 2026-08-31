@@ -12,12 +12,26 @@
 
 For each individual polygon face (from script 02), this script computes four physical attributes:
 
-- **Tilt**: how steeply the surface is inclined (0° = flat horizontal roof, 90° = vertical wall).
+- **Tilt**: the surface's angle from vertical (0° = vertical wall, 90° = flat horizontal roof). This is the opposite of the usual from-horizontal slope convention; see the box below.
 - **Azimuth**: the compass direction the surface faces (0°/360° = North, 90° = East, 180° = South, 270° = West).
 - **Surface area**: the true 3D face area in square metres.
 - **Height span**: the vertical range of the face (Z max − Z min) in metres.
 
 All four attributes are derived from the **surface normal**: a vector that points perpendicularly outward from the face. The bulk of this script's CTEs are dedicated to computing that normal correctly.
+
+!!! warning "Tilt convention: 0° = wall, 90° = flat roof"
+    `tilt` is `DEGREES(ASIN(ABS(nz)))`, where `nz` is the vertical component of
+    the unit surface normal. It is the angle between the surface normal and the
+    horizontal plane, or equivalently the angle between the surface and the
+    vertical. A vertical wall is 0°, a flat roof or floor is 90°, a 45° pitched
+    roof is 45°.
+
+    Most building-energy calculations (including what ignis and BuEM expect)
+    use the opposite reference: the surface tilt measured from the horizontal,
+    where a flat roof is 0° and a wall is 90°. The two are complements, so
+    convert with `90 − tilt`. They coincide only at 45°. Whoever feeds c2t
+    surface output to ignis or BuEM must apply the conversion. The same note is
+    on the `Surface` type in `internal/onrequest/query.go` and in `docs/api.md`.
 
 ---
 
@@ -279,7 +293,7 @@ The simplest attribute: the difference between the highest and lowest Z coordina
 | Column | Description |
 |--------|------------|
 | `surface_area` | True 3D area of the face (sqm) |
-| `tilt` | Inclination from horizontal (degrees; 0° = wall, 90° = flat roof — snapped to 90° for `\|nz\| > 0.985`) |
+| `tilt` | Angle of the surface from vertical (degrees; 0° = wall, 90° = flat roof, snapped to 90° for `\|nz\| > 0.985`). Complement of the usual from-horizontal slope angle: `90 − tilt`. |
 | `azimuth` | Compass bearing of outward-facing normal (degrees; −1 = undefined) |
 | `is_valid` | `ST_IsValid` result for the polygon |
 | `is_planar` | Whether all vertices lie on a single plane |

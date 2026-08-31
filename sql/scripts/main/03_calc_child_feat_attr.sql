@@ -225,9 +225,11 @@ SELECT
       END)::numeric, 2
     ) AS surface_area,
     'sqm' AS surface_area_unit,
-    -- ASIN(|nz|): 0° for vertical wall (nz=0), 90° for flat roof (|nz|=1).
-    -- Snapped to 90 (flat) when |nz| > 0.985 — the same near-horizontal band
-    -- where azimuth below is undefined — instead of reporting the raw near-90
+    -- ASIN(|nz|): 0° for vertical wall (nz=0), 90° for flat roof (|nz|=1). This
+    -- is the complement of the usual from-horizontal slope angle, so a downstream
+    -- consumer converts with 90 - tilt.
+    -- Snapped to 90 (flat) when |nz| > 0.985, the same near-horizontal band
+    -- where azimuth below is undefined, rather than reporting the raw near-90
     -- value from that numerically unstable region.
     CASE
       WHEN ABS(nz) > 0.985 THEN 90.0
