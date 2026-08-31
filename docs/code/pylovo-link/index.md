@@ -62,29 +62,99 @@ flowchart TD
 |---|---|---|
 | `PYLOVO_SCHEMA` | `public` | Schema holding local `res` and `oth` tables. Ignored when `PYLOVO_FDW_HOST` is set. |
 | `PYLOVO_LINK_GRID_SIZE` | `1000` | Grid cell side length in metres. Smaller values give tighter pre-filtering but create more jobs. |
-| `PYLOVO_FDW_HOST` | _(empty)_ | Host of the central PyLovo database. Empty keeps the local-table behaviour above; set it to enable federated access. |
-| `PYLOVO_FDW_PORT` | `5432` | Port of the central PyLovo database. |
-| `PYLOVO_FDW_DBNAME` | _(empty)_ | Database name on the central PyLovo server. Required when `PYLOVO_FDW_HOST` is set. |
-| `PYLOVO_FDW_USER` | _(empty)_ | Login role for the FDW connection. Needs `SELECT` on `res` and `oth` only. Required when `PYLOVO_FDW_HOST` is set. |
-| `PYLOVO_FDW_PASSWORD` | _(empty)_ | Password for `PYLOVO_FDW_USER`. Required when `PYLOVO_FDW_HOST` is set. |
 
-Set these in your `.env` file alongside the existing database variables.
+Set these in your `.env` file alongside the existing database variables. For a
+central PyLovo database on a separate server, see [Federated setup](#federated-setup-postgres_fdw).
 
-### Federated PyLovo access
+---
 
-Each country has its own City2TABULA database, so `pylovo.res` and `pylovo.oth`
-cannot be a local join. When `PYLOVO_FDW_HOST` is set, `-link-pylovo` connects
-the current database to the central PyLovo database through
-[`postgres_fdw`](https://www.postgresql.org/docs/current/postgres-fdw.html)
-before the link runs: it creates the `postgres_fdw` extension, a foreign server
-`pylovo_srv`, a user mapping for the connecting role, and schema `pylovo`
-holding foreign tables `res` and `oth`. The server, mapping and schema are
-dropped and recreated on every run, so changing the host or credentials in
-`.env` takes effect without any manual SQL.
+## Federated setup (postgres_fdw)
 
-The link SQL is identical in both modes. The bbox pre-filter still runs; over
-FDW it currently pulls the `res`/`oth` geometry per batch and filters locally,
-which is acceptable at city scale but not yet optimised for country-wide runs.
+Under the database-per-country layout each country's City2TABULA database is
+separate, so `pylovo.res` / `pylovo.oth` are not in the same database and cannot
+be joined directly. Setting `PYLOVO_FDW_HOST` makes `-link-pylovo` reach the
+central PyLovo database through
+[`postgres_fdw`](https://www.postgresql.org/docs/current/postgres-fdw.html):
+each run drops and recreates the foreign server `pylovo_srv`, a user mapping for
+the connecting role, and schema `pylovo` holding foreign tables `res` and `oth`.
+A changed host or credential in `.env` takes effect on the next run with no
+manual SQL.
+
+Leave `PYLOVO_FDW_HOST` empty to read `res` / `oth` as local tables in
+`PYLOVO_SCHEMA` instead (single-database deployments, tests).
+
+### Prerequisites
+
+| Requirement | Where | Note |
+|---|---|---|
+| PostgreSQL with `postgres_fdw` | City2TABULA database server | contrib module, ships with standard PostgreSQL |
+| PostGIS, and `res` / `oth` in schema `public` | PyLovo database | `IMPORT FOREIGN SCHEMA` reads `public` |
+| Network route to `PYLOVO_FDW_HOST:PYLOVO_FDW_PORT` | from the City2TABULA **database server** | `postgres_fdw` connects server to server, not from where `c2t` runs |
+| `DB_USER` may run `CREATE EXTENSION` / `CREATE SERVER` | City2TABULA database | superuser, or a role granted `USAGE ON FOREIGN DATA WRAPPER postgres_fdw` |
+
+### PyLovo side (once)
+
+Create a read-only login for City2TABULA on the PyLovo database:
+
+```sql
+CREATE ROLE c2t_fdw_reader LOGIN PASSWORD '<strong-password>';
+GRANT CONNECT ON DATABASE <pylovo_db>   TO c2t_fdw_reader;
+GRANT USAGE   ON SCHEMA public          TO c2t_fdw_reader;
+GRANT SELECT  ON public.res, public.oth,
+                 public.spatial_ref_sys TO c2t_fdw_reader;
+```
+
+`res` and `oth` are the only tables read; `spatial_ref_sys` is needed for the
+CRS transform in the link query.
+
+### City2TABULA side
+
+Add to `.env`:
+
+| Variable | Value |
+|---|---|
+| `PYLOVO_FDW_HOST` | PyLovo host, resolvable from the City2TABULA database server |
+| `PYLOVO_FDW_PORT` | PyLovo port (default `5432`) |
+| `PYLOVO_FDW_DBNAME` | PyLovo database name |
+| `PYLOVO_FDW_USER` | `c2t_fdw_reader` |
+| `PYLOVO_FDW_PASSWORD` | the role's password |
+
+`c2t` exits on start if `PYLOVO_FDW_HOST` is set but any of dbname, user, or
+password is missing.
+
+### Run and verify
+
+```bash
+./c2t -link-pylovo
+```
+
+```sql
+-- foreign tables reachable
+SELECT count(*) FROM pylovo.res;
+SELECT count(*) FROM pylovo.oth;
+
+-- link result
+SELECT match_type, count(*) FROM city2tabula.building_link GROUP BY match_type;
+```
+
+### Teardown
+
+```sql
+-- City2TABULA database
+DROP SERVER pylovo_srv CASCADE;
+DROP SCHEMA pylovo;
+
+-- PyLovo database
+DROP ROLE c2t_fdw_reader;
+```
+
+### Notes
+
+- One `pylovo_srv` per City2TABULA database; each country database sets it up on its own `-link-pylovo` run.
+- The user mapping is `FOR CURRENT_USER`, i.e. the `DB_USER` role. If a different role runs `-link-pylovo`, run it once as that role to create the mapping.
+- `res` / `oth` are country-agnostic. The link query's EPSG:3035 bounding-box pre-filter isolates the current extent, so a shared multi-country PyLovo database is fine.
+- The bbox pre-filter is computed from local rows, so `postgres_fdw` pulls the batch's `res` / `oth` geometry across the connection and filters locally. Acceptable at city scale; not yet optimised for country-wide runs.
+- `PYLOVO_FDW_PASSWORD` lives in `.env` (gitignored). Rotate per your security policy; the tool re-applies it on the next run.
 
 ---
 
