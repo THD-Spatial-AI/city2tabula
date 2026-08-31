@@ -52,7 +52,9 @@ JOIN city2tabula.building_link l ON l.object_id = b.object_id
 WHERE l.match_type = 1;
 ```
 
-Full detail on the matching algorithm, configuration (`PYLOVO_SCHEMA`, `PYLOVO_LINK_GRID_SIZE`), the `building_link` schema, and match types is in [PyLovo Building Link](../code/pylovo-link/index.md).
+If the PyLovo database is a separate server from City2TABULA (the usual case, since each country has its own City2TABULA database), set `PYLOVO_FDW_HOST` and the link step federates to it over `postgres_fdw`. Setup steps — the read-only PyLovo role, the `.env` variables, verification — are in [PyLovo Building Link → Federated setup](../code/pylovo-link/index.md#federated-setup-postgres_fdw).
+
+Full detail on the matching algorithm, configuration, the `building_link` schema, and match types is in [PyLovo Building Link](../code/pylovo-link/index.md).
 
 !!! info "PyLovo must already have data"
     `-link-pylovo` reads from `pylovo.res`/`pylovo.oth`; it doesn't populate them. Those tables must already be loaded via [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before this step will find any matches.
