@@ -28,6 +28,30 @@ func bootstrapDSN(cfg *config.Config) string {
 // ConnectPool creates the database as a side effect, which a GET must not do.
 var ErrCountryNotConfigured = errors.New("country has no dataset")
 
+// MissingRunSchemas returns the schemas an incremental import needs but cfg's
+// database does not have. ImportAllData assumes CreateCompleteDatabase built
+// them; a database restored from a fixture holds only the City2TABULA schema,
+// so the import would otherwise fail on the first missing relation.
+func MissingRunSchemas(pool *pgxpool.Pool, cfg *config.Config) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	required := []string{cfg.DB.Schemas.Tabula, cfg.DB.Schemas.CityDB, cfg.DB.Schemas.Lod2}
+	var missing []string
+	for _, schema := range required {
+		var present bool
+		if err := pool.QueryRow(ctx,
+			`SELECT to_regnamespace($1) IS NOT NULL`, schema,
+		).Scan(&present); err != nil {
+			return nil, fmt.Errorf("check schema %s exists in %s: %w", schema, cfg.DB.Name, err)
+		}
+		if !present {
+			missing = append(missing, schema)
+		}
+	}
+	return missing, nil
+}
+
 // CountryProvisioned reports whether cfg's database has the City2TABULA tables.
 // A database can exist without them, because earlier builds created one as a
 // side effect of a read, so existence alone does not mean a country is usable.

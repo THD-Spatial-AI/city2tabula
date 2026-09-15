@@ -9,6 +9,7 @@ package onrequest
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -46,6 +47,21 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string) error {
 	defer db.ClosePool(pool)
 
 	if existed {
+		// An existing database is not necessarily one a run built: a fixture
+		// restore creates the City2TABULA schema alone. Refuse here rather than
+		// let the import fail on a missing relation, and never fall through to
+		// CreateCompleteDatabase, whose schema scripts begin with DROP TABLE.
+		missing, err := db.MissingRunSchemas(pool, cfg)
+		if err != nil {
+			return err
+		}
+		if len(missing) > 0 {
+			return fmt.Errorf(
+				"database %s cannot run extraction: it is missing the %s schema(s), so it was not built by a pipeline run (a fixture-loaded database has only %s)",
+				cfg.DB.Name, strings.Join(missing, ", "), cfg.DB.Schemas.City2Tabula,
+			)
+		}
+
 		if err := db.ImportAllData(cfg, pool, bbox.String(), bboxMode); err != nil {
 			return fmt.Errorf("failed to import data for %s: %w", cfg.Country, err)
 		}
