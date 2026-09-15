@@ -68,9 +68,11 @@ func New(base config.Config) *Server {
 // country. Used by read-only endpoints (coverage, buildings) so repeat requests
 // for the same country reuse one connection pool instead of reconnecting.
 //
-// Returns db.ErrDatabaseNotFound for a country with no database rather than
-// creating one: ConnectPool creates it as a side effect, so without this check a
-// GET would provision an empty database for any country name it is handed.
+// Returns db.ErrCountryNotConfigured for a country with no usable dataset rather
+// than creating one: ConnectPool creates the database as a side effect, so
+// without this check a GET would provision an empty database for any country
+// name it is handed. A database that exists but has no City2TABULA tables counts
+// as unconfigured too, since earlier builds left such databases behind.
 func (s *Server) PoolFor(country string) (*config.Config, *pgxpool.Pool, error) {
 	cfg, err := config.RegionConfig(s.base, country)
 	if err != nil {
@@ -89,13 +91,26 @@ func (s *Server) PoolFor(country string) (*config.Config, *pgxpool.Pool, error) 
 		return nil, nil, err
 	}
 	if !exists {
-		return nil, nil, fmt.Errorf("%s: %w", cfg.Country, db.ErrDatabaseNotFound)
+		return nil, nil, fmt.Errorf("%s: %w", cfg.Country, db.ErrCountryNotConfigured)
 	}
 
 	pool, err := db.ConnectPool(&cfg)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	provisioned, err := db.CountryProvisioned(pool, &cfg)
+	if err != nil {
+		db.ClosePool(pool)
+		return nil, nil, err
+	}
+	if !provisioned {
+		// Not cached: the country becomes usable once a run provisions it, and a
+		// cached pool would keep answering "not configured" until a restart.
+		db.ClosePool(pool)
+		return nil, nil, fmt.Errorf("%s: %w", cfg.Country, db.ErrCountryNotConfigured)
+	}
+
 	s.pools[cfg.Country] = pool
 	return &cfg, pool, nil
 }
