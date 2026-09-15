@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -66,6 +67,10 @@ func New(base config.Config) *Server {
 // PoolFor returns the region config and a cached, lazily-opened DB pool for
 // country. Used by read-only endpoints (coverage, buildings) so repeat requests
 // for the same country reuse one connection pool instead of reconnecting.
+//
+// Returns db.ErrDatabaseNotFound for a country with no database rather than
+// creating one: ConnectPool creates it as a side effect, so without this check a
+// GET would provision an empty database for any country name it is handed.
 func (s *Server) PoolFor(country string) (*config.Config, *pgxpool.Pool, error) {
 	cfg, err := config.RegionConfig(s.base, country)
 	if err != nil {
@@ -77,6 +82,14 @@ func (s *Server) PoolFor(country string) (*config.Config, *pgxpool.Pool, error) 
 
 	if pool, ok := s.pools[cfg.Country]; ok {
 		return &cfg, pool, nil
+	}
+
+	exists, err := db.DatabaseExists(&cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !exists {
+		return nil, nil, fmt.Errorf("%s: %w", cfg.Country, db.ErrDatabaseNotFound)
 	}
 
 	pool, err := db.ConnectPool(&cfg)

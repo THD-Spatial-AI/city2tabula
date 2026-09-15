@@ -194,11 +194,25 @@ func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 		t.Fatalf("RunForRegion: %v", err)
 	}
 
+	// seedEmptyPylovoTables leaves nothing to match against, so every building
+	// links as match_type 2 and coverage is zero even though the import worked.
 	count, err := onrequest.CountBuildingLink(context.Background(), pool, cfg, bbox)
 	if err != nil {
 		t.Fatalf("CountBuildingLink: %v", err)
 	}
-	if count == 0 {
+	if count != 0 {
+		t.Errorf("expected zero coverage with no PyLovo buildings to match, got %d", count)
+	}
+
+	// The import itself is what this test exercises, so assert on the rows the
+	// linker wrote rather than on the matched subset.
+	var linkRows int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM city2tabula.building_link`,
+	).Scan(&linkRows); err != nil {
+		t.Fatalf("count building_link rows: %v", err)
+	}
+	if linkRows == 0 {
 		t.Error("expected at least one building_link row after a real import of a real GML tile, got 0")
 	}
 

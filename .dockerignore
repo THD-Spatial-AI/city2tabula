@@ -1,5 +1,5 @@
 # Host-specific env file — the Docker image gets its config from
-# environment/docker.env via docker-compose's env_file directive
+# environment/http/docker.env via docker-compose's env_file directive
 .env
 
 # Git and editor metadata

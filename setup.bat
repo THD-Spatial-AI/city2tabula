@@ -32,7 +32,7 @@ echo.
 echo Usage: setup.bat ^<command^>
 echo.
 echo Recommended Workflow:
-echo   1. setup.bat configure        - Set country, DB credentials in environment\docker.env
+echo   1. setup.bat configure        - Set country, DB credentials in environment\http\docker.env
 echo   2. setup.bat build            - Build the Docker image
 echo   3. setup.bat create-db        - Create database schemas and import CityDB data
 echo      (If database already exists, run: setup.bat reset-db)
@@ -243,15 +243,15 @@ set /p pg_name="Enter Database name [default: c2t_%COUNTRY%]: "
 if "%pg_name%"=="" set pg_name=c2t_%COUNTRY%
 
 echo.
-echo Updating environment\docker.env...
+echo Updating environment\http\docker.env...
 
 REM Update docker.env file using PowerShell for reliable text replacement
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^COUNTRY=.*', 'COUNTRY=%COUNTRY%' | Set-Content 'environment\docker.env'"
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SRID=.*', 'CITYDB_SRID=%SRID%' | Set-Content 'environment\docker.env'"
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^CITYDB_SRS_NAME=.*', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content 'environment\docker.env'"
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_USER=.*', 'DB_USER=%pg_user%' | Set-Content 'environment\docker.env'"
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=%pg_password%' | Set-Content 'environment\docker.env'"
-powershell -Command "(Get-Content 'environment\docker.env') -replace '^DB_NAME=.*', 'DB_NAME=%pg_name%' | Set-Content 'environment\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^COUNTRY=.*', 'COUNTRY=%COUNTRY%' | Set-Content 'environment\http\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^CITYDB_SRID=.*', 'CITYDB_SRID=%SRID%' | Set-Content 'environment\http\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^CITYDB_SRS_NAME=.*', 'CITYDB_SRS_NAME=%SRS_NAME%' | Set-Content 'environment\http\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^DB_USER=.*', 'DB_USER=%pg_user%' | Set-Content 'environment\http\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=%pg_password%' | Set-Content 'environment\http\docker.env'"
+powershell -Command "(Get-Content 'environment\http\docker.env') -replace '^DB_NAME=.*', 'DB_NAME=%pg_name%' | Set-Content 'environment\http\docker.env'"
 echo Configuration completed!
 echo.
 echo Summary:
@@ -270,8 +270,8 @@ goto end
 
 :configure-manual
 echo Manual configuration mode...
-echo Please edit environment\docker.env manually:
-copy environment\docker.env .env
+echo Please edit environment\http\docker.env manually:
+copy environment\http\docker.env .env
 echo .env file created!
 echo Please edit .env manually:
 echo    - Set COUNTRY to your target country
@@ -286,63 +286,63 @@ goto end
 
 :build
 echo Building Docker environment...
-cd environment
+cd environment\http
 docker compose --env-file docker.env build --no-cache
-cd ..
+cd ..\..
 goto end
 
 :up
 echo Starting Docker environment...
-cd environment
+cd environment\http
 docker compose --env-file docker.env up -d
-cd ..
+cd ..\..
 goto end
 
 :down
 echo Stopping Docker environment...
-cd environment
+cd environment\http
 docker compose --env-file docker.env down
-cd ..
+cd ..\..
 goto end
 
 :dev
 echo Starting development environment...
-cd environment
+cd environment\http
 docker compose --env-file docker.env up -d
 docker exec -it city2tabula-environment bash
-cd ..
+cd ..\..
 goto end
 
 :create-db
 call :up
 echo Creating database and setting up schemas...
-cd environment
+cd environment\http
 docker exec -it city2tabula-environment ./city2tabula -create-db
-cd ..
+cd ..\..
 goto end
 
 :extract-features
 call :up
 echo Extracting building features...
-cd environment
+cd environment\http
 docker exec -it city2tabula-environment ./city2tabula -extract-features
-cd ..
+cd ..\..
 goto end
 
 :reset-db
 call :up
 echo Resetting the entire database...
-cd environment
+cd environment\http
 docker exec -it city2tabula-environment ./city2tabula -reset-db
-cd ..
+cd ..\..
 goto end
 
 :version
 call :up
 echo Checking City2TABULA version...
-cd environment
+cd environment\http
 docker exec -it city2tabula-environment ./city2tabula -version
-cd ..
+cd ..\..
 goto end
 
 :v
@@ -366,30 +366,30 @@ goto end
 
 :status
 echo Checking container status...
-cd environment
+cd environment\http
 docker compose --env-file docker.env ps
-cd ..
+cd ..\..
 goto end
 
 :logs
 echo Viewing Docker logs...
-cd environment
+cd environment\http
 docker compose --env-file docker.env logs -f
-cd ..
+cd ..\..
 goto end
 
 :clean
 echo Stopping containers and removing volumes...
-cd environment
+cd environment\http
 docker compose --env-file docker.env down -v
-cd ..
+cd ..\..
 goto end
 
 :clean-all
 echo Removing containers, volumes, and images...
-cd environment
+cd environment\http
 docker compose --env-file docker.env down -v --rmi all
-cd ..
+cd ..\..
 goto end
 
 :end
