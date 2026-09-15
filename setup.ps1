@@ -13,7 +13,7 @@ function Show-Help {
     Write-Host "Usage: .\setup.ps1 <command>" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Recommended Workflow:" -ForegroundColor Magenta
-    Write-Host "  1. .\setup.ps1 configure        - Set country, DB credentials in environment\docker.env"
+    Write-Host "  1. .\setup.ps1 configure        - Set country, DB credentials in environment\http\docker.env"
     Write-Host "  2. .\setup.ps1 build            - Build the Docker image"
     Write-Host "  3. .\setup.ps1 create-db        - Create database schemas and import CityDB data"
     Write-Host "     (If database already exists, run: .\setup.ps1 reset-db)"
@@ -133,8 +133,8 @@ function Invoke-Configure {
     Write-Host ""
     Write-Host "Updating configuration file..." -ForegroundColor Blue
 
-    # Update environment/docker.env file
-    $content = Get-Content "environment\docker.env"
+    # Update environment/http/docker.env file
+    $content = Get-Content "environment\http\docker.env"
     $content = $content -replace "^COUNTRY=.*", "COUNTRY=$($selectedCountry.Name)"
     $content = $content -replace "^CITYDB_SRID=.*", "CITYDB_SRID=$($selectedCountry.SRID)"
     $content = $content -replace "^CITYDB_SRS_NAME=.*", "CITYDB_SRS_NAME=$($selectedCountry.SRS)"
@@ -142,7 +142,7 @@ function Invoke-Configure {
     $content = $content -replace "^DB_PASSWORD=.*", "DB_PASSWORD=$pgPasswordPlain"
     $content = $content -replace "^DB_NAME=.*", "DB_NAME=$pgName"
 
-    $content | Set-Content "environment\docker.env"
+    $content | Set-Content "environment\http\docker.env"
 
     Write-Host "Configuration completed!" -ForegroundColor Green
     Write-Host ""
@@ -175,63 +175,63 @@ function Invoke-ConfigureManual {
 
 function Invoke-Build {
     Write-Host "Building Docker environment..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env build --no-cache
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Up {
     Write-Host "Starting Docker environment..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env up -d
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Down {
     Write-Host "Stopping Docker environment..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env down
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Dev {
     Write-Host "Starting development environment..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env up -d
     docker exec -it city2tabula-environment bash
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-CreateDb {
     Invoke-Up
     Write-Host "Creating database and setting up schemas..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker exec -it city2tabula-environment ./city2tabula -create-db
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-ExtractFeatures {
     Invoke-Up
     Write-Host "Extracting building features..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker exec -it city2tabula-environment ./city2tabula -extract-features
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker exec -it city2tabula-environment ./city2tabula -reset-db
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Version {
     Invoke-Up
     Write-Host "Checking City2TABULA version..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker exec -it city2tabula-environment ./city2tabula -version
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-v {
@@ -256,30 +256,30 @@ function Invoke-QuickStart {
 
 function Invoke-Status {
     Write-Host "Checking container status..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env ps
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Logs {
     Write-Host "Viewing Docker logs..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env logs -f
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-Clean {
     Write-Host "Stopping containers and removing volumes..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env down -v
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 function Invoke-CleanAll {
     Write-Host "Removing containers, volumes, and images..." -ForegroundColor Blue
-    Set-Location "environment"
+    Set-Location "environment/http"
     docker compose --env-file docker.env down -v --rmi all
-    Set-Location ".."
+    Set-Location "../.."
 }
 
 # Main command dispatcher

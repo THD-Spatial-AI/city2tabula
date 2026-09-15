@@ -1,15 +1,20 @@
+# Compose derives the project name from the containing directory, which would
+# make this "http" and collide with any sibling repo using the same layout.
+# Volume and network names are built from it, so it is pinned here.
+name: city2tabula
+
 services:
   city2tabula:
     container_name: city2tabula-environment
     build:
-      context: ./..
+      context: ./../..
       dockerfile: environment/Dockerfile
     env_file: docker.env        # load environment variables into container
     stdin_open: true
     tty: true
     working_dir: /app
     volumes:
-      - ./../data:/app/data        # mount full project for development
+      - ./../../data:/app/data        # mount full project for development
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Linux compatibility
     ports:
@@ -42,7 +47,7 @@ services:
   city2tabula-server:
     container_name: city2tabula-server
     build:
-      context: ./..
+      context: ./../..
       dockerfile: environment/Dockerfile
     environment:
       DB_HOST: city2tabula-db
@@ -55,7 +60,7 @@ services:
       # PYLOVO_FDW_HOST intentionally unset: no PyLovo dataset behind this
       # instance, leaves PyLovo linking a clean no-op (internal/process/pylovo_fdw.go).
     volumes:
-      - ./../data:/app/data
+      - ./../../data:/app/data
     depends_on:
       city2tabula-db:
         condition: service_healthy
@@ -79,7 +84,8 @@ volumes:
 networks:
   default: {}
   # Created by the ignis deployment (docker compose project building-simulation,
-  # see City2TABULA/ignis/environment/docker-compose.yml's `name:` key).
+  # declared by the `name:` key in both of ignis's environment/http and
+  # environment/https compose files, whichever of the two is running).
   # Must already exist: start ignis before this, or `docker network create`.
   building-simulation_default:
     external: true

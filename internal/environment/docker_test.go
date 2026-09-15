@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 
 	req := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
-			Context:       "../..", // project root, matches `context: ./..` in environment/docker-compose.yml
+			Context:       "../..", // project root, matches `context: ./../..` in environment/http/docker-compose.yml
 			Dockerfile:    "environment/Dockerfile",
 			Repo:          "city2tabula-environment-integration-test",
 			Tag:           "latest",
