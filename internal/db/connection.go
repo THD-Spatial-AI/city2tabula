@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,6 +21,11 @@ func bootstrapDSN(cfg *config.Config) string {
 		cfg.DB.Host, cfg.DB.Port, cfg.DB.User, cfg.DB.Password, cfg.DB.SSLMode,
 	)
 }
+
+// ErrDatabaseNotFound reports that a country has no database yet. Read-only
+// callers use it to answer "no data for this country" instead of creating one:
+// ConnectPool creates the database as a side effect, which a GET must not do.
+var ErrDatabaseNotFound = errors.New("no database for this country")
 
 // DatabaseExists reports whether cfg.DB.Name already exists as a Postgres database.
 // Used by the on-request HTTP server (internal/api) to decide whether a country is

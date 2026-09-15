@@ -66,14 +66,16 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string) error {
 	return nil
 }
 
-// CountBuildingLink returns how many building_link rows exist for cfg's country
-// within bbox. A zero count after RunForRegion succeeds means citydb-tool found no
-// source data for that area — the caller (internal/api) uses this to distinguish
-// "ran fine, nothing there" from "ran fine, buildings found".
+// CountBuildingLink returns how many buildings in bbox are linked to a PyLovo
+// building (match_type = 1), which is what makes an area modellable. The linker
+// writes a row per 3D building whatever the outcome, so match_type 2 (no OSM
+// match) and 3 (no 3D building) are attempts, not coverage, and counting them
+// would report an area where nothing matched as fully covered.
 func CountBuildingLink(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, bbox Bbox) (int, error) {
 	q := fmt.Sprintf(`
 		SELECT count(*) FROM %s.building_link
 		WHERE country_code = $1
+		  AND match_type = 1
 		  AND ST_Intersects(geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
 		cfg.DB.Schemas.City2Tabula,
 	)

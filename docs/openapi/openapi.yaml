@@ -15,28 +15,28 @@ info:
 
     ## Workflow
 
-    1. `GET /coverage` — cheap check for whether a bbox already has data.
-    2. `POST /runs` — if not, trigger extraction for that country/bbox. Returns a
+    1. `GET /coverage` cheap check for whether a bbox already has data.
+    2. `POST /runs` if not, trigger extraction for that country/bbox. Returns a
        `run_id` immediately; extraction runs in the background.
-    3. `GET /runs/{id}` — poll until `status` is `completed`, `no_data`, or `failed`.
-    4. `GET /buildings` — read building + surface attributes, once data exists.
-    5. `GET /geometry` — read footprint geometry, only if something needs to render it.
+    3. `GET /runs/{id}` poll until `status` is `completed`, `no_data`, or `failed`.
+    4. `GET /buildings` read building + surface attributes, once data exists.
+    5. `GET /geometry` read footprint geometry, only if something needs to render it.
 
     `buildings` never carries geometry, and `geometry` never carries thematic
-    attributes — they're separate endpoints on purpose, since nothing in a
+    attributes they're separate endpoints on purpose, since nothing in a
     calculation pipeline needs geometry, only a visualization consumer does.
 
     ## Per-country databases
 
     Each country's raw 3D data lives in its own database, created on first use.
     A `country` value must match one of City2TABULA's supported TABULA/EPISCOPE
-    countries (e.g. `germany`, `united_kingdom`) — see `internal/config/srid.go`
+    countries (e.g. `germany`, `united_kingdom`) see `internal/config/srid.go`
     in the source repository for the full list.
 
     ## Authentication
 
     None. This API has no authentication of its own and is not behind a reverse
-    proxy — it is meant to be reachable only from trusted internal callers on the
+    proxy it is meant to be reachable only from trusted internal callers on the
     same network. Do not expose it directly to the public internet as-is.
 
     ## Run tracking
@@ -50,9 +50,6 @@ servers:
   - url: http://localhost:5000
     description: Local default (SERVER_PORT env var overrides the port)
 
-# No authentication exists on this API today (see the Authentication section
-# above) — declared explicitly (empty, not omitted) so that stays a documented
-# fact, not something a reader has to infer from its absence.
 security: []
 
 paths:
@@ -79,7 +76,7 @@ paths:
       description: |
         Starts import → extract → link for one country/bbox in the background and
         returns immediately with a run id to poll via `GET /runs/{id}`. Runs are
-        serialized — only one runs at a time across all countries.
+        serialized only one runs at a time across all countries.
       requestBody:
         required: true
         content:
@@ -130,7 +127,7 @@ paths:
       summary: Count already-linked buildings in a bbox
       operationId: getCoverage
       description: |
-        Read-only check against `building_link` — a nonzero count means the bbox
+        Read-only check against `building_link` a nonzero count means the bbox
         already has extracted, PyLovo-link-processed data, so triggering a new run
         is probably unnecessary.
       parameters:
@@ -163,7 +160,7 @@ paths:
       operationId: getBuildings
       description: |
         Returns thematic (non-geometric) 3D attributes, with each building's
-        envelope surfaces embedded. Two mutually exclusive query modes —
+        envelope surfaces embedded. Two mutually exclusive query modes
         `osm_ids` takes precedence if both are supplied:
 
         - **By `osm_ids`**: only buildings already matched to a PyLovo building
@@ -204,7 +201,7 @@ paths:
       summary: Building footprint geometry
       operationId: getGeometry
       description: |
-        Footprint geometry only, for the given building object ids — fetched
+        Footprint geometry only, for the given building object ids fetched
         separately from `/buildings` since nothing in the calculation path needs
         it, only a visualization consumer would.
       parameters:
@@ -317,7 +314,7 @@ components:
           enum: [pending, running, completed, no_data, failed]
           description: |
             `no_data` means the pipeline ran successfully but found no source data
-            for the requested bbox — distinct from `failed`, a real error.
+            for the requested bbox distinct from `failed`, a real error.
         error:
           type: string
           description: Present only when status is `failed`
@@ -387,7 +384,7 @@ components:
           type: number
           nullable: true
           description: |
-            Degrees. 0=vertical wall, 90=flat roof — the *opposite* of the
+            Degrees. 0=vertical wall, 90=flat roof the *opposite* of the
             common building-energy convention (0=horizontal roof,
             90=vertical wall). Invert before feeding into a consumer that
             expects that convention.

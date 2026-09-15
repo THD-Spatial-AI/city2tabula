@@ -15,3 +15,71 @@ services:
     ports:
       - "${HOST_PORT}:5000"        # map host port (configurable) to container port 8080
     command: bash         # start an interactive shell for development
+
+  city2tabula-db:
+    image: postgis/postgis:16-3.4
+    container_name: city2tabula-db
+    environment:
+      POSTGRES_USER: ${C2T_DB_USER}
+      POSTGRES_PASSWORD: ${C2T_DB_PASSWORD}
+      POSTGRES_DB: ${C2T_DB_NAME}
+    # No host port published: city2tabula-server reaches this over the
+    # compose default network by service name. Add one back if a host tool
+    # (psql, QGIS) needs direct access.
+    volumes:
+      - city2tabula-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # The on-request HTTP wrapper (cmd/server), for TentaCron's proxy targets to
+  # reach. `go run` against the already-COPY'd source in the same dev image —
+  # no separate build target, matches the interactive `city2tabula` service.
+  # data/ is .dockerignore'd (mounted at runtime everywhere else in this repo
+  # too), so the TABULA CSV import needs the same volume mount as above.
+  city2tabula-server:
+    container_name: city2tabula-server
+    build:
+      context: ./..
+      dockerfile: environment/Dockerfile
+    environment:
+      DB_HOST: city2tabula-db
+      DB_PORT: 5432
+      DB_USER: ${C2T_DB_USER}
+      DB_PASSWORD: ${C2T_DB_PASSWORD}
+      DB_NAME: ${C2T_DB_NAME}
+      DB_SSL_MODE: disable
+      SERVER_PORT: 5000
+      # PYLOVO_FDW_HOST intentionally unset: no PyLovo dataset behind this
+      # instance, leaves PyLovo linking a clean no-op (internal/process/pylovo_fdw.go).
+    volumes:
+      - ./../data:/app/data
+    depends_on:
+      city2tabula-db:
+        condition: service_healthy
+    ports:
+      - "${C2T_SERVER_HOST_PORT:-5050}:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:5000/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: ["go", "run", "./cmd/server"]
+    networks:
+      - default
+      # Join the ignis deployment's network so TentaCron (already on this
+      # network for ignis-app) can reach http://city2tabula-server:5000.
+      - building-simulation_default
+
+volumes:
+  city2tabula-db-data:
+
+networks:
+  default: {}
+  # Created by the ignis deployment (docker compose project building-simulation,
+  # see City2TABULA/ignis/environment/docker-compose.yml's `name:` key).
+  # Must already exist: start ignis before this, or `docker network create`.
+  building-simulation_default:
+    external: true

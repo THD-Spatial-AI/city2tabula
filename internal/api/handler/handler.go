@@ -5,12 +5,14 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
+	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 )
 
@@ -96,6 +98,15 @@ func (h *Handler) RunStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toRunResponse(run))
 }
 
+// coverageResponse answers GET /api/v1/coverage. Configured is false when the
+// country has no dataset at all, which Count alone cannot express: a count of
+// zero otherwise means the dataset exists and nothing in the bbox is linked.
+// The two lead a caller to different actions, so they stay separate fields.
+type coverageResponse struct {
+	Count      int  `json:"count"`
+	Configured bool `json:"configured"`
+}
+
 // Coverage handles GET /api/v1/coverage?country=..&xmin=..&ymin=..&xmax=..&ymax=..
 // — a read-only count of already-linked buildings in the bbox, so callers can
 // decide whether to trigger a run before doing so.
@@ -112,6 +123,10 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
+	if errors.Is(err, db.ErrDatabaseNotFound) {
+		writeJSON(w, http.StatusOK, coverageResponse{Count: 0, Configured: false})
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -123,7 +138,7 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"count": count})
+	writeJSON(w, http.StatusOK, coverageResponse{Count: count, Configured: true})
 }
 
 // Buildings handles GET /api/v1/buildings?country=..&osm_ids=a,b,c (3D
@@ -139,6 +154,10 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
+	if errors.Is(err, db.ErrDatabaseNotFound) {
+		writeJSON(w, http.StatusOK, []onrequest.Building{})
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -178,6 +197,10 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
+	if errors.Is(err, db.ErrDatabaseNotFound) {
+		writeJSON(w, http.StatusOK, []onrequest.BuildingGeometry{})
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
