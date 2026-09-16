@@ -317,7 +317,7 @@ goto end
 call :up
 echo Creating database and setting up schemas...
 cd environment\http
-docker exec -it city2tabula-environment ./city2tabula -create-db
+docker exec -it city2tabula-environment ./c2t -create-db
 cd ..\..
 goto end
 
@@ -325,7 +325,7 @@ goto end
 call :up
 echo Extracting building features...
 cd environment\http
-docker exec -it city2tabula-environment ./city2tabula -extract-features
+docker exec -it city2tabula-environment ./c2t -extract-features
 cd ..\..
 goto end
 
@@ -333,7 +333,7 @@ goto end
 call :up
 echo Resetting the entire database...
 cd environment\http
-docker exec -it city2tabula-environment ./city2tabula -reset-db
+docker exec -it city2tabula-environment ./c2t -reset-db
 cd ..\..
 goto end
 
@@ -341,7 +341,7 @@ goto end
 call :up
 echo Checking City2TABULA version...
 cd environment\http
-docker exec -it city2tabula-environment ./city2tabula -version
+docker exec -it city2tabula-environment ./c2t -version
 cd ..\..
 goto end
 
