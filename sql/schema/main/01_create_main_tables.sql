@@ -125,6 +125,12 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     surface_feature_id INTEGER,
     surface_type       VARCHAR(50),
     surface_area       DOUBLE PRECISION,
+    -- area_below_precision: the surface is real and its geometry, tilt and
+    -- azimuth are sound, but its area rounds to 0.00 at the 2-decimal precision
+    -- the pipeline records, so the area must not be used as a thermal area.
+    -- Slivers from wall/roof intersections in the source model land here. The
+    -- row is kept because the geometry is source data and still renders.
+    area_below_precision BOOLEAN,
     -- tilt: angle from vertical, 0 = wall, 90 = flat roof. Complement of the
     -- usual from-horizontal slope angle; a consumer converts with 90 - tilt.
     tilt               DOUBLE PRECISION,
