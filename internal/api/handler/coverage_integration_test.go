@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -149,5 +150,49 @@ func createDatabase(t *testing.T, host, port, name string) {
 
 	if _, err := conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
 		t.Fatalf("create database %s: %v", name, err)
+	}
+}
+
+// TestRuns_FixtureShapedDatabaseRefusedSynchronously pins where the refusal has
+// to happen. Accepting with 202 and failing inside the background goroutine
+// leaves the caller polling a run that could never succeed, so the check belongs
+// in StartRun, before the run is registered.
+func TestRuns_FixtureShapedDatabaseRefusedSynchronously(t *testing.T) {
+	host, port := testutil.StartPostGISAddr(t)
+	h := handler.New(server.New(baseConfig(host, port)))
+
+	// A fixture restore creates the City2TABULA schema and nothing else.
+	createDatabase(t, host, port, "coverage_ddl_test_nl")
+	seedSchema(t, host, port, "coverage_ddl_test_nl", config.City2TabulaSchema)
+
+	body := `{"country":"netherlands","xmin":6.0162,"ymin":52.0988,"xmax":6.0384,"ymax":52.1130}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.Runs(rec, req)
+
+	if rec.Code == http.StatusAccepted {
+		t.Fatalf("run was accepted; the caller would poll a run that cannot succeed: %s", rec.Body.String())
+	}
+	for _, want := range []string{config.TabulaSchema, "coverage_ddl_test_nl"} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("error body %q does not name %q", rec.Body.String(), want)
+		}
+	}
+}
+
+// seedSchema creates one schema in an existing database.
+func seedSchema(t *testing.T, host, port, dbName, schema string) {
+	t.Helper()
+	ctx := context.Background()
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, testutil.TestUser, testutil.TestPassword, dbName)
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect to %s: %v", dbName, err)
+	}
+	defer conn.Close(ctx)
+
+	if _, err := conn.Exec(ctx, "CREATE SCHEMA IF NOT EXISTS "+schema); err != nil {
+		t.Fatalf("create schema %s in %s: %v", schema, dbName, err)
 	}
 }

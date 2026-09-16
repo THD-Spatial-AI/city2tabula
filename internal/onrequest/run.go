@@ -29,6 +29,44 @@ func (b Bbox) String() string {
 	return fmt.Sprintf("%g,%g,%g,%g,4326", b.Xmin, b.Ymin, b.Xmax, b.Ymax)
 }
 
+// CheckRunnable reports whether a pipeline run can proceed against cfg's
+// country. A database that does not exist yet is runnable, since the run creates
+// it. One that exists without the schemas an import needs is not: a fixture
+// restore creates the City2TABULA schema alone, and the import would fail on the
+// first missing relation. The run must not provision it either, because
+// CreateCompleteDatabase's schema scripts begin with DROP TABLE and would
+// destroy the data the database was restored with.
+//
+// Callers that accept a run asynchronously should call this first, so the
+// refusal reaches the client instead of surfacing later as a failed run.
+func CheckRunnable(cfg *config.Config) error {
+	existed, err := db.DatabaseExists(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to check whether database %s exists: %w", cfg.DB.Name, err)
+	}
+	if !existed {
+		return nil
+	}
+
+	pool, err := db.ConnectPool(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database %s: %w", cfg.DB.Name, err)
+	}
+	defer db.ClosePool(pool)
+
+	missing, err := db.MissingRunSchemas(pool, cfg)
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf(
+			"database %s cannot run extraction: it is missing the %s schema(s), so it was not built by a pipeline run (a fixture-loaded database has only %s)",
+			cfg.DB.Name, strings.Join(missing, ", "), cfg.DB.Schemas.City2Tabula,
+		)
+	}
+	return nil
+}
+
 // RunForRegion imports 3D data for cfg's country, scoped to bbox, then extracts
 // features and links against PyLovo. cfg must come from config.RegionConfig —
 // Country, DB.Name, CityDB.SRID/SRSName, and Data.Lod2/Lod3 all need to already
@@ -47,19 +85,8 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string) error {
 	defer db.ClosePool(pool)
 
 	if existed {
-		// An existing database is not necessarily one a run built: a fixture
-		// restore creates the City2TABULA schema alone. Refuse here rather than
-		// let the import fail on a missing relation, and never fall through to
-		// CreateCompleteDatabase, whose schema scripts begin with DROP TABLE.
-		missing, err := db.MissingRunSchemas(pool, cfg)
-		if err != nil {
+		if err := CheckRunnable(cfg); err != nil {
 			return err
-		}
-		if len(missing) > 0 {
-			return fmt.Errorf(
-				"database %s cannot run extraction: it is missing the %s schema(s), so it was not built by a pipeline run (a fixture-loaded database has only %s)",
-				cfg.DB.Name, strings.Join(missing, ", "), cfg.DB.Schemas.City2Tabula,
-			)
 		}
 
 		if err := db.ImportAllData(cfg, pool, bbox.String(), bboxMode); err != nil {

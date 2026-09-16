@@ -124,6 +124,13 @@ func (s *Server) StartRun(country string, bbox onrequest.Bbox, bboxMode string) 
 		return nil, err
 	}
 
+	// Checked before the run is registered: accepting with 202 and failing in
+	// the goroutine leaves the caller polling a run that was never going to
+	// succeed.
+	if err := onrequest.CheckRunnable(&cfg); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 	run := &Run{ID: uuid.NewString(), Country: cfg.Country, Status: StatusPending, CreatedAt: now, UpdatedAt: now}
 
