@@ -204,11 +204,29 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 type BuildingGeometry struct {
 	ObjectID         string          `json:"object_id"`
 	FootprintGeoJSON json.RawMessage `json:"footprint_geojson,omitempty"`
+	// Surfaces is populated only when the caller asks for it, since a single
+	// building can carry a few hundred faces and most callers want the
+	// footprint alone.
+	Surfaces []SurfaceGeometry `json:"surfaces,omitempty"`
+}
+
+// SurfaceGeometry is one envelope surface's polygon, keyed by the same ID
+// Surface carries, so a caller holding surfaces from a buildings query joins
+// geometry onto them without a second identifier. Party walls are excluded
+// upstream, so every surface here is exposed building fabric.
+//
+// GeoJSON keeps its Z coordinates and the geometry's native CRS, the same as
+// the footprint: no reprojection happens anywhere in the pipeline.
+type SurfaceGeometry struct {
+	ID      string          `json:"id"`
+	Type    string          `json:"type"`
+	GeoJSON json.RawMessage `json:"geojson,omitempty"`
 }
 
 // BuildingGeometryByObjectIDs returns footprint geometry for the given
-// building object IDs in cfg's country.
-func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string) ([]BuildingGeometry, error) {
+// building object IDs in cfg's country. With includeSurfaces, each building
+// also carries its individual envelope surface polygons.
+func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string, includeSurfaces bool) ([]BuildingGeometry, error) {
 	if len(objectIDs) == 0 {
 		return nil, nil
 	}
@@ -243,5 +261,66 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating building geometry rows: %w", err)
 	}
+
+	if includeSurfaces {
+		if err := attachSurfaceGeometry(ctx, pool, cfg, geometries); err != nil {
+			return nil, err
+		}
+	}
 	return geometries, nil
+}
+
+// attachSurfaceGeometry fetches every surface polygon for geometries' object IDs
+// in one batched query and sets each BuildingGeometry's Surfaces field in place,
+// avoiding one query per building.
+func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, geometries []BuildingGeometry) error {
+	if len(geometries) == 0 {
+		return nil
+	}
+
+	objectIDs := make([]string, len(geometries))
+	byObjectID := make(map[string]*BuildingGeometry, len(geometries))
+	for i := range geometries {
+		objectIDs[i] = geometries[i].ObjectID
+		byObjectID[geometries[i].ObjectID] = &geometries[i]
+	}
+
+	// No ST_Force2D here, unlike the footprint: the Z coordinate is the point of
+	// asking for surfaces. id (row UUID), not surface_object_id, which one source
+	// surface feature shares across all of its faces.
+	q := fmt.Sprintf(`
+		SELECT building_object_id, id::text, COALESCE(surface_type, ''),
+		       COALESCE(ST_AsGeoJSON(geom), '')
+		FROM %s.%s_surface
+		WHERE building_object_id = ANY($1)
+		ORDER BY building_object_id, id`,
+		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+	)
+
+	rows, err := pool.Query(ctx, q, objectIDs)
+	if err != nil {
+		return fmt.Errorf("failed to query surface geometry for %s: %w", cfg.Country, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var buildingObjectID string
+		var s SurfaceGeometry
+		var geoJSON string
+		if err := rows.Scan(&buildingObjectID, &s.ID, &s.Type, &geoJSON); err != nil {
+			return fmt.Errorf("failed to scan surface geometry row: %w", err)
+		}
+		// Empty string (no geometry) stays nil, not an empty-but-non-nil
+		// RawMessage, which encoding/json would reject as invalid JSON.
+		if geoJSON != "" {
+			s.GeoJSON = json.RawMessage(geoJSON)
+		}
+		if g, ok := byObjectID[buildingObjectID]; ok {
+			g.Surfaces = append(g.Surfaces, s)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating surface geometry rows: %w", err)
+	}
+	return nil
 }
