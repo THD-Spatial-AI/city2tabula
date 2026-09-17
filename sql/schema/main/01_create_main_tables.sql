@@ -47,7 +47,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   -- the usual from-horizontal slope angle; a consumer converts with 90 - tilt.
   tilt DOUBLE PRECISION,
   tilt_unit VARCHAR CHECK (tilt_unit IN ('degrees')),
-  -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined.
+  -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined,
+  -- outside 0-360 so it cannot be read as a bearing. Energy ADE 1.0 uses 0 for horizontal surfaces.
   azimuth DOUBLE PRECISION,
   azimuth_unit VARCHAR CHECK (azimuth_unit IN ('degrees')),
   is_valid BOOLEAN,
@@ -128,7 +129,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     -- tilt: angle from vertical, 0 = wall, 90 = flat roof. Complement of the
     -- usual from-horizontal slope angle; a consumer converts with 90 - tilt.
     tilt               DOUBLE PRECISION,
-    -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined.
+    -- azimuth: compass bearing of the outward normal, clockwise from grid north. -1 = undefined,
+    -- outside 0-360 so it cannot be read as a bearing. Energy ADE 1.0 uses 0 for horizontal surfaces.
     azimuth            DOUBLE PRECISION,
     height             DOUBLE PRECISION,
     is_valid           BOOLEAN,
