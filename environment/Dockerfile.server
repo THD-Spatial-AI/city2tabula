@@ -1,0 +1,61 @@
+# Runtime image for the on-request HTTP server (cmd/server).
+#
+# environment/Dockerfile is the development toolchain image: it carries the Go
+# and Java toolchains and the whole source tree so `make dev` can build and run
+# anything interactively. This one carries a compiled binary and only what the
+# pipeline shells out to at runtime.
+#
+# Kept out deliberately: the Go toolchain (the binary is built in the first
+# stage and is static, CGO_ENABLED=0), the Go source, and the geospatial C
+# libraries, which nothing links against once cgo is off.
+#
+# Kept in, because the pipeline cannot run without them: a Java runtime and
+# citydb-tool, which creates the 3DCityDB schema and imports and exports
+# CityGML/CityJSON; and psql, which loads the TABULA CSVs via \copy.
+
+ARG GO_VERSION=1.25.0
+ARG CITYDB_TOOL_VERSION=1.3.2
+ARG JAVA_VERSION=25
+
+FROM golang:${GO_VERSION}-bookworm AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/city2tabula-server ./cmd/server
+
+FROM debian:bookworm-slim AS citydb
+ARG CITYDB_TOOL_VERSION
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget unzip \
+    && rm -rf /var/lib/apt/lists/*
+RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v${CITYDB_TOOL_VERSION}/citydb-tool-${CITYDB_TOOL_VERSION}.zip -O /tmp/citydb-tool.zip \
+    && unzip -q /tmp/citydb-tool.zip -d /usr/local/citydb-tool \
+    && rm /tmp/citydb-tool.zip
+
+FROM eclipse-temurin:${JAVA_VERSION}-jre
+ARG CITYDB_TOOL_VERSION
+
+# wget is the compose healthcheck's probe, not a build tool.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client wget \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=citydb /usr/local/citydb-tool /usr/local/citydb-tool
+# Known path inside the image, as in environment/Dockerfile: docker.env never
+# needs to set this.
+ENV CITYDB_TOOL_PATH="/usr/local/citydb-tool/citydb-tool-${CITYDB_TOOL_VERSION}"
+
+# config.SQLDir and config.DataDir are relative ("sql/", "data/"), resolved
+# against the working directory, so the layout here has to mirror the
+# repository root rather than being arbitrary.
+WORKDIR /app
+COPY sql/ ./sql/
+COPY data/ ./data/
+COPY --from=build /out/city2tabula-server ./city2tabula-server
+
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 5000
+CMD ["./city2tabula-server"]
