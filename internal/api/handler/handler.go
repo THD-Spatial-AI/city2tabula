@@ -184,6 +184,11 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 // geometry for the given buildings. Separate from Buildings since nothing in
 // the calculation path needs geometry; fetched only when something (e.g. a
 // frontend) actually wants to render it.
+//
+// include=surfaces adds each building's individual envelope surface polygons.
+// It is opt-in because a single building can carry a few hundred faces, and a
+// caller that only needs to place the building on a map should not pay for
+// them.
 func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
@@ -206,7 +211,11 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	geometry, err := onrequest.BuildingGeometryByObjectIDs(r.Context(), pool, cfg, strings.Split(objectIDsParam, ","))
+	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
+
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(
+		r.Context(), pool, cfg, strings.Split(objectIDsParam, ","), includeSurfaces,
+	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

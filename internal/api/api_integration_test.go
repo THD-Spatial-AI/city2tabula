@@ -28,6 +28,14 @@ import (
 // TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings for that).
 // Server.StartRun's goroutine/status-transition wiring is not yet covered.
 
+// surfaceGeom mirrors onrequest.SurfaceGeometry for decoding, so the test
+// asserts on the wire format rather than on the producing type.
+type surfaceGeom struct {
+	ID      string          `json:"id"`
+	Type    string          `json:"type"`
+	GeoJSON json.RawMessage `json:"geojson"`
+}
+
 // baseServerConfig builds the process-wide config a server.Server needs, by
 // hand (bypasses config.LoadEnv/.env — see onrequest's e2eConfig for why).
 func baseServerConfig(host, port, dbNamePrefix string) config.Config {
@@ -256,6 +264,7 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	var geometry []struct {
 		ObjectID         string          `json:"object_id"`
 		FootprintGeoJSON json.RawMessage `json:"footprint_geojson"`
+		Surfaces         []surfaceGeom   `json:"surfaces"`
 	}
 	if err := json.NewDecoder(resp5.Body).Decode(&geometry); err != nil {
 		t.Fatalf("decode /geometry response: %v", err)
@@ -272,6 +281,70 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	}
 	if footprint.Type == "" {
 		t.Error("expected footprint_geojson to have a GeoJSON type")
+	}
+	if len(geometry[0].Surfaces) != 0 {
+		t.Errorf("surfaces must be opt-in: got %d without include=surfaces", len(geometry[0].Surfaces))
+	}
+
+	// Geometry with include=surfaces: the same row, now carrying one polygon
+	// per envelope face.
+	resp6, err := http.Get(geometryURL + "&include=surfaces")
+	if err != nil {
+		t.Fatalf("GET /geometry?include=surfaces: %v", err)
+	}
+	defer resp6.Body.Close()
+	if resp6.StatusCode != http.StatusOK {
+		t.Fatalf("GET /geometry?include=surfaces: status = %d, want 200", resp6.StatusCode)
+	}
+	var withSurfaces []struct {
+		ObjectID string        `json:"object_id"`
+		Surfaces []surfaceGeom `json:"surfaces"`
+	}
+	if err := json.NewDecoder(resp6.Body).Decode(&withSurfaces); err != nil {
+		t.Fatalf("decode /geometry?include=surfaces response: %v", err)
+	}
+	if len(withSurfaces) != 1 {
+		t.Fatalf("expected exactly 1 geometry row, got %d", len(withSurfaces))
+	}
+	surfaces := withSurfaces[0].Surfaces
+	if len(surfaces) == 0 {
+		t.Fatal("expected at least one surface geometry, got none")
+	}
+
+	// The row id is the only unique per-face key: one source surface feature
+	// shares its own id across every face it owns, so a consumer keying on
+	// anything else cannot tell two faces apart.
+	seenIDs := make(map[string]bool, len(surfaces))
+	for i, sg := range surfaces {
+		if sg.ID == "" {
+			t.Fatalf("surfaces[%d] has no id", i)
+		}
+		if seenIDs[sg.ID] {
+			t.Errorf("surfaces[%d] repeats id %q; ids must be unique per face", i, sg.ID)
+		}
+		seenIDs[sg.ID] = true
+		if sg.Type == "" {
+			t.Errorf("surfaces[%d] (%s) has no type", i, sg.ID)
+		}
+	}
+
+	var poly struct {
+		Type        string        `json:"type"`
+		Coordinates [][][]float64 `json:"coordinates"`
+	}
+	if err := json.Unmarshal(surfaces[0].GeoJSON, &poly); err != nil {
+		t.Fatalf("surfaces[0].geojson is not valid nested JSON: %v", err)
+	}
+	if poly.Type != "Polygon" {
+		t.Errorf("surfaces[0].geojson type = %q, want Polygon", poly.Type)
+	}
+	if len(poly.Coordinates) == 0 || len(poly.Coordinates[0]) == 0 {
+		t.Fatal("surfaces[0].geojson has no coordinates")
+	}
+	// Z is the reason a caller asks for surfaces at all; the footprint is
+	// flattened, these must not be.
+	if got := len(poly.Coordinates[0][0]); got != 3 {
+		t.Errorf("surfaces[0] first vertex has %d ordinates, want 3 (x, y, z)", got)
 	}
 
 	// RunStatus for an unknown id: 404.
