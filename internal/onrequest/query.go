@@ -54,9 +54,16 @@ type Surface struct {
 	// Tilt: 0=vertical wall, 90=flat roof — the opposite of the common
 	// building-energy convention (0=horizontal roof, 90=vertical wall);
 	// invert before mapping to a schema that uses that convention.
-	Tilt     *float64 `json:"tilt,omitempty"`
-	IsValid  *bool    `json:"is_valid,omitempty"`
-	IsPlanar *bool    `json:"is_planar,omitempty"`
+	Tilt *float64 `json:"tilt,omitempty"`
+	// AreaBelowPrecision marks a surface whose area rounds to 0.00 at the
+	// 2-decimal precision City2TABULA records. The surface is real and its
+	// geometry, tilt and azimuth are sound, so it still renders, but Area is not
+	// a usable thermal area: exclude these from an energy calculation rather
+	// than treating the zero as real. Slivers from wall and roof intersections
+	// in the source model land here.
+	AreaBelowPrecision *bool `json:"area_below_precision,omitempty"`
+	IsValid            *bool `json:"is_valid,omitempty"`
+	IsPlanar           *bool `json:"is_planar,omitempty"`
 }
 
 // BuildingsByOSMIDs returns 3D attributes for every LOD2 building in cfg's
@@ -169,7 +176,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 	// faces and shares its surface_object_id across all of them.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, surface_type,
-		       surface_area, azimuth, tilt, is_valid, is_planar
+		       surface_area, azimuth, tilt, area_below_precision, is_valid, is_planar
 		FROM %s.%s_surface
 		WHERE building_object_id = ANY($1)`,
 		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
@@ -186,7 +193,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		var s Surface
 		if err := rows.Scan(
 			&buildingObjectID, &s.ID, &s.Type,
-			&s.AreaSqm, &s.Azimuth, &s.Tilt, &s.IsValid, &s.IsPlanar,
+			&s.AreaSqm, &s.Azimuth, &s.Tilt, &s.AreaBelowPrecision, &s.IsValid, &s.IsPlanar,
 		); err != nil {
 			return fmt.Errorf("failed to scan surface row: %w", err)
 		}

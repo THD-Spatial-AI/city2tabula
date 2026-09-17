@@ -22,10 +22,52 @@ func bootstrapDSN(cfg *config.Config) string {
 	)
 }
 
-// ErrDatabaseNotFound reports that a country has no database yet. Read-only
-// callers use it to answer "no data for this country" instead of creating one:
+// ErrCountryNotConfigured reports that a country has no usable dataset: either
+// no database, or a database without the City2TABULA tables. Read-only callers
+// use it to answer "no data for this country" instead of creating one:
 // ConnectPool creates the database as a side effect, which a GET must not do.
-var ErrDatabaseNotFound = errors.New("no database for this country")
+var ErrCountryNotConfigured = errors.New("country has no dataset")
+
+// MissingRunSchemas returns the schemas an incremental import needs but cfg's
+// database does not have. ImportAllData assumes CreateCompleteDatabase built
+// them; a database restored from a fixture holds only the City2TABULA schema,
+// so the import would otherwise fail on the first missing relation.
+func MissingRunSchemas(pool *pgxpool.Pool, cfg *config.Config) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	required := []string{cfg.DB.Schemas.Tabula, cfg.DB.Schemas.CityDB, cfg.DB.Schemas.Lod2}
+	var missing []string
+	for _, schema := range required {
+		var present bool
+		if err := pool.QueryRow(ctx,
+			`SELECT to_regnamespace($1) IS NOT NULL`, schema,
+		).Scan(&present); err != nil {
+			return nil, fmt.Errorf("check schema %s exists in %s: %w", schema, cfg.DB.Name, err)
+		}
+		if !present {
+			missing = append(missing, schema)
+		}
+	}
+	return missing, nil
+}
+
+// CountryProvisioned reports whether cfg's database has the City2TABULA tables.
+// A database can exist without them, because earlier builds created one as a
+// side effect of a read, so existence alone does not mean a country is usable.
+func CountryProvisioned(pool *pgxpool.Pool, cfg *config.Config) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	qualified := cfg.DB.Schemas.City2Tabula + ".building_link"
+	var provisioned bool
+	if err := pool.QueryRow(ctx,
+		`SELECT to_regclass($1) IS NOT NULL`, qualified,
+	).Scan(&provisioned); err != nil {
+		return false, fmt.Errorf("check %s exists in %s: %w", qualified, cfg.DB.Name, err)
+	}
+	return provisioned, nil
+}
 
 // DatabaseExists reports whether cfg.DB.Name already exists as a Postgres database.
 // Used by the on-request HTTP server (internal/api) to decide whether a country is

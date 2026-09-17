@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -98,5 +99,100 @@ func TestCoverage_UnconfiguredCountryCreatesNoDatabase(t *testing.T) {
 
 	if databaseExists(t, host, port, germanDB) {
 		t.Errorf("GET /coverage created database %s; a read-only endpoint must not run DDL", germanDB)
+	}
+}
+
+// TestCoverage_UnprovisionedDatabaseIsNotConfigured covers the residue of the
+// DDL-on-GET defect: databases it created still exist, holding no City2TABULA
+// tables. Existence alone used to be enough to get past the guard, so every
+// query then failed on the missing relation and the endpoint answered 500,
+// which is retryable and indistinguishable from the service being down.
+func TestCoverage_UnprovisionedDatabaseIsNotConfigured(t *testing.T) {
+	host, port := testutil.StartPostGISAddr(t)
+	h := handler.New(server.New(baseConfig(host, port)))
+
+	// An empty database, exactly what a probe used to leave behind.
+	createDatabase(t, host, port, "coverage_ddl_test_de")
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/coverage?country=germany&xmin=8.78&ymin=53.08&xmax=8.83&ymax=53.11", nil)
+	rec := httptest.NewRecorder()
+	h.Coverage(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 for a database with no City2TABULA tables; body: %s",
+			rec.Code, rec.Body.String())
+	}
+
+	var got struct {
+		Count      int  `json:"count"`
+		Configured bool `json:"configured"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode body %q: %v", rec.Body.String(), err)
+	}
+	if got.Count != 0 || got.Configured {
+		t.Errorf("got count=%d configured=%v, want 0 and false", got.Count, got.Configured)
+	}
+}
+
+// createDatabase makes an empty database on the test server.
+func createDatabase(t *testing.T, host, port, name string) {
+	t.Helper()
+	ctx := context.Background()
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
+		host, port, testutil.TestUser, testutil.TestPassword)
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect to bootstrap DB: %v", err)
+	}
+	defer conn.Close(ctx)
+
+	if _, err := conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
+		t.Fatalf("create database %s: %v", name, err)
+	}
+}
+
+// TestRuns_FixtureShapedDatabaseRefusedSynchronously pins where the refusal has
+// to happen. Accepting with 202 and failing inside the background goroutine
+// leaves the caller polling a run that could never succeed, so the check belongs
+// in StartRun, before the run is registered.
+func TestRuns_FixtureShapedDatabaseRefusedSynchronously(t *testing.T) {
+	host, port := testutil.StartPostGISAddr(t)
+	h := handler.New(server.New(baseConfig(host, port)))
+
+	// A fixture restore creates the City2TABULA schema and nothing else.
+	createDatabase(t, host, port, "coverage_ddl_test_nl")
+	seedSchema(t, host, port, "coverage_ddl_test_nl", config.City2TabulaSchema)
+
+	body := `{"country":"netherlands","xmin":6.0162,"ymin":52.0988,"xmax":6.0384,"ymax":52.1130}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.Runs(rec, req)
+
+	if rec.Code == http.StatusAccepted {
+		t.Fatalf("run was accepted; the caller would poll a run that cannot succeed: %s", rec.Body.String())
+	}
+	for _, want := range []string{config.TabulaSchema, "coverage_ddl_test_nl"} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("error body %q does not name %q", rec.Body.String(), want)
+		}
+	}
+}
+
+// seedSchema creates one schema in an existing database.
+func seedSchema(t *testing.T, host, port, dbName, schema string) {
+	t.Helper()
+	ctx := context.Background()
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, testutil.TestUser, testutil.TestPassword, dbName)
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect to %s: %v", dbName, err)
+	}
+	defer conn.Close(ctx)
+
+	if _, err := conn.Exec(ctx, "CREATE SCHEMA IF NOT EXISTS "+schema); err != nil {
+		t.Fatalf("create schema %s in %s: %v", schema, dbName, err)
 	}
 }

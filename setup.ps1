@@ -206,7 +206,7 @@ function Invoke-CreateDb {
     Invoke-Up
     Write-Host "Creating database and setting up schemas..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./city2tabula -create-db
+    docker exec -it city2tabula-environment ./c2t -create-db
     Set-Location "../.."
 }
 
@@ -214,7 +214,7 @@ function Invoke-ExtractFeatures {
     Invoke-Up
     Write-Host "Extracting building features..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./city2tabula -extract-features
+    docker exec -it city2tabula-environment ./c2t -extract-features
     Set-Location "../.."
 }
 
@@ -222,7 +222,7 @@ function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./city2tabula -reset-db
+    docker exec -it city2tabula-environment ./c2t -reset-db
     Set-Location "../.."
 }
 
@@ -230,7 +230,7 @@ function Invoke-Version {
     Invoke-Up
     Write-Host "Checking City2TABULA version..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./city2tabula -version
+    docker exec -it city2tabula-environment ./c2t -version
     Set-Location "../.."
 }
 

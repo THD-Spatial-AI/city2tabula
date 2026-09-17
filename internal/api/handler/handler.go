@@ -123,7 +123,7 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
-	if errors.Is(err, db.ErrDatabaseNotFound) {
+	if errors.Is(err, db.ErrCountryNotConfigured) {
 		writeJSON(w, http.StatusOK, coverageResponse{Count: 0, Configured: false})
 		return
 	}
@@ -154,7 +154,7 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
-	if errors.Is(err, db.ErrDatabaseNotFound) {
+	if errors.Is(err, db.ErrCountryNotConfigured) {
 		writeJSON(w, http.StatusOK, []onrequest.Building{})
 		return
 	}
@@ -202,7 +202,7 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg, pool, err := h.srv.PoolFor(country)
-	if errors.Is(err, db.ErrDatabaseNotFound) {
+	if errors.Is(err, db.ErrCountryNotConfigured) {
 		writeJSON(w, http.StatusOK, []onrequest.BuildingGeometry{})
 		return
 	}

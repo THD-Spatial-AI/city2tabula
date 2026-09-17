@@ -72,20 +72,15 @@ services:
       timeout: 3s
       retries: 5
     command: ["go", "run", "./cmd/server"]
-    networks:
-      - default
-      # Join the ignis deployment's network so TentaCron (already on this
-      # network for ignis-app) can reach http://city2tabula-server:5000.
-      - building-simulation_default
 
 volumes:
   city2tabula-db-data:
 
+# A cross-repo caller reaches city2tabula-server by attaching to this project's
+# network, rather than this file joining one another repo owns. Depending on
+# another project's network meant depending on its project name, which is a side
+# effect of its directory rather than anything it promised to keep: ignis renamed
+# its projects and the network named here stopped existing, with nothing to
+# notice. An external network that is absent fails the whole stack at `up`.
 networks:
   default: {}
-  # Created by the ignis deployment (docker compose project building-simulation,
-  # declared by the `name:` key in both of ignis's environment/http and
-  # environment/https compose files, whichever of the two is running).
-  # Must already exist: start ignis before this, or `docker network create`.
-  building-simulation_default:
-    external: true
