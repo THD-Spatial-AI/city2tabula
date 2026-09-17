@@ -48,6 +48,10 @@ services:
     container_name: city2tabula-server
     # Dockerfile.server, not Dockerfile: the server runs a compiled binary on a
     # JRE base, where the interactive service needs the full toolchain image.
+    # With both image and build set, `compose up` builds locally and tags the
+    # result, while `compose pull` fetches the published tag instead. A
+    # deployment pins C2T_IMAGE_TAG to a release rather than tracking latest.
+    image: ghcr.io/thd-spatial-ai/city2tabula-server:${C2T_IMAGE_TAG:-latest}
     build:
       context: ./../..
       dockerfile: environment/Dockerfile.server
