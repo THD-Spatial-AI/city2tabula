@@ -185,12 +185,10 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 // the calculation path needs geometry; fetched only when something (e.g. a
 // frontend) actually wants to render it.
 //
-// include=surfaces adds one building's individual envelope surface polygons,
-// and is rejected for more than one object_id. A building's face count is
-// unbounded, so a multi-building request fails on its largest buildings with
-// nothing in the request predicting which those are; refusing it here turns
-// that into a clear error instead of an opaque upstream one. Callers place
-// buildings on a map with the footprints and ask for surfaces per building.
+// include=surfaces adds a building's individual envelope surface polygons, for
+// at most maxSurfaceBuildings object_ids. Callers place a whole area on a map
+// with the footprints, which are unrestricted, and ask for surfaces only for
+// the buildings being shown in 3D.
 func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
@@ -208,10 +206,10 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	// Validated before the pool lookup: the request is malformed whatever the
 	// country turns out to be, and an unconfigured one answers 200 with an empty
 	// result, which would swallow the refusal.
-	if n := countNonEmpty(objectIDs); includeSurfaces && n > 1 {
+	if n := countNonEmpty(objectIDs); includeSurfaces && n > maxSurfaceBuildings {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf(
-			"include=surfaces returns surface geometry for one building at a time, but %d object_ids were given; request each building separately",
-			n,
+			"include=surfaces accepts at most %d object_id%s per request, but %d were given; split it into smaller requests",
+			maxSurfaceBuildings, pluralS(maxSurfaceBuildings), n,
 		))
 		return
 	}
@@ -235,6 +233,26 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, geometry)
+}
+
+// maxSurfaceBuildings caps how many buildings one include=surfaces request may
+// ask for. Deliberately low while the path is proven in production, and meant
+// to be raised rather than treated as a permanent property of the API.
+//
+// Raising it does not make the bound safe by itself: payload size tracks the
+// number of faces, not the number of buildings, and a building carries anywhere
+// from a handful to over two hundred. A batch sized for median buildings still
+// fails on a batch of large ones, so a higher limit wants a surface-count bound
+// behind it rather than a bigger number here.
+const maxSurfaceBuildings = 1
+
+// pluralS keeps the limit message grammatical whatever maxSurfaceBuildings is
+// set to.
+func pluralS(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // countNonEmpty counts the ids that carry a value, so a trailing or doubled
