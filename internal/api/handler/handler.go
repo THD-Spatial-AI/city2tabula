@@ -244,6 +244,11 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 // from a handful to over two hundred. A batch sized for median buildings still
 // fails on a batch of large ones, so a higher limit wants a surface-count bound
 // behind it rather than a bigger number here.
+//
+// Callers may also cap the response size they will accept, rejecting a whole
+// response rather than truncating it. Nothing here can see that limit, so
+// raising this one is a change to the largest response this endpoint can
+// produce, not only to how many buildings a caller may name.
 const maxSurfaceBuildings = 1
 
 // pluralS keeps the limit message grammatical whatever maxSurfaceBuildings is
