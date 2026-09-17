@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
-ENV GO_VERSION=1.23.3
+ENV GO_VERSION=1.25.0
 ENV JAVA_VERSION=25
 
 # -----------------------------
