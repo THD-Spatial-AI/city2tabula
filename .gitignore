@@ -6,6 +6,8 @@
 *.dylib
 
 # Project binaries / build artefacts
+# Anchored: a bare c2t would also match the cmd/c2t source directory.
+/c2t
 city2tabula
 city2tabula-*
 /cmd/city2tabula
