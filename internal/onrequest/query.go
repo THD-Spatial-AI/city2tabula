@@ -47,7 +47,9 @@ type Surface struct {
 	ID      string   `json:"id"`
 	Type    string   `json:"type"`
 	AreaSqm *float64 `json:"area,omitempty"`
-	// Azimuth is -1 (undefined) for near-horizontal surfaces.
+	// Azimuth is -1 (undefined) for near-horizontal surfaces, deliberately
+	// outside the 0-360 range so it cannot be read as a bearing. The CityGML
+	// Energy ADE 1.0 Feature Catalogue uses 0 for the same case; convert.
 	Azimuth *float64 `json:"azimuth,omitempty"`
 	// Tilt: 0=vertical wall, 90=flat roof — the opposite of the common
 	// building-energy convention (0=horizontal roof, 90=vertical wall);

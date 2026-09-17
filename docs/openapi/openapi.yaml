@@ -379,7 +379,12 @@ components:
         azimuth:
           type: number
           nullable: true
-          description: Degrees, compass convention. -1 (undefined) for near-horizontal surfaces.
+          description: |
+            Degrees, compass convention (clockwise from grid north). -1 means
+            undefined and is used for near-horizontal surfaces; it sits outside
+            the 0-360 range so it cannot be mistaken for a bearing. The CityGML
+            Energy ADE 1.0 Feature Catalogue uses 0 for the same case, so
+            convert when feeding a consumer that follows it.
         tilt:
           type: number
           nullable: true
