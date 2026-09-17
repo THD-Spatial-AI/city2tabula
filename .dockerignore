@@ -19,6 +19,9 @@ coverage.*
 logs/
 site/
 
-# Local test data mounted at runtime via the compose volume, not baked in
-data/
+# The 3D source datasets are gitignored, large, and mounted at runtime via the
+# compose volume. data/tabula is tracked repo content the pipeline reads with
+# psql \copy, so it is baked in and the server image needs no host mount.
+data/lod2/
+data/lod3/
 testdata/

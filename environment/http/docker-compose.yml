@@ -46,9 +46,15 @@ services:
   # too), so the TABULA CSV import needs the same volume mount as above.
   city2tabula-server:
     container_name: city2tabula-server
+    # Dockerfile.server, not Dockerfile: the server runs a compiled binary on a
+    # JRE base, where the interactive service needs the full toolchain image.
+    # With both image and build set, `compose up` builds locally and tags the
+    # result, while `compose pull` fetches the published tag instead. A
+    # deployment pins C2T_IMAGE_TAG to a release rather than tracking latest.
+    image: ghcr.io/thd-spatial-ai/city2tabula-server:${C2T_IMAGE_TAG:-latest}
     build:
       context: ./../..
-      dockerfile: environment/Dockerfile
+      dockerfile: environment/Dockerfile.server
     environment:
       DB_HOST: city2tabula-db
       DB_PORT: 5432
@@ -59,6 +65,8 @@ services:
       SERVER_PORT: 5000
       # PYLOVO_FDW_HOST intentionally unset: no PyLovo dataset behind this
       # instance, leaves PyLovo linking a clean no-op (internal/process/pylovo_fdw.go).
+    # The image already carries data/tabula; this mount adds the 3D datasets
+    # under data/lod2 and data/lod3, which are gitignored and stay on the host.
     volumes:
       - ./../../data:/app/data
     depends_on:
@@ -71,7 +79,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    command: ["go", "run", "./cmd/server"]
 
 volumes:
   city2tabula-db-data:

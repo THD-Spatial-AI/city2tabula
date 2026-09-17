@@ -13,10 +13,16 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
+	"github.com/thd-spatial-ai/city2tabula/internal/version"
 )
 
 func main() {
 	utils.InitLogger()
+	// Before config validation, not after: a container that fails to start still
+	// has to say which build produced the failure. Values come from -ldflags at
+	// release time and are otherwise "dev".
+	utils.Info.Printf("City2TABULA %s (commit %s, built %s)",
+		version.Version, version.Commit, version.Date)
 
 	base := config.LoadBaseConfig()
 	if err := validateBaseConfig(base); err != nil {
