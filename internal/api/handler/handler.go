@@ -185,10 +185,10 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 // the calculation path needs geometry; fetched only when something (e.g. a
 // frontend) actually wants to render it.
 //
-// include=surfaces adds each building's individual envelope surface polygons.
-// It is opt-in because a single building can carry a few hundred faces, and a
-// caller that only needs to place the building on a map should not pay for
-// them.
+// include=surfaces adds a building's individual envelope surface polygons, for
+// at most maxSurfaceBuildings object_ids. Callers place a whole area on a map
+// with the footprints, which are unrestricted, and ask for surfaces only for
+// the buildings being shown in 3D.
 func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
@@ -198,6 +198,19 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	objectIDsParam := r.URL.Query().Get("object_ids")
 	if objectIDsParam == "" {
 		writeError(w, http.StatusBadRequest, "object_ids query param is required")
+		return
+	}
+	objectIDs := strings.Split(objectIDsParam, ",")
+	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
+
+	// Validated before the pool lookup: the request is malformed whatever the
+	// country turns out to be, and an unconfigured one answers 200 with an empty
+	// result, which would swallow the refusal.
+	if n := countNonEmpty(objectIDs); includeSurfaces && n > maxSurfaceBuildings {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf(
+			"include=surfaces accepts at most %d object_id%s per request, but %d were given; split it into smaller requests",
+			maxSurfaceBuildings, pluralS(maxSurfaceBuildings), n,
+		))
 		return
 	}
 
@@ -211,10 +224,8 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
-
 	geometry, err := onrequest.BuildingGeometryByObjectIDs(
-		r.Context(), pool, cfg, strings.Split(objectIDsParam, ","), includeSurfaces,
+		r.Context(), pool, cfg, objectIDs, includeSurfaces,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -222,6 +233,43 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, geometry)
+}
+
+// maxSurfaceBuildings caps how many buildings one include=surfaces request may
+// ask for. Deliberately low while the path is proven in production, and meant
+// to be raised rather than treated as a permanent property of the API.
+//
+// Raising it does not make the bound safe by itself: payload size tracks the
+// number of faces, not the number of buildings, and a building carries anywhere
+// from a handful to over two hundred. A batch sized for median buildings still
+// fails on a batch of large ones, so a higher limit wants a surface-count bound
+// behind it rather than a bigger number here.
+//
+// Callers may also cap the response size they will accept, rejecting a whole
+// response rather than truncating it. Nothing here can see that limit, so
+// raising this one is a change to the largest response this endpoint can
+// produce, not only to how many buildings a caller may name.
+const maxSurfaceBuildings = 1
+
+// pluralS keeps the limit message grammatical whatever maxSurfaceBuildings is
+// set to.
+func pluralS(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+// countNonEmpty counts the ids that carry a value, so a trailing or doubled
+// comma does not read as an extra building.
+func countNonEmpty(ids []string) int {
+	n := 0
+	for _, id := range ids {
+		if strings.TrimSpace(id) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 func parseBboxParams(r *http.Request) (onrequest.Bbox, error) {
