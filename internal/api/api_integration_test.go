@@ -347,6 +347,43 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 		t.Errorf("surfaces[0] first vertex has %d ordinates, want 3 (x, y, z)", got)
 	}
 
+	// include=surfaces is single-building only: a caller that asks for a whole
+	// area's surfaces is refused here rather than failing somewhere upstream on
+	// a response whose size nothing in the request predicted.
+	resp7, err := http.Get(fmt.Sprintf(
+		"%s/api/v1/geometry?country=germany&object_ids=%s,%s&include=surfaces",
+		ts.URL, objectID, objectID))
+	if err != nil {
+		t.Fatalf("GET /geometry with two object_ids: %v", err)
+	}
+	defer resp7.Body.Close()
+	if resp7.StatusCode != http.StatusBadRequest {
+		t.Errorf("GET /geometry?include=surfaces with 2 object_ids: status = %d, want 400", resp7.StatusCode)
+	}
+
+	// The same two ids without include=surfaces stay allowed: footprints are
+	// what place a whole area on a map.
+	resp8, err := http.Get(fmt.Sprintf(
+		"%s/api/v1/geometry?country=germany&object_ids=%s,%s", ts.URL, objectID, objectID))
+	if err != nil {
+		t.Fatalf("GET /geometry with two object_ids, no include: %v", err)
+	}
+	defer resp8.Body.Close()
+	if resp8.StatusCode != http.StatusOK {
+		t.Errorf("GET /geometry with 2 object_ids and no include: status = %d, want 200", resp8.StatusCode)
+	}
+
+	// A trailing comma is one id, not two.
+	resp9, err := http.Get(fmt.Sprintf(
+		"%s/api/v1/geometry?country=germany&object_ids=%s,&include=surfaces", ts.URL, objectID))
+	if err != nil {
+		t.Fatalf("GET /geometry with a trailing comma: %v", err)
+	}
+	defer resp9.Body.Close()
+	if resp9.StatusCode != http.StatusOK {
+		t.Errorf("GET /geometry?include=surfaces with a trailing comma: status = %d, want 200", resp9.StatusCode)
+	}
+
 	// RunStatus for an unknown id: 404.
 	resp3, err := http.Get(ts.URL + "/api/v1/runs/does-not-exist")
 	if err != nil {

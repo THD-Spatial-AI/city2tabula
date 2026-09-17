@@ -185,10 +185,12 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 // the calculation path needs geometry; fetched only when something (e.g. a
 // frontend) actually wants to render it.
 //
-// include=surfaces adds each building's individual envelope surface polygons.
-// It is opt-in because a single building can carry a few hundred faces, and a
-// caller that only needs to place the building on a map should not pay for
-// them.
+// include=surfaces adds one building's individual envelope surface polygons,
+// and is rejected for more than one object_id. A building's face count is
+// unbounded, so a multi-building request fails on its largest buildings with
+// nothing in the request predicting which those are; refusing it here turns
+// that into a clear error instead of an opaque upstream one. Callers place
+// buildings on a map with the footprints and ask for surfaces per building.
 func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
@@ -198,6 +200,19 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	objectIDsParam := r.URL.Query().Get("object_ids")
 	if objectIDsParam == "" {
 		writeError(w, http.StatusBadRequest, "object_ids query param is required")
+		return
+	}
+	objectIDs := strings.Split(objectIDsParam, ",")
+	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
+
+	// Validated before the pool lookup: the request is malformed whatever the
+	// country turns out to be, and an unconfigured one answers 200 with an empty
+	// result, which would swallow the refusal.
+	if n := countNonEmpty(objectIDs); includeSurfaces && n > 1 {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf(
+			"include=surfaces returns surface geometry for one building at a time, but %d object_ids were given; request each building separately",
+			n,
+		))
 		return
 	}
 
@@ -211,10 +226,8 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
-
 	geometry, err := onrequest.BuildingGeometryByObjectIDs(
-		r.Context(), pool, cfg, strings.Split(objectIDsParam, ","), includeSurfaces,
+		r.Context(), pool, cfg, objectIDs, includeSurfaces,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -222,6 +235,18 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, geometry)
+}
+
+// countNonEmpty counts the ids that carry a value, so a trailing or doubled
+// comma does not read as an extra building.
+func countNonEmpty(ids []string) int {
+	n := 0
+	for _, id := range ids {
+		if strings.TrimSpace(id) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 func parseBboxParams(r *http.Request) (onrequest.Bbox, error) {
