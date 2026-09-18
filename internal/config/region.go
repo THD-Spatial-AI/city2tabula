@@ -15,6 +15,7 @@ func LoadBaseConfig() Config {
 		Data:        loadDataPaths(),
 		CityDB:      loadCityDBConfig(""),
 		City2Tabula: loadCity2TabulaConfig(),
+		PylovoFDW:   loadPylovoFDWConfig(),
 		Batch:       loadBatchConfig(),
 		RetryConfig: DefaultRetryConfig(),
 	}
@@ -41,6 +42,14 @@ func RegionConfig(base Config, country string) (Config, error) {
 	schemas := *base.DB.Schemas
 	db.Schemas = &schemas
 
+	// Same switch LoadConfig makes for the CLI: in FDW mode -link-pylovo reads
+	// pylovo.res/oth as foreign tables in this fixed schema, so PYLOVO_SCHEMA no
+	// longer applies. Without it a server-triggered run finds no PyLovo tables
+	// and produces no building_link rows.
+	if base.PylovoFDW.Enabled() {
+		schemas.Pylvo = PylvoFDWSchemaName
+	}
+
 	cityDB := *base.CityDB
 	cityDB.SRID = srid
 	cityDB.SRSName = srsName
@@ -57,6 +66,7 @@ func RegionConfig(base Config, country string) (Config, error) {
 		},
 		CityDB:      &cityDB,
 		City2Tabula: base.City2Tabula,
+		PylovoFDW:   base.PylovoFDW,
 		Batch:       base.Batch,
 		RetryConfig: base.RetryConfig,
 	}, nil

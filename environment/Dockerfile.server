@@ -1,4 +1,5 @@
-# Runtime image for the on-request HTTP server (cmd/server).
+# Runtime image carrying both entry points: the on-request HTTP server
+# (cmd/server) and the CLI (cmd/c2t).
 #
 # environment/Dockerfile is the development toolchain image: it carries the Go
 # and Java toolchains and the whole source tree so `make dev` can build and run
@@ -27,13 +28,17 @@ RUN go mod download
 COPY . .
 # Stamps internal/version, the same values .github/workflows/release.yml sets
 # on the CLI binaries, so a published image reports the release it came from.
+#
+# Both binaries: the server runs bbox-scoped pipeline runs on request, and c2t
+# runs the same pipeline from the command line, so the image needs no extra
+# runtime to serve as a one-shot pipeline job as well as the API.
 RUN MOD_PATH="$(awk '/^module /{print $2}' go.mod)" \
-    && CGO_ENABLED=0 go build -trimpath \
-       -ldflags "-s -w \
+    && LDFLAGS="-s -w \
          -X ${MOD_PATH}/internal/version.Version=${VERSION} \
          -X ${MOD_PATH}/internal/version.Commit=${COMMIT} \
          -X ${MOD_PATH}/internal/version.Date=${DATE}" \
-       -o /out/city2tabula-server ./cmd/server
+    && CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o /out/city2tabula-server ./cmd/server \
+    && CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o /out/c2t ./cmd/c2t
 
 FROM debian:bookworm-slim AS citydb
 ARG CITYDB_TOOL_VERSION
@@ -64,6 +69,7 @@ WORKDIR /app
 COPY sql/ ./sql/
 COPY data/ ./data/
 COPY --from=build /out/city2tabula-server ./city2tabula-server
+COPY --from=build /out/c2t ./c2t
 
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser

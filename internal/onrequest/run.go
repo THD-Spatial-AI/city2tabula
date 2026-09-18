@@ -29,6 +29,17 @@ func (b Bbox) String() string {
 	return fmt.Sprintf("%g,%g,%g,%g,4326", b.Xmin, b.Ymin, b.Xmax, b.Ymax)
 }
 
+// Overlaps reports whether b and other cover any common ground, and so whether
+// runs for the two can touch the same buildings.
+//
+// Boxes that only share an edge count as overlapping: citydb-tool's default
+// intersects mode imports a building touching the boundary into both, so the
+// two runs would process it concurrently.
+func (b Bbox) Overlaps(other Bbox) bool {
+	return b.Xmin <= other.Xmax && b.Xmax >= other.Xmin &&
+		b.Ymin <= other.Ymax && b.Ymax >= other.Ymin
+}
+
 // CheckRunnable reports whether a pipeline run can proceed against cfg's
 // country. A database that does not exist yet is runnable, since the run creates
 // it. One that exists without the schemas an import needs is not: a fixture

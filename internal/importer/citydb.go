@@ -21,10 +21,11 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config, bbox, bboxMode 
 	// Construct the path to the CityDB executable
 	cityDBExecPath := path.Join(config.CityDB.ToolPath, "citydb")
 
-	// Check if the CityDB executable exists
+	// Returned rather than fatal: this runs inside the HTTP server's run
+	// goroutine as well as the CLI, and exiting the process would take the
+	// server down over one misconfigured run.
 	if _, err := os.Stat(cityDBExecPath); os.IsNotExist(err) {
-		utils.Error.Fatalf("CityDB executable not found at %s", cityDBExecPath)
-		return err
+		return fmt.Errorf("citydb executable not found at %s (set CITYDB_TOOL_PATH to the citydb-tool directory)", cityDBExecPath)
 	}
 
 	// Test the citydb connection using the -help flag
