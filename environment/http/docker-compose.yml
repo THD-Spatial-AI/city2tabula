@@ -40,21 +40,19 @@ services:
       retries: 5
 
   # The on-request HTTP wrapper (cmd/server), for TentaCron's proxy targets to
-  # reach. `go run` against the already-COPY'd source in the same dev image —
-  # no separate build target, matches the interactive `city2tabula` service.
-  # data/ is .dockerignore'd (mounted at runtime everywhere else in this repo
-  # too), so the TABULA CSV import needs the same volume mount as above.
+  # reach. The same image also carries the CLI, so it can be run one-shot as a
+  # pipeline job without a second artefact.
   city2tabula-server:
     container_name: city2tabula-server
-    # Dockerfile.server, not Dockerfile: the server runs a compiled binary on a
-    # JRE base, where the interactive service needs the full toolchain image.
+    # Dockerfile.runtime, not Dockerfile: this runs compiled binaries on a JRE
+    # base, where the interactive service needs the full toolchain image.
     # With both image and build set, `compose up` builds locally and tags the
     # result, while `compose pull` fetches the published tag instead. A
     # deployment pins C2T_IMAGE_TAG to a release rather than tracking latest.
     image: ghcr.io/thd-spatial-ai/city2tabula-server:${C2T_IMAGE_TAG:-latest}
     build:
       context: ./../..
-      dockerfile: environment/Dockerfile.server
+      dockerfile: environment/Dockerfile.runtime
     environment:
       DB_HOST: city2tabula-db
       DB_PORT: 5432
@@ -65,10 +63,13 @@ services:
       SERVER_PORT: 5000
       # PYLOVO_FDW_HOST intentionally unset: no PyLovo dataset behind this
       # instance, leaves PyLovo linking a clean no-op (internal/process/pylovo_fdw.go).
-    # The image already carries data/tabula; this mount adds the 3D datasets
-    # under data/lod2 and data/lod3, which are gitignored and stay on the host.
+    # The dataset directories specifically, not data/ as a whole: the image
+    # bakes data/tabula, and mounting the parent would hide it behind the host's
+    # copy. A deployment then needs no TABULA files on the host at all, which is
+    # the configuration the image is built for and this file has to exercise.
     volumes:
-      - ./../../data:/app/data
+      - ./../../data/lod2:/app/data/lod2
+      - ./../../data/lod3:/app/data/lod3
     depends_on:
       city2tabula-db:
         condition: service_healthy
