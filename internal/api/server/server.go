@@ -38,15 +38,38 @@ type Run struct {
 	UpdatedAt time.Time
 }
 
+// activeRun is one pipeline run currently holding the region it processes.
+type activeRun struct {
+	dbName string
+	bbox   onrequest.Bbox
+}
+
+// runKey identifies a request precisely enough that two requests sharing it
+// would do identical work. Bbox.String is used rather than the float struct
+// because it is already the canonical form sent to citydb-tool.
+func runKey(dbName string, bbox onrequest.Bbox, bboxMode string) string {
+	return dbName + "|" + bbox.String() + "|" + bboxMode
+}
+
 // Server holds state shared across requests: one DB pool per country (opened
 // lazily, kept for reuse by read queries) and in-memory run tracking.
 type Server struct {
 	base config.Config
 
-	// runMu serializes pipeline runs across all countries.
-	// ponytail: single global run-queue, not per-region — upgrade to per-region
-	// locking only if concurrent on-request runs actually create a backlog.
-	runMu sync.Mutex
+	// Pipeline runs are serialized only where they can collide: same database
+	// and overlapping bbox. Two runs over disjoint regions, or over different
+	// countries, touch different rows and proceed in parallel.
+	//
+	// The skip logic in the SQL (scripts 01 and 08) stops a building being
+	// stored twice, but not two workers processing it at once, which is what
+	// this guards.
+	activeMu   sync.Mutex
+	activeCond *sync.Cond
+	active     []activeRun
+	// inflight maps a run key to the run already serving it, so identical
+	// requests join rather than duplicate the work. Entries live until the run
+	// reaches a terminal status.
+	inflight map[string]string
 
 	poolsMu sync.Mutex
 	pools   map[string]*pgxpool.Pool
@@ -57,11 +80,14 @@ type Server struct {
 
 // New builds a Server from the process-wide base config (see config.LoadBaseConfig).
 func New(base config.Config) *Server {
-	return &Server{
-		base:  base,
-		pools: make(map[string]*pgxpool.Pool),
-		runs:  make(map[string]*Run),
+	srv := &Server{
+		base:     base,
+		pools:    make(map[string]*pgxpool.Pool),
+		runs:     make(map[string]*Run),
+		inflight: make(map[string]string),
 	}
+	srv.activeCond = sync.NewCond(&srv.activeMu)
+	return srv
 }
 
 // PoolFor returns the region config and a cached, lazily-opened DB pool for
@@ -131,14 +157,34 @@ func (s *Server) StartRun(country string, bbox onrequest.Bbox, bboxMode string) 
 		return nil, err
 	}
 
+	key := runKey(cfg.DB.Name, bbox, bboxMode)
+
+	s.activeMu.Lock()
+	if id, ok := s.inflight[key]; ok {
+		s.activeMu.Unlock()
+		// An identical request is already being served. Returning that run
+		// rather than starting a second one means both callers poll the same
+		// id and the region is processed once.
+		if existing, found := s.GetRun(id); found {
+			utils.Info.Printf("on-request run %s (%s) joined by an identical request for %s", id, cfg.Country, bbox)
+			return existing, nil
+		}
+		// The run record vanished without clearing its key; fall through and
+		// start a fresh one rather than returning nothing.
+		s.activeMu.Lock()
+		delete(s.inflight, key)
+	}
+
 	now := time.Now().UTC()
 	run := &Run{ID: uuid.NewString(), Country: cfg.Country, Status: StatusPending, CreatedAt: now, UpdatedAt: now}
+	s.inflight[key] = run.ID
+	s.activeMu.Unlock()
 
 	s.runsMu.Lock()
 	s.runs[run.ID] = run
 	s.runsMu.Unlock()
 
-	go s.executeRun(run.ID, cfg, bbox, bboxMode)
+	go s.executeRun(run.ID, cfg, bbox, bboxMode, key)
 
 	return run, nil
 }
@@ -151,11 +197,13 @@ func (s *Server) GetRun(id string) (*Run, bool) {
 	return run, ok
 }
 
-func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, bboxMode string) {
-	s.setRunStatus(id, StatusRunning, "")
+func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, bboxMode string, key string) {
+	// The run stays pending while it waits for a conflicting region, so a
+	// caller polling can tell waiting from working.
+	s.acquireRegion(cfg.DB.Name, bbox)
+	defer s.releaseRegion(cfg.DB.Name, bbox, key)
 
-	s.runMu.Lock()
-	defer s.runMu.Unlock()
+	s.setRunStatus(id, StatusRunning, "")
 
 	if err := onrequest.RunForRegion(&cfg, bbox, bboxMode); err != nil {
 		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
@@ -181,6 +229,43 @@ func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, b
 	}
 
 	s.setRunStatus(id, StatusCompleted, "")
+}
+
+// acquireRegion blocks until no active run covers ground that bbox also
+// covers in the same database, then registers this run as holding it.
+func (s *Server) acquireRegion(dbName string, bbox onrequest.Bbox) {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+	for s.conflictsLocked(dbName, bbox) {
+		s.activeCond.Wait()
+	}
+	s.active = append(s.active, activeRun{dbName: dbName, bbox: bbox})
+}
+
+// releaseRegion drops this run's hold and its dedup key, and wakes anything
+// waiting on an overlapping region.
+func (s *Server) releaseRegion(dbName string, bbox onrequest.Bbox, key string) {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+	for i, a := range s.active {
+		if a.dbName == dbName && a.bbox == bbox {
+			s.active = append(s.active[:i], s.active[i+1:]...)
+			break
+		}
+	}
+	delete(s.inflight, key)
+	s.activeCond.Broadcast()
+}
+
+// conflictsLocked reports whether an active run would touch the same buildings.
+// Callers must hold activeMu.
+func (s *Server) conflictsLocked(dbName string, bbox onrequest.Bbox) bool {
+	for _, a := range s.active {
+		if a.dbName == dbName && a.bbox.Overlaps(bbox) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) setRunStatus(id, status, errMsg string) {
