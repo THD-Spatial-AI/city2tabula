@@ -79,6 +79,11 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    # default is listed explicitly because naming any network here drops the
+    # implicit default membership, which is how city2tabula-db is reached.
+    networks:
+      - default
+      - tentacron-net
 
 volumes:
   city2tabula-db-data:
@@ -91,3 +96,13 @@ volumes:
 # notice. An external network that is absent fails the whole stack at `up`.
 networks:
   default: {}
+  # The shared heat-stack network, which the other services reach this one over.
+  # Declared with an explicit name rather than external: true, so whichever
+  # stack starts first creates it and the rest attach; this file still comes up
+  # on its own, which an external declaration would prevent.
+  #
+  # The key must stay spelled as the network name. Compose matches it against
+  # the network's own com.docker.compose.network label, so a different key with
+  # a name override joins a second network instead of failing.
+  tentacron-net:
+    name: tentacron-net
