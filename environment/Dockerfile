@@ -44,22 +44,29 @@ RUN wget -q https://github.com/3dcitydb/citydb-tool/releases/download/v1.3.2/cit
 ENV CITYDB_TOOL_PATH="/usr/local/citydb-tool/citydb-tool-1.3.2"
 
 # -----------------------------
-# Copy and build project (as root)
+# Create non-root user
 # -----------------------------
-WORKDIR /app
-COPY . .
-RUN go mod tidy && go build -o c2t ./cmd/c2t
-
-# -----------------------------
-# Create non-root user and fix permissions
-# -----------------------------
+# /app is created here rather than by WORKDIR, which would leave it owned by
+# root and unwritable by appuser: COPY --chown sets the copied files' ownership,
+# not the directory they land in.
 RUN useradd -m -u 10001 appuser \
-    && mkdir -p /home/appuser/go/bin \
-    && chown -R appuser:appuser /home/appuser /app
+    && mkdir -p /home/appuser/go/bin /app \
+    && chown -R appuser:appuser /home/appuser \
+    && chown appuser:appuser /app
 ENV GOPATH="/home/appuser/go"
 ENV PATH="${GOPATH}/bin:${PATH}"
 
+# -----------------------------
+# Copy and build project
+# -----------------------------
+# COPY --chown and building as appuser, rather than a chown -R afterwards: a
+# recursive chown rewrites every copied file into a second layer, storing the
+# tree twice. /app must stay writable by appuser, who runs go commands in it
+# interactively.
+WORKDIR /app
+COPY --chown=appuser:appuser . .
 USER appuser
+RUN go mod tidy && go build -o c2t ./cmd/c2t
 
 # -----------------------------
 # Set up shell environment
