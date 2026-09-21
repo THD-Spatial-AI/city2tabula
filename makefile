@@ -34,16 +34,16 @@ status: ## Check container status
 
 ##@ Application Commands
 dev: ## Start development environment with shell
-	cd environment/http && docker compose --env-file docker.env up -d && docker exec -it city2tabula-environment bash
+	cd environment/http && docker compose --env-file docker.env up -d && docker exec -it city2tabula-cli bash
 
 create-db: up ## Create database and setup schemas
-	cd environment/http && docker exec -it city2tabula-environment ./c2t -create-db
+	cd environment/http && docker exec -it city2tabula-cli ./c2t -create-db
 
 extract-features: up ## Extract building features
-	cd environment/http && docker exec -it city2tabula-environment ./c2t -extract-features
+	cd environment/http && docker exec -it city2tabula-cli ./c2t -extract-features
 
 reset-db: up ## Reset the entire database
-	cd environment/http && docker exec -it city2tabula-environment ./c2t -reset-db
+	cd environment/http && docker exec -it city2tabula-cli ./c2t -reset-db
 
 ##@ Complete Workflows
 configure: ## Interactive configuration: select country and enter password

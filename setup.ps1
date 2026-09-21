@@ -198,7 +198,7 @@ function Invoke-Dev {
     Write-Host "Starting development environment..." -ForegroundColor Blue
     Set-Location "environment/http"
     docker compose --env-file docker.env up -d
-    docker exec -it city2tabula-environment bash
+    docker exec -it city2tabula-cli bash
     Set-Location "../.."
 }
 
@@ -206,7 +206,7 @@ function Invoke-CreateDb {
     Invoke-Up
     Write-Host "Creating database and setting up schemas..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./c2t -create-db
+    docker exec -it city2tabula-cli ./c2t -create-db
     Set-Location "../.."
 }
 
@@ -214,7 +214,7 @@ function Invoke-ExtractFeatures {
     Invoke-Up
     Write-Host "Extracting building features..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./c2t -extract-features
+    docker exec -it city2tabula-cli ./c2t -extract-features
     Set-Location "../.."
 }
 
@@ -222,7 +222,7 @@ function Invoke-ResetDb {
     Invoke-Up
     Write-Host "Resetting the entire database..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./c2t -reset-db
+    docker exec -it city2tabula-cli ./c2t -reset-db
     Set-Location "../.."
 }
 
@@ -230,7 +230,7 @@ function Invoke-Version {
     Invoke-Up
     Write-Host "Checking City2TABULA version..." -ForegroundColor Blue
     Set-Location "environment/http"
-    docker exec -it city2tabula-environment ./c2t -version
+    docker exec -it city2tabula-cli ./c2t -version
     Set-Location "../.."
 }
 
