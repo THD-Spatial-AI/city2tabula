@@ -17,8 +17,6 @@ services:
       - ./../../data:/app/data        # mount full project for development
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Linux compatibility
-    ports:
-      - "${HOST_PORT:-5000}:5000"        # map host port (configurable) to container port 8080
     command: bash         # start an interactive shell for development
 
   city2tabula-db:
