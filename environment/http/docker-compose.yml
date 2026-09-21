@@ -4,8 +4,8 @@
 name: city2tabula
 
 services:
-  city2tabula:
-    container_name: city2tabula-environment
+  city2tabula-cli:
+    container_name: city2tabula-cli
     build:
       context: ./../..
       dockerfile: environment/Dockerfile
@@ -17,8 +17,6 @@ services:
       - ./../../data:/app/data        # mount full project for development
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Linux compatibility
-    ports:
-      - "${HOST_PORT:-5000}:5000"        # map host port (configurable) to container port 8080
     command: bash         # start an interactive shell for development
 
   city2tabula-db:
@@ -28,7 +26,7 @@ services:
       POSTGRES_USER: ${C2T_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${C2T_DB_PASSWORD:-postgres}
       POSTGRES_DB: ${C2T_DB_NAME:-city2tabula}
-    # No host port published: city2tabula-server reaches this over the
+    # No host port published: the city2tabula service reaches this over the
     # compose default network by service name. Add one back if a host tool
     # (psql, QGIS) needs direct access.
     volumes:
@@ -42,8 +40,8 @@ services:
   # The on-request HTTP wrapper (cmd/server), for TentaCron's proxy targets to
   # reach. The same image also carries the CLI, so it can be run one-shot as a
   # pipeline job without a second artefact.
-  city2tabula-server:
-    container_name: city2tabula-server
+  city2tabula:
+    container_name: city2tabula
     # Dockerfile.runtime, not Dockerfile: this runs compiled binaries on a JRE
     # base, where the interactive service needs the full toolchain image.
     # With both image and build set, `compose up` builds locally and tags the
@@ -83,13 +81,17 @@ services:
     # default is listed explicitly because naming any network here drops the
     # implicit default membership, which is how city2tabula-db is reached.
     networks:
-      - default
-      - tentacron-net
+      default: {}
+      tentacron-net:
+        # Former container name, kept until TentaCron's proxy targets use
+        # "city2tabula".
+        aliases:
+          - city2tabula-server
 
 volumes:
   city2tabula-db-data:
 
-# A cross-repo caller reaches city2tabula-server by attaching to this project's
+# A cross-repo caller reaches city2tabula by attaching to this project's
 # network, rather than this file joining one another repo owns. Depending on
 # another project's network meant depending on its project name, which is a side
 # effect of its directory rather than anything it promised to keep: ignis renamed
