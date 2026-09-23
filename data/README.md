@@ -22,7 +22,7 @@ IEE (Intelligent Energy Europe) programme.
 **Reference:**
 
 > Loga, T., Stein, B., Diefenbach, N. (2016). *TABULA building typologies in 20 European
-> countries: making energy-related features of residential building stocks comparable.*
+> countries – making energy-related features of residential building stocks comparable.*
 > Energy and Buildings, 132, 4–12. https://doi.org/10.1016/j.enbuild.2016.06.094
 
 ## LoD2 / LoD3 Building Data
