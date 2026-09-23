@@ -81,12 +81,8 @@ services:
     # default is listed explicitly because naming any network here drops the
     # implicit default membership, which is how city2tabula-db is reached.
     networks:
-      default: {}
-      tentacron-net:
-        # Former container name, kept until TentaCron's proxy targets use
-        # "city2tabula".
-        aliases:
-          - city2tabula-server
+      - default
+      - tentacron-net
 
 volumes:
   city2tabula-db-data:
