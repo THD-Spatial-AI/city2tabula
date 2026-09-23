@@ -1,4 +1,8 @@
-# Script 01 — Get Child Features
+---
+audience: developer
+---
+
+# Script 01: Get Child Features
 
 **File:** `sql/scripts/main/01_get_child_feat.sql`  
 **Reads from:** `{lod_schema}.feature`, `{lod_schema}.property`, `{lod_schema}.geometry_data`, `{lod_schema}.objectclass`  
@@ -29,7 +33,7 @@ For most datasets (DE, AT) the Building feature owns both the solid and the `bou
 
 ## Step-by-step walkthrough
 
-### Step 1 — `buildings` CTE
+### Step 1: `buildings` CTE
 
 ```sql
 WITH buildings AS (
@@ -47,12 +51,12 @@ WITH buildings AS (
 
 Selects the feature that owns the solid for each building in the current batch:
 
-1. **`p.name = 'lodNSolid'`** — the feature carrying the full building solid, which is also the feature carrying the `boundary` rows.
-2. **`objectclass_id BETWEEN 900 AND 999`** — buildings and building parts only.
-3. **`f.id NOT IN (...)`** — idempotency guard: skips buildings already in `_child_feature` so re-runs are safe.
-4. **`f.id IN {building_ids}`** — restricts to the current batch.
+1. **`p.name = 'lodNSolid'`**: the feature carrying the full building solid, which is also the feature carrying the `boundary` rows.
+2. **`objectclass_id BETWEEN 900 AND 999`**: buildings and building parts only.
+3. **`f.id NOT IN (...)`**: idempotency guard: skips buildings already in `_child_feature` so re-runs are safe.
+4. **`f.id IN {building_ids}`**: restricts to the current batch.
 
-### Step 2 — Main SELECT: follow `boundary`, then take the LoD's geometry
+### Step 2: Main SELECT: follow `boundary`, then take the LoD's geometry
 
 ```sql
 FROM buildings b
@@ -67,9 +71,9 @@ WHERE sf.objectclass_id NOT BETWEEN 900 AND 999
   AND GeometryType(g.geometry) = 'MULTIPOLYGON'
 ```
 
-- **`boundary_link`** — every surface feature attached to this building.
-- **`surface_geom`** — the surface's geometry for the requested LoD. A surface modelled only at another LoD is dropped here.
-- **`GeometryType = 'MULTIPOLYGON'`** — keeps polygon-based surfaces; script 02 explodes these into individual faces.
+- **`boundary_link`**: every surface feature attached to this building.
+- **`surface_geom`**: the surface's geometry for the requested LoD. A surface modelled only at another LoD is dropped here.
+- **`GeometryType = 'MULTIPOLYGON'`**: keeps polygon-based surfaces; script 02 explodes these into individual faces.
 
 ---
 

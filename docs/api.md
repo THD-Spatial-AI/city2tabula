@@ -1,12 +1,16 @@
+---
+audience: developer
+---
+
 # API reference
 
 The interactive reference lives in its own standalone page, [`openapi/index.html`](openapi/index.html), so it can be opened directly without running `mkdocs serve`. It renders [`openapi/openapi.yaml`](openapi/openapi.yaml); download that file to generate a client or import it into Postman.
 
 !!! warning "No authentication"
-    This API has none of its own and is not behind a reverse proxy. It's meant for trusted internal callers on the same network — do not expose it directly to the public internet as-is.
+    This API has no authentication of its own and is not behind a reverse proxy. Deploy it only on a network whose access you control, and do not expose it directly to the public internet.
 
 !!! note "Try it out needs a proxy or same-origin setup"
-    The server sends no CORS headers, so Swagger UI's **Try it out** will fail against a real running instance from this docs page. Use `curl` (examples below) for hands-on testing until that's addressed.
+    The server sends no CORS headers, so Swagger UI's **Try it out** fails against a running instance from this docs page. The `curl` examples below work instead.
 
 ## Workflow
 
@@ -18,7 +22,7 @@ The interactive reference lives in its own standalone page, [`openapi/index.html
 | 4 | `GET /api/v1/buildings` | Building + surface attributes, once data exists. |
 | 5 | `GET /api/v1/geometry` | Footprint geometry, only if something needs to render it. |
 
-`buildings` and `geometry` are separate endpoints on purpose: a calculation consumer doesn't need geometry, only a visualization consumer does, so it isn't fetched unless actually needed.
+`buildings` and `geometry` are separate endpoints because a calculation consumer needs no geometry. Splitting them keeps geometry out of responses that will not use it.
 
 ## Health check
 
@@ -26,7 +30,7 @@ The interactive reference lives in its own standalone page, [`openapi/index.html
 curl http://localhost:5000/api/v1/health
 ```
 
-Returns `{"status": "ok"}` if the process is up. Not authoritative for any one country — it doesn't touch a database connection.
+Returns `{"status": "ok"}` if the process is up. It is not authoritative for any one country, because it does not open a database connection.
 
 ## Checking coverage
 
@@ -34,7 +38,7 @@ Returns `{"status": "ok"}` if the process is up. Not authoritative for any one c
 curl "http://localhost:5000/api/v1/coverage?country=germany&xmin=8.79&ymin=53.14&xmax=8.82&ymax=53.16"
 ```
 
-Returns `{"count": N}` — the number of already PyLovo-linked buildings in that bbox. `count: 0` means trigger a run before reading buildings.
+Returns `{"count": N}`, the number of already PyLovo-linked buildings in that bbox. `count: 0` means trigger a run before reading buildings.
 
 ```mermaid
 sequenceDiagram
@@ -68,7 +72,7 @@ sequenceDiagram
     C->>S: POST /api/v1/runs {country, bbox, bbox_mode}
     S->>S: validate request, create Run (status: pending)
     S-->>C: 202 Accepted {run_id, status: pending}
-    S->>P: executeRun(run_id) — background goroutine
+    S->>P: executeRun(run_id) in a background goroutine
     P->>DB: import 3D data scoped to bbox (create or incremental)
     P->>DB: extract features (scripts 01-08)
     P->>DB: link PyLovo buildings (IoU join into building_link)
@@ -88,7 +92,7 @@ sequenceDiagram
 curl http://localhost:5000/api/v1/runs/<run_id>
 ```
 
-`no_data` means the pipeline ran successfully but found no source data for that bbox — not an error. `failed` means a real error; check `error` in the response.
+`no_data` means the pipeline ran successfully but found no source data for that bbox, which is not an error. `failed` means a real error; check `error` in the response.
 
 ```mermaid
 sequenceDiagram
@@ -119,7 +123,7 @@ curl "http://localhost:5000/api/v1/buildings?country=germany&osm_ids=123456,7890
 Each building's `surfaces` array carries per-element area/azimuth/tilt.
 
 !!! warning "Tilt convention"
-    `tilt` here is 0=vertical wall, 90=flat roof — the opposite of the common building-energy convention (0=horizontal roof, 90=vertical wall). Invert before feeding it to a consumer that expects that convention.
+    `tilt` here is 0=vertical wall, 90=flat roof, the opposite of the common building-energy convention (0=horizontal roof, 90=vertical wall). Invert before feeding it to a consumer that expects that convention.
 
 ```mermaid
 sequenceDiagram

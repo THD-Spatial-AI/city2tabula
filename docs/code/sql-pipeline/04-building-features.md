@@ -1,4 +1,8 @@
-# Script 04 — Building Features
+---
+audience: developer
+---
+
+# Script 04: Building Features
 
 **File:** `sql/scripts/main/04_calc_bld_feat.sql`  
 **Reads from:** `{city2tabula_schema}.{lod_schema}_surface_raw`  
@@ -14,7 +18,7 @@ Scripts 01–03 produce one row per polygon face. This script collapses all thos
 
 ## Step-by-step walkthrough
 
-### Step 1 — `new_buildings` CTE
+### Step 1: `new_buildings` CTE
 
 ```sql
 WITH new_buildings AS (
@@ -24,11 +28,11 @@ WITH new_buildings AS (
 )
 ```
 
-Unlike previous scripts, there is no "already processed" exclusion here — this CTE simply scopes the query to the current batch. The INSERT will naturally skip buildings already in the output table if `building_feature_id` is a unique key.
+Unlike previous scripts, there is no "already processed" exclusion here; this CTE scopes the query to the current batch. The INSERT will naturally skip buildings already in the output table if `building_feature_id` is a unique key.
 
 ---
 
-### Step 2 — `aggregated_surfaces` CTE
+### Step 2: `aggregated_surfaces` CTE
 
 This CTE does most of the work, grouping all surface rows by building and computing summary values. The key computed columns are:
 
@@ -56,8 +60,8 @@ COALESCE(MAX(height) FILTER (WHERE classname = 'RoofSurface'), 0) AS max_height,
 
 Height is derived indirectly from the vertical spans of individual surface faces.
 
-- **`min_height`** (eave height) — the maximum vertical span of any single wall face. This approximates the height to the eave (where the walls meet the roof), because a wall face typically spans the full height of the building's vertical portion.
-- **`max_height`** (ridge height) — eave height plus the maximum vertical span of any single roof face. This approximates the height to the ridge (highest point of the roof).
+- **`min_height`** (eave height) is the maximum vertical span of any single wall face. This approximates the height to the eave (where the walls meet the roof), because a wall face typically spans the full height of the building's vertical portion.
+- **`max_height`** (ridge height) is eave height plus the maximum vertical span of any single roof face. This approximates the height to the ridge (highest point of the roof).
 
 The column names `min_height` / `max_height` refer to minimum and maximum height estimates of the building, not the smallest and largest face heights.
 
@@ -149,8 +153,8 @@ Several columns are set to placeholder values that are not yet available at this
 | `area_total_roof` | Sum of all RoofSurface face areas (sqm) |
 | `area_total_wall` | Sum of all WallSurface face areas (sqm) |
 | `area_total_floor` | Initially = footprint_area; overwritten in script 06 |
-| `min_height` | Eave height — max wall face span (m) |
-| `max_height` | Ridge height — eave + max roof face span (m) |
+| `min_height` | Eave height, the maximum wall face span (m) |
+| `max_height` | Ridge height, eave plus the maximum roof face span (m) |
 | `number_of_storeys` | Wall height / 2.5; refined in script 06 |
 | `building_centroid_geom` | 2D centroid of merged footprint |
 | `building_footprint_geom` | Merged 2D footprint geometry |

@@ -1,12 +1,16 @@
+---
+audience: developer
+---
+
 # Generating Validation Reports
 
 `validation/generate_report.py` parses City2TABULA validation output folders and produces a single paper-ready markdown report. It automatically finds the latest run in each folder and extracts four sections: accuracy, geometry quality, error stratification, and building height analysis.
 
 ---
 
-## When to Use It
+## When it runs
 
-After running `city2tabula -extract-features` and the validation notebook on one or more datasets, use this script to turn the raw CSVs into a formatted document you can copy directly into a paper or archive alongside the results.
+It runs after `./c2t -extract-features` and the validation notebook, turning the raw CSVs into a formatted document to copy into a paper or archive alongside the results.
 
 ---
 
@@ -46,7 +50,7 @@ python validation/generate_report.py validation/outputs/Germany/c2t_deggendorf
 
 Output: `validation/outputs/Germany/c2t_deggendorf/report.md`
 
-### Multiple datasets — combined report
+### Multiple datasets: combined report
 
 ```bash
 python validation/generate_report.py \
@@ -113,7 +117,7 @@ Surface area RMSE split into two groups: surfaces that passed both `is_valid` an
     > Wall area: RMSE for invalid/non-planar surfaces (38.256 m², n=840,307)
     > is **2,431× higher** than valid+planar surfaces (0.016 m², n=3,482).
 
-    This is the quantitative argument that geometry quality — not the pipeline — drives the remaining error.
+    This is the quantitative argument that geometry quality, rather than the pipeline, drives the remaining error.
 
 ### 4. Building Height by Attachment Status
 
@@ -138,12 +142,12 @@ python validation/generate_report.py \
 # Report written to: validation/outputs/combined_report.md
 ```
 
-Open `combined_report.md` — all four tables are ready to copy into the paper. The **Key Takeaways** prose sentences can be used directly in the Discussion section.
+All four tables in `combined_report.md` are ready to copy into a paper, and the **Key Takeaways** sentences can be used as they stand.
 
 ---
 
 ## What the Script Does Not Do
 
-- It does not re-run validation — it reads existing CSV outputs only.
-- It does not generate plots — the individual per-dataset plots are already in each `plots/` subfolder.
+- It does not re-run validation. It reads existing CSV outputs only.
+- It does not generate plots. The per-dataset plots are already in each `plots/` subfolder.
 - It does not modify any source data or database.

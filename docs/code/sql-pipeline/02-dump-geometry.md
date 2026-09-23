@@ -1,4 +1,8 @@
-# Script 02 — Dump Geometry
+---
+audience: developer
+---
+
+# Script 02: Dump Geometry
 
 **File:** `sql/scripts/main/02_dump_child_feat_geom.sql`  
 **Reads from:** `{city2tabula_schema}.{lod_schema}_child_feature`  
@@ -8,7 +12,7 @@
 
 ## Purpose
 
-Script 01 stored one row per surface feature, and each geometry is a `MULTIPOLYGON` — a single object that groups several polygon faces together. A building's roof, for example, might be stored as one `MULTIPOLYGON` containing four triangular faces.
+Script 01 stored one row per surface feature, and each geometry is a `MULTIPOLYGON`, a single object that groups several polygon faces together. A building's roof, for example, might be stored as one `MULTIPOLYGON` containing four triangular faces.
 
 For tilt, azimuth, and area calculations (script 03) to work correctly, each face must be its own row. This script performs that **explosion**: one `MULTIPOLYGON` row becomes many individual `POLYGON` rows, one per face.
 
@@ -21,13 +25,13 @@ A `POLYGON` is a single closed ring of vertices representing one flat face. A `M
 - A gable roof might be stored as one `MULTIPOLYGON` containing two triangular slope faces.
 - After this script, those two faces become two separate `POLYGON` rows.
 
-PostGIS provides `ST_Dump()` to perform this split. It returns a set of rows — one per polygon component — so a single input row yields as many output rows as there are polygon faces.
+PostGIS provides `ST_Dump()` to perform this split. It returns one row per polygon component, so a single input row yields as many output rows as there are polygon faces.
 
 ---
 
 ## Step-by-step walkthrough
 
-### Step 1 — `new_buildings` CTE
+### Step 1: `new_buildings` CTE
 
 ```sql
 WITH new_buildings AS (
@@ -41,11 +45,11 @@ WITH new_buildings AS (
 )
 ```
 
-Selects building IDs from the current batch that do not yet have rows in the output table. This is the idempotency guard — if a building's geometry was already dumped in a previous run, it is skipped entirely.
+Selects building IDs from the current batch that do not yet have rows in the output table. This is the idempotency guard: a building whose geometry was dumped in a previous run is skipped entirely.
 
 ---
 
-### Step 2 — `dumped` CTE
+### Step 2: `dumped` CTE
 
 ```sql
 dumped AS (
@@ -67,7 +71,7 @@ dumped AS (
 
 ---
 
-### Step 3 — INSERT
+### Step 3: INSERT
 
 ```sql
 SELECT
@@ -81,8 +85,8 @@ FROM dumped
 
 Two diagnostic columns are added:
 
-- **`coord_dim`** — the number of coordinate dimensions (2 for XY, 3 for XYZ). Detected via `ST_CoordDim`. Script 03 needs Z coordinates to compute normals; this flags rows that might be missing them.
-- **`has_z`** — `true` if `ST_ZMin` returns a non-null value, confirming 3D data is present.
+- **`coord_dim`**: the number of coordinate dimensions (2 for XY, 3 for XYZ). Detected via `ST_CoordDim`. Script 03 needs Z coordinates to compute normals; this flags rows that might be missing them.
+- **`has_z`**: `true` if `ST_ZMin` returns a non-null value, confirming 3D data is present.
 
 The geometry is cast to `POLYGONZ` (an explicit PostGIS geometry type with a Z coordinate) to lock in the 3D type. If the cast fails, the row had no Z data and would have caused silent errors downstream.
 

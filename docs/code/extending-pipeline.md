@@ -1,9 +1,12 @@
+---
+audience: developer
+---
+
 # Extending the Pipeline
 
-This page explains how to add a new processing step to City2TABULA. The pipeline is designed so that adding a new step — whether it enriches buildings with external data, computes a new derived attribute, or links to a third-party database — follows the same repeatable pattern every time.
+A new processing step follows the same pattern whether it enriches buildings with external data, computes a derived attribute, or links to a third-party database.
 
-**What you provide:** one SQL script and six small Go changes.  
-**What the framework provides for free:** parallel execution across CPU cores, deadlock retry, per-batch parameter substitution, idempotent re-runs, and CLI flag integration.
+A step consists of one SQL script and six Go changes. The framework supplies parallel execution across CPU cores, deadlock retry, per-batch parameter substitution, idempotent re-runs and CLI flag integration.
 
 ---
 
@@ -11,22 +14,24 @@ This page explains how to add a new processing step to City2TABULA. The pipeline
 
 Every pipeline step maps to the same structure:
 
+The diagram shows which parts a new step adds and which the framework already provides.
+
 ```mermaid
 flowchart LR
-    subgraph "You write"
-        SQL["SQL script\nsql/scripts/{type}/{name}.sql"]
-        GO["Go wiring\n6 small changes"]
+    subgraph "Added per step"
+        SQL["SQL script<br>sql/scripts/{type}/{name}.sql"]
+        GO["Go wiring<br>6 changes"]
     end
 
     subgraph "Framework provides"
-        BATCH["Spatial or ID-based\nbatching"]
-        QUEUE["Job queue\n+ worker pool"]
-        RETRY["Retry &<br>deadlock handling"]
-        PARAM["SQL parameter\nsubstitution"]
+        BATCH["Spatial or ID-based<br>batching"]
+        QUEUE["Job queue<br>and worker pool"]
+        RETRY["Retry and<br>deadlock handling"]
+        PARAM["SQL parameter<br>substitution"]
     end
 
     subgraph "Output"
-        DB[("PostgreSQL\ntable or update")]
+        DB[("PostgreSQL<br>table or update")]
     end
 
     SQL --> QUEUE
@@ -41,11 +46,11 @@ flowchart LR
 
 ## Step-by-step checklist
 
-The six Go changes are always in the same six files. Once you know the pattern, adding a new step takes under an hour.
+The six Go changes are always in the same six files.
 
 ### 1. Write the SQL script
 
-Create a file in `sql/scripts/{type}/{name}.sql`. The directory name (`{type}`) groups related scripts — use `main` for extraction steps, `link` for external data linking.
+Create a file in `sql/scripts/{type}/{name}.sql`. The directory name (`{type}`) groups related scripts: `main` for extraction steps, `link` for external data linking.
 
 Use `{placeholders}` for any value that changes per run:
 
@@ -54,7 +59,7 @@ Use `{placeholders}` for any value that changes per run:
 | `{city2tabula_schema}` | `city2tabula` |
 | `{lod_schema}` | `lod2` or `lod3` |
 | `{srid}` | Native CRS of the 3D data (e.g. `25832`) |
-| `{building_ids}` | `(1, 2, 3, ...)` — the current batch |
+| `{building_ids}` | `(1, 2, 3, ...)`, the current batch |
 | `{country}` | Country name from config |
 | `{pylovo_schema}` | PyLovo schema (e.g. `public`) |
 
@@ -103,10 +108,10 @@ func MyNewStepJobQueue(config *config.Config, batches [][]int64) (*JobQueue, err
 
 ### 4. Add a Run function
 
-In `internal/process/feature_extraction.go`, add the entry-point function. Choose the right batching strategy:
+In `internal/process/feature_extraction.go`, add the entry-point function with the batching strategy the step needs:
 
-- **ID-based batching** — use `CreateBatches(ids, cfg.Batch.Size)` when batch order doesn't matter
-- **Spatial grid batching** — use `getGridBatches(...)` when buildings in a batch must be geographically co-located (e.g. for spatial joins against external datasets)
+- **ID-based batching**: `CreateBatches(ids, cfg.Batch.Size)`, when batch order does not matter.
+- **Spatial grid batching**: `getGridBatches(...)`, when buildings in a batch must be geographically co-located, for example for a spatial join against an external dataset.
 
 ```go
 func RunMyNewStep(cfg *config.Config, pool *pgxpool.Pool) error {
@@ -154,33 +159,33 @@ if f.MyNewStep {
 
 ## Adding a new SQL parameter
 
-If your script needs a value not already in `SQLParameters`, add it in two places:
+A value not already in `SQLParameters` is added in two places:
 
 ```go
-// internal/config/sql.go — add to SQLParameters struct
+// internal/config/sql.go: add to the SQLParameters struct
 MyNewParam string `param:"my_new_param"`
 
-// Same file — populate in GetSQLParameters()
+// Same file: populate in GetSQLParameters()
 MyNewParam: c.DB.Schemas.MyNew,  // or wherever the value comes from
 ```
 
-Then add `{my_new_param}` in your SQL script. The substitution happens automatically.
+The script then uses `{my_new_param}`, which is substituted automatically.
 
 !!! info "Adding config from environment"
-    If your new parameter comes from an environment variable, add the `GetEnv` call in the appropriate `load*Config()` function in `internal/config/`. Document the variable in `.env.example`.
+    A parameter that comes from an environment variable needs a `GetEnv` call in the matching `load*Config()` function in `internal/config/`, and an entry in `.env.example`.
 
 ## What the framework handles automatically
 
-You never need to implement these — they apply to every step by default:
+These apply to every step and need no per-step code:
 
 | Concern | How it's handled |
 |---|---|
 | **Parallel execution** | `RunJobQueue` distributes batches across a worker pool (default: CPU count, configurable via `THREAD_COUNT`) |
 | **Deadlock retry** | Runner retries up to 5 times with jitter on PostgreSQL deadlock errors |
 | **General error retry** | Runner retries up to 3 times with exponential backoff |
-| **Idempotency** | Your SQL script handles this — typically a `DELETE ... WHERE building_id IN {building_ids}` before the INSERT, or an `ON CONFLICT DO UPDATE` |
-| **Parameter substitution** | All `{placeholder}` tokens in your script are substituted from `config.SQLParameters` before execution |
-| **Building limit** | Respect `cfg.Batch.BuildingLimit` in your `Run*` function to cap processing during development |
+| **Idempotency** | Handled by the SQL script, typically a `DELETE ... WHERE building_id IN {building_ids}` before the INSERT, or an `ON CONFLICT DO UPDATE` |
+| **Parameter substitution** | All `{placeholder}` tokens in the script are substituted from `config.SQLParameters` before execution |
+| **Building limit** | `cfg.Batch.BuildingLimit`, which the `Run*` function applies to cap processing during development |
 
 ---
 

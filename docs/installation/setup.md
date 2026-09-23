@@ -1,6 +1,10 @@
+---
+audience: developer
+---
+
 # Setup and Usage
 
-For using the City2TABULA tool, you have two main options: the recommended Docker-based setup for ease of use and consistency, or a manual installation for advanced users who prefer direct control over the environment for development purposes.
+There are two ways to run City2TABULA: the Docker setup, which is the recommended one, and a manual installation for development work that needs direct control over the environment.
 
 ## Docker Setup (recommended)
 
@@ -21,7 +25,7 @@ cd city2tabula-<version>
 
 ### Step 2. Download data
 
-Place your 3D city data file (.gml or .json) under `data/` directory before starting the containers:
+Place the 3D city data files (`.gml` or `.json`) under `data/` before starting the containers:
 
 ```bash
 data/
@@ -30,7 +34,7 @@ data/
 ```
 
 !!! example
-    For example, if you have a LoD2 CityGML file for Germany, you would place it in `data/lod2/germany/` directory. If you have a corresponding LoD3 file, it would go in `data/lod3/germany/`. The directory structure should look like this:
+    A LoD2 CityGML file for Germany goes in `data/lod2/germany/`, and a corresponding LoD3 file in `data/lod3/germany/`:
 
     ```bash
     data/
@@ -45,15 +49,15 @@ data/
 
 
 !!! tip
-    you can create subdirectories within the country directory if you have files for multiple cities or regions, e.g., `data/lod2/germany/berlin/` and `data/lod2/germany/munich/`. Just ensure that the files are organized under the correct LoD and country directories for the tool to process them correctly.
+    Subdirectories within a country directory are allowed, for example `data/lod2/germany/berlin/` and `data/lod2/germany/munich/`. Files must sit under the correct LoD and country directory to be processed.
 
-    You can download from sources listed in [Data](https://thd-spatial-ai.github.io/city2tabula/example/example/) section
+    The [Data](../example/example.md) page lists sources to download from.
 
 ### Step 3. Create Docker Container
 
-This will build the Docker images, start the containers, and run the interactive setup script to configure environment variables and database connection settings. Follow the prompts to complete the setup.
+This builds the Docker images, starts the containers, and runs the interactive setup script for the environment variables and database connection settings. The script prompts for each value.
 
-Choose and run the appropriate command for your operating system:
+Run the command for the operating system in use:
 
 ```bash
 # Linux/macOS
@@ -67,7 +71,8 @@ setup.bat setup
 ```
 
 ### Step 4. Create database
-After the setup is complete, you can create the database with:
+
+After setup completes, create the database:
 
 ```bash
 # Linux/macOS
@@ -81,8 +86,7 @@ setup.bat create-db
 ```
 
 !!! note
-    If you have already created the database, you will need to change the database name or reset the existing database before running the above command again.
-    To change the database name update environment configuration in `docker.env` file. To reset the database, use the following command:
+    Running this against an existing database requires either a different database name or a reset first. The database name is set in `docker.env`. To change it:
 
     ```bash
     # Linux/macOS
@@ -110,7 +114,7 @@ setup.bat create-db
 
 ### Step 5. Run feature extraction
 
-Final step is to run the feature extraction process, which will execute the full City2TABULA pipeline and generate the output data in the database. Use the following command:
+The final step runs the extraction pipeline and writes the output data to the database:
 
 ```bash
 
@@ -127,18 +131,18 @@ setup.bat extract-features
 ## Development Setup
 
 !!! warning "Only for Unix-based systems (Linux/macOS)"
-    This setup is mainly intended for Linux development environments. If you’re on Windows, Docker is strongly recommended. Local installation on Windows might require additional configuration (e.g., WSL2, manual Java setup) and is not covered in this guide.
+    This setup targets Linux development environments. On Windows, use the Docker setup: a local installation there needs additional configuration (WSL2, a manual Java setup) that this guide does not cover.
 
 ### Prerequisites (dev)
 
 | Requirement | Version | Notes | Download Link |
 | ----------- | ------- | ----- | ------------- |
-| Go          | 1.21+   | required for City2TABULA | [golang.org](https://go.dev/doc/install)                                                           |
-| PostgreSQL                 | 17+     | required for City2TABULA & CityDB Tool     | [postgresql.org](https://www.postgresql.org/download/)                                             |
-| PostGIS                    | 3.5+    | required for working with spatial data | [postgis.net](https://postgis.net/install/)                                                        |
-| Java                       | 17+  | required for CityDB Tool| [oracle.com](https://www.oracle.com/java/technologies/downloads/)                                  |
-| Git                        | 2.25+   | required for City2TABULA | [git-scm.com](https://git-scm.com/downloads)                                                       |
-| CityDB Importer/Exporter   | v1.1.0 | Unzip and place the `citydb-tool` directory at your preferred location. | [github.com](https://github.com/3dcitydb/citydb-tool/releases/tag/v1.1.0)                          |
+| Go | 1.25+ | Builds City2TABULA | [golang.org](https://go.dev/doc/install) |
+| PostgreSQL | 15 to 18 | Used by City2TABULA and citydb-tool | [postgresql.org](https://www.postgresql.org/download/) |
+| PostGIS | 3.4+ | Spatial types and functions | [postgis.net](https://postgis.net/install/) |
+| Java | 17+ | Required by citydb-tool | [oracle.com](https://www.oracle.com/java/technologies/downloads/) |
+| Git | 2.25+ | Clones the repository | [git-scm.com](https://git-scm.com/downloads) |
+| citydb-tool | ≤ v1.3.2 | Unzip and place the `citydb-tool` directory anywhere; its path goes in `.env` | [github.com](https://github.com/3dcitydb/citydb-tool/releases) |
 
 ### Step 1. Clone the repository
 
@@ -149,7 +153,7 @@ cd city2tabula
 
 ### Step 2. Install PostgreSQL, PostGIS and the CityDB tool
 
-Install the versions listed in the prerequisites table above. Unzip the CityDB Importer/Exporter release and note the path to the extracted `citydb-tool-<version>` directory — you'll need it in Step 4.
+Install the versions listed in the prerequisites table. Unzip the citydb-tool release and note the path to the extracted `citydb-tool-<version>` directory, which Step 4 needs.
 
 ### Step 3. Build the binary
 
@@ -166,18 +170,18 @@ cp .env.example .env
 Edit `.env` and set at minimum:
 
 ```bash
-COUNTRY              # e.g. germany — must match one of the supported TABULA/EPISCOPE countries
-DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME  # your local PostgreSQL instance
-CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed in Docker — baked into the image)
+COUNTRY              # e.g. germany, must match one of the supported TABULA/EPISCOPE countries
+DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME  # the local PostgreSQL instance
+CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed in Docker, where it is in the image)
 ```
 
-CITYDB_SRID/CITYDB_SRS_NAME are derived automatically from COUNTRY — only set them if your country isn't in that lookup table (`internal/config/srid.go`).
+`CITYDB_SRID` and `CITYDB_SRS_NAME` are derived from `COUNTRY`. Set them only for a country missing from that lookup table (`internal/config/srid.go`).
 
-`DB_NAME` is a base name. The tool appends the country's ISO 3166-1 alpha-2 code (`DB_NAME=city2tabula` + `COUNTRY=netherlands` → `city2tabula_nl`) and creates the database if it is absent. Point it at an existing database by giving that database the suffixed name.
+`DB_NAME` is a base name. The tool appends the country's ISO 3166-1 alpha-2 code (`DB_NAME=city2tabula` with `COUNTRY=netherlands` gives `city2tabula_nl`) and creates the database if it is absent. To use an existing database, give that database the suffixed name.
 
-### Step 5. Add your data
+### Step 5. Add the data
 
-Place your 3D city data file(s) under `data/`, following the same layout as the Docker setup:
+Place the 3D city data files under `data/`, in the same layout as the Docker setup:
 
 ```bash
 data/
@@ -188,8 +192,8 @@ data/
 ### Step 6. Create the database and run the pipeline
 
 ```bash
-./c2t -create-db          # creates CityDB + City2TABULA schemas and imports your data
+./c2t -create-db          # creates CityDB and City2TABULA schemas, then imports the data
 ./c2t -extract-features   # runs the feature extraction pipeline
 ```
 
-Use `./c2t -help` to see all available flags (e.g. `-reset-db`, `-link-pylovo`).
+`./c2t -help` lists every flag, including `-reset-db` and `-link-pylovo`.

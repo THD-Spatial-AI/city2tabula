@@ -1,3 +1,7 @@
+---
+audience: developer
+---
+
 # PyLovo Building Link
 
 The PyLovo link step connects 3D building footprints extracted by City2TABULA to the OSM building data held in an [enerplanet-pylovo](https://github.com/enerplanet/enerplanet-pylovo) database. The result is the `city2tabula.building_link` table, which records whether each 3D building has a matching OSM building, which PyLovo table it belongs to (`res` for residential, `oth` for commercial/public), and how confident the spatial match is.
@@ -8,7 +12,7 @@ This step is optional. Feature extraction (`-extract-features`) runs independent
 
 ## How it works
 
-Each 3D building footprint is matched to a PyLovo building by **Intersection over Union (IoU)** — the area of overlap divided by the area of the smaller footprint. A match is accepted when IoU ≥ 0.5.
+Each 3D building footprint is matched to a PyLovo building by **Intersection over Union (IoU)**: the area of overlap divided by the area of the smaller footprint. A match is accepted when IoU ≥ 0.5.
 
 Residential buildings (`res`) are checked first. A commercial/public match (`oth`) is only considered when no `res` building meets the threshold.
 
@@ -63,7 +67,7 @@ flowchart TD
 | `PYLOVO_SCHEMA` | `public` | Schema holding local `res` and `oth` tables. Ignored when `PYLOVO_FDW_HOST` is set. |
 | `PYLOVO_LINK_GRID_SIZE` | `1000` | Grid cell side length in metres. Smaller values give tighter pre-filtering but create more jobs. |
 
-Set these in your `.env` file alongside the existing database variables. For a
+Set these in `.env` alongside the existing database variables. For a
 central PyLovo database on a separate server, see [Federated setup](#federated-setup-postgres_fdw).
 
 ---
@@ -154,19 +158,19 @@ DROP ROLE c2t_fdw_reader;
 - The user mapping is `FOR CURRENT_USER`, i.e. the `DB_USER` role. If a different role runs `-link-pylovo`, run it once as that role to create the mapping.
 - `res` / `oth` are country-agnostic. The link query's EPSG:3035 bounding-box pre-filter isolates the current extent, so a shared multi-country PyLovo database is fine.
 - The bbox pre-filter is computed from local rows, so `postgres_fdw` pulls the batch's `res` / `oth` geometry across the connection and filters locally. Acceptable at city scale; not yet optimised for country-wide runs.
-- `PYLOVO_FDW_PASSWORD` lives in `.env` (gitignored). Rotate per your security policy; the tool re-applies it on the next run.
+- `PYLOVO_FDW_PASSWORD` lives in `.env` (gitignored). Rotate it as the deployment's security policy requires; the tool re-applies it on the next run.
 
 ---
 
 ## Output: `city2tabula.building_link`
 
-One row per 3D building that has a footprint geometry and a valid `object_id`. The pipeline is idempotent — re-running `-link-pylovo` after updated PyLovo data will overwrite existing rows for the affected buildings.
+One row per 3D building that has a footprint geometry and a valid `object_id`. The pipeline is idempotent, so re-running `-link-pylovo` after updated PyLovo data will overwrite existing rows for the affected buildings.
 
 | Column | Type | Description |
 |---|---|---|
 | `object_id` | `VARCHAR(100)` | Stable 3D city model identifier (supports CityGML and CityJSON) |
-| `osm_id` | `TEXT` | PyLovo OSM building identifier — `NULL` when no match |
-| `pylovo_table` | `VARCHAR(3)` | `res` (residential) or `oth` (commercial/public/industrial) — `NULL` when no match |
+| `osm_id` | `TEXT` | PyLovo OSM building identifier, `NULL` when no match |
+| `pylovo_table` | `VARCHAR(3)` | `res` (residential) or `oth` (commercial/public/industrial), `NULL` when no match |
 | `match_type` | `SMALLINT` | See match types below |
 | `match_confidence` | `DOUBLE PRECISION` | IoU score 0–1; `NULL` when no match |
 | `country_code` | `CHAR(2)` | ISO 3166-1 alpha-2 code derived from the `COUNTRY` env var (e.g. `DE`, `NL`) |
@@ -177,9 +181,9 @@ One row per 3D building that has a footprint geometry and a valid `object_id`. T
 
 | Value | Meaning |
 |---|---|
-| `1` | Complete — 3D building matched to an OSM building. All attributes available. |
-| `2` | 3D only — no OSM building found within IoU threshold. OSM attributes must be inferred. |
-| `3` | OSM only — OSM building with no 3D counterpart. Populated separately, not by this pipeline. |
+| `1` | Complete: 3D building matched to an OSM building. All attributes available. |
+| `2` | 3D only: no OSM building found within IoU threshold. OSM attributes must be inferred. |
+| `3` | OSM only: an OSM building with no 3D counterpart. Populated separately, not by this pipeline. |
 
 ---
 
@@ -193,7 +197,7 @@ sql/scripts/link/
     └── 01_build_pylovo_link.sql   ← this pipeline
 ```
 
-A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag — no changes to the existing pipeline.
+A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag, with no changes to the existing pipeline.
 
 !!! info "Pre-requisite"
     `res` and `oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`, either as local tables in `PYLOVO_SCHEMA` or in the central database named by `PYLOVO_FDW_*`. The link step reads from PyLovo but does not modify it.

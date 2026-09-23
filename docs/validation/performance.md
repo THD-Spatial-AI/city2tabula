@@ -1,3 +1,7 @@
+---
+audience: developer
+---
+
 # Pipeline Performance
 
 End-to-end runtime and memory benchmarks for the `c2t -extract-features` command across three municipality-scale datasets.
@@ -20,13 +24,13 @@ All datasets were fully loaded into 3DCityDB before timing started. No import or
 
 ## How Numbers Were Collected
 
-**Wall time and Go process RSS** — `/usr/bin/time -v`:
+**Wall time and Go process RSS**, measured with `/usr/bin/time -v`:
 
 ```bash
 /usr/bin/time -v ./c2t -extract-features 2>&1 | tee run_<city>.log
 ```
 
-**PostgreSQL RSS** — sampled every 500 ms while the pipeline ran:
+**PostgreSQL RSS**, sampled every 500 ms while the pipeline ran:
 
 ```bash
 (while true; do
@@ -42,7 +46,7 @@ Kill the monitor after the run:
 kill $(jobs -p)
 ```
 
-**Surface count** — after extraction completes:
+**Surface count**, after extraction completes:
 
 ```sql
 SELECT COUNT(id) FROM city2tabula.lod2_surface_raw;
