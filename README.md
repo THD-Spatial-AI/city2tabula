@@ -19,7 +19,7 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 | Dependency | Supported version |
 |---|---|
-| citydb-tool | ≤ v1.3.2 |
+| citydb-tool | v1.3.2 |
 | PostgreSQL | 15 to 18 |
 | PostGIS | 3.4+ |
 | Go | 1.25+ |

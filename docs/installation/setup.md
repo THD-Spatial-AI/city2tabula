@@ -142,7 +142,7 @@ setup.bat extract-features
 | PostGIS | 3.4+ | Spatial types and functions | [postgis.net](https://postgis.net/install/) |
 | Java | 17+ | Required by citydb-tool | [oracle.com](https://www.oracle.com/java/technologies/downloads/) |
 | Git | 2.25+ | Clones the repository | [git-scm.com](https://git-scm.com/downloads) |
-| citydb-tool | ≤ v1.3.2 | Unzip and place the `citydb-tool` directory anywhere; its path goes in `.env` | [github.com](https://github.com/3dcitydb/citydb-tool/releases) |
+| citydb-tool | v1.3.2 | Unzip and place the `citydb-tool` directory anywhere; its path goes in `.env` | [github.com](https://github.com/3dcitydb/citydb-tool/releases) |
 
 ### Step 1. Clone the repository
 
