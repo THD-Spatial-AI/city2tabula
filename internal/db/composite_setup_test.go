@@ -138,66 +138,6 @@ func TestResetCompleteDatabase_CreateCompleteDatabaseFailure(t *testing.T) {
 	}
 }
 
-// --- ResetCityDBOnly ---
-
-func TestResetCityDBOnly_CreateCityDBFailure(t *testing.T) {
-	cfg := fullCfg("citytabula_dbtest")
-	cfg.CityDB.SQLScripts.CreateDB = writeSQLFixture(t, `THIS IS NOT VALID SQL;`)
-	cfg.CityDB.SQLScripts.CreateSchema = writeSQLFixture(t, `CREATE SCHEMA :"schema_name";`)
-
-	err := db.ResetCityDBOnly(cfg, testPool)
-	if err == nil {
-		t.Fatal("expected an error when CreateCityDB fails, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to recreate CityDB") {
-		t.Errorf("expected ResetCityDBOnly's own error wrap, got: %v", err)
-	}
-}
-
-func TestResetCityDBOnly_ImportCityDBDataFailure(t *testing.T) {
-	ctx := context.Background()
-	cfg := fullCfg("citytabula_dbtest")
-	cfg.DB.Schemas.Lod2 = "rcdo_import_fail_lod2"
-	cfg.DB.Schemas.Lod3 = "rcdo_import_fail_lod3"
-	dropSchemasOnCleanup(t, ctx, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3)
-	cfg.CityDB.SQLScripts.CreateDB = writeSQLFixture(t, `SELECT 1;`)
-	cfg.CityDB.SQLScripts.CreateSchema = writeSQLFixture(t, `CREATE SCHEMA :"schema_name";`)
-	cfg.CityDB.ToolPath = writeFakeCityDBExecutable(t, 1) // fails -help
-
-	err := db.ResetCityDBOnly(cfg, testPool)
-	if err == nil {
-		t.Fatal("expected an error when ImportCityDBData fails, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to import CityDB data") {
-		t.Errorf("expected ResetCityDBOnly's own error wrap, got: %v", err)
-	}
-}
-
-// TestResetCityDBOnly_Success is the one full end-to-end success case reachable
-// without a real TABULA CSV or the real CityDB tool: ResetCityDBOnly never
-// calls ImportSupplementaryData, and importCityDBFiles treats a missing LOD
-// data directory as an optional skip (warn, not fail) rather than an error -
-// so pointing Data.Lod2/Lod3 at paths that don't exist lets the fake citydb
-// executable's -help check succeed and the whole call return nil.
-func TestResetCityDBOnly_Success(t *testing.T) {
-	ctx := context.Background()
-	cfg := fullCfg("citytabula_dbtest")
-	cfg.DB.Schemas.Lod2 = "rcdo_success_lod2"
-	cfg.DB.Schemas.Lod3 = "rcdo_success_lod3"
-	dropSchemasOnCleanup(t, ctx, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3)
-	cfg.CityDB.SQLScripts.CreateDB = writeSQLFixture(t, `SELECT 1;`)
-	cfg.CityDB.SQLScripts.CreateSchema = writeSQLFixture(t, `CREATE SCHEMA :"schema_name";`)
-	cfg.CityDB.ToolPath = writeFakeCityDBExecutable(t, 0) // succeeds -help
-	cfg.Data = &config.DataPaths{Lod2: "/nonexistent/lod2", Lod3: "/nonexistent/lod3"}
-
-	if err := db.ResetCityDBOnly(cfg, testPool); err != nil {
-		t.Fatalf("ResetCityDBOnly: %v", err)
-	}
-	if !schemaExists(t, ctx, cfg.DB.Schemas.Lod2) {
-		t.Errorf("expected schema %q to exist after ResetCityDBOnly", cfg.DB.Schemas.Lod2)
-	}
-}
-
 // --- ImportAllData ---
 
 // TestImportAllData_ImportSupplementaryDataFailure covers ImportAllData's

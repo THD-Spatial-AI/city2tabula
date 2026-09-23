@@ -60,29 +60,6 @@ func ResetCompleteDatabase(config *config.Config, conn *pgxpool.Pool) error {
 	return nil
 }
 
-// ResetCityDBOnly resets only the CityDB infrastructure (preserves City2TABULA schemas)
-func ResetCityDBOnly(config *config.Config, conn *pgxpool.Pool) error {
-	utils.Info.Println("Resetting CityDB infrastructure only...")
-
-	// Step 1: Drop CityDB schemas
-	if err := DropCityDBSchemas(config, conn); err != nil {
-		utils.Warn.Printf("Warning during CityDB cleanup: %v", err)
-	}
-
-	// Step 2: Recreate CityDB
-	if err := CreateCityDB(config); err != nil {
-		return fmt.Errorf("failed to recreate CityDB: %w", err)
-	}
-
-	// Step 3: Re-import CityDB data only
-	if err := importer.ImportCityDBData(conn, config, "", ""); err != nil {
-		return fmt.Errorf("failed to import CityDB data: %w", err)
-	}
-
-	utils.Info.Println("CityDB reset completed successfully")
-	return nil
-}
-
 // RunCity2TabulaDBSetup creates the city2tabula and tabula schemas and runs all setup job queues.
 func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 	schemas := []string{config.DB.Schemas.City2Tabula, config.DB.Schemas.Tabula}

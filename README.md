@@ -58,9 +58,10 @@ python -m venv .venv
 |------|-------------|
 | `-create-db` | Create the complete City2TABULA database (CityDB infrastructure + schemas + data import) |
 | `-reset-db` | Reset everything: drop all schemas and recreate the complete database |
-| `-reset-citydb` | Reset only CityDB infrastructure (drop CityDB schemas, recreate, and re-import data) |
 | `-reset-city2tabula` | Reset only City2TABULA schemas (preserves CityDB) |
-| `-extract-features` | Run the feature extraction pipeline |
+| `-import-data` | Import new 3D city data into an existing database, skipping files already imported |
+| `-extract-features` | Run the feature extraction pipeline over buildings not yet processed |
+| `-link-pylovo` | Link 3D buildings to PyLovo res/oth via IoU spatial join (after `-extract-features`) |
 | `-version` / `-v` | Print version and exit |
 
 ---

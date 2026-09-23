@@ -5,7 +5,6 @@ import "flag"
 type Flags struct {
 	CreateDB        bool
 	ResetDB         bool
-	ResetCityDB     bool
 	ImportData      bool
 	ResetC2T        bool
 	ExtractFeatures bool
@@ -18,12 +17,11 @@ type Flags struct {
 
 func ParseFlags() *Flags {
 	f := &Flags{}
-	flag.BoolVar(&f.CreateDB, "create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + data import)")
-	flag.BoolVar(&f.ResetDB, "reset-db", false, "Reset everything: drop all schemas and recreate the complete database")
-	flag.BoolVar(&f.ResetCityDB, "reset-citydb", false, "Reset only CityDB infrastructure (drop CityDB schemas, recreate them, and re-import CityDB data)")
-	flag.BoolVar(&f.ImportData, "import-data", false, "Import data into existing CityDB schemas (useful if you want to keep existing City2TABULA schemas and import new 3D city data)")
+	flag.BoolVar(&f.CreateDB, "create-db", false, "Create the complete City2TABULA database (CityDB infrastructure + schemas + first data import). Refuses to run if the database already exists; use -import-data to add data to one")
+	flag.BoolVar(&f.ResetDB, "reset-db", false, "Destructive. Drop all schemas, including every extracted feature and hand correction, and recreate the database from scratch")
+	flag.BoolVar(&f.ImportData, "import-data", false, "Import new 3D city data into an existing database, skipping files already imported. Follow with -extract-features to process the new buildings")
 	flag.BoolVar(&f.ResetC2T, "reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
-	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline")
+	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline over buildings not yet processed. Safe to re-run; already-processed buildings are skipped")
 	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
 	flag.BoolVar(&f.ShowV, "v", false, "print version and exit (shorthand)")
@@ -42,7 +40,6 @@ type Msg struct {
 
 type CreateDBMsg Msg
 type ResetDBMsg Msg
-type ResetCityDBMsg Msg
 type ResetC2TMsg Msg
 type ExtractFeaturesMsg Msg
 type LinkPylovoMsg Msg
@@ -51,31 +48,38 @@ type ImportDataMsg Msg
 // Define messages for each flag
 var (
 	CreateDBMessages = CreateDBMsg{
-		Custom: `Database already exists!
+		Custom: `Database already exists.
 
-		Please consider changing the database name using if you are processing different data, or reset the database if you want to overwrite existing data.
-
-		# To change the database name, use ONE of the following commands based on your operating system:
+		Pick the command that matches what you are trying to do:
 
 		----------------------------
 
-		1) For Linux: make configure
+		Adding new 3D city data to this database
 
-		2) For Windows: setup.bat configure
+			c2t -import-data
+			c2t -extract-features
 
-		3) For PowerShell: .\setup.ps1 configure
+		Files already imported are skipped and buildings already processed are
+		not reprocessed, so both are safe to re-run. This keeps everything
+		already extracted, including any hand-corrected buildings.
 
 		----------------------------
 
-		# To reset the database, use ONE of the following commands based on your operating system:
+		Building a second database alongside this one
+
+		Change DB_NAME, then re-run -create-db:
+
+			Linux:      make configure
+			Windows:    setup.bat configure
+			PowerShell: .\setup.ps1 configure
 
 		----------------------------
 
-		1) For Linux: make reset-db
+		Starting over and discarding everything in this database
 
-		2) For Windows: setup.bat reset-db
-
-		3) For PowerShell: .\setup.ps1 reset-db
+			Linux:      make reset-db
+			Windows:    setup.bat reset-db
+			PowerShell: .\setup.ps1 reset-db
 
 		----------------------------
 		`,
@@ -87,11 +91,6 @@ var (
 		Progress: "Resetting the database...",
 		Success:  "Database reset successfully",
 		Error:    "Failed to reset database",
-	}
-	ResetCityDBMessages = ResetCityDBMsg{
-		Progress: "Resetting CityDB...",
-		Success:  "CityDB reset successfully",
-		Error:    "Failed to reset CityDB",
 	}
 	ResetC2TMessages = ResetC2TMsg{
 		Progress: "Resetting City2TABULA schemas...",
@@ -119,7 +118,6 @@ var (
 type Messages struct {
 	CreateDB        CreateDBMsg
 	ResetDB         ResetDBMsg
-	ResetCityDB     ResetCityDBMsg
 	ResetC2T        ResetC2TMsg
 	ExtractFeatures ExtractFeaturesMsg
 	LinkPylovo      LinkPylovoMsg
@@ -129,7 +127,6 @@ type Messages struct {
 var AllMessages = Messages{
 	CreateDB:        CreateDBMessages,
 	ResetDB:         ResetDBMessages,
-	ResetCityDB:     ResetCityDBMessages,
 	ResetC2T:        ResetC2TMessages,
 	ExtractFeatures: ExtractFeaturesMessages,
 	LinkPylovo:      LinkPylovoMessages,
