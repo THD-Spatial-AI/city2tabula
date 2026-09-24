@@ -1,3 +1,7 @@
+---
+audience: developer
+---
+
 # SQL Extraction Pipeline
 
 This section documents the eight SQL scripts that transform raw 3D building geometry from the CityDB database into a structured set of building features ready for TABULA classification.
@@ -42,14 +46,14 @@ flowchart TD
 
 | Script | Purpose | Writes to |
 |--------|---------|-----------|
-| [01 — Get child features](01-get-child-features.md) | Spatially match surface features to each building solid | `_child_feature` |
-| [02 — Dump geometry](02-dump-geometry.md) | Explode multi-polygon surfaces to individual polygon faces | `_child_feature_geom_dump` |
-| [03 — Surface attributes](03-surface-attributes.md) | Compute surface normal, tilt, azimuth, area, and height per face | `_surface_raw` |
-| [04 — Building features](04-building-features.md) | Aggregate surface attributes into one row per building | `_building` |
-| [05 — Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
-| [06 — Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
-| [07 — TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
-| 08 — Build surface | Copy each surface face into the resolved table, excluding party walls | `_surface` |
+| [01 Get child features](01-get-child-features.md) | Spatially match surface features to each building solid | `_child_feature` |
+| [02 Dump geometry](02-dump-geometry.md) | Explode multi-polygon surfaces to individual polygon faces | `_child_feature_geom_dump` |
+| [03 Surface attributes](03-surface-attributes.md) | Compute surface normal, tilt, azimuth, area, and height per face | `_surface_raw` |
+| [04 Building features](04-building-features.md) | Aggregate surface attributes into one row per building | `_building` |
+| [05 Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
+| [06 Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
+| [07 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
+| 08 Build surface | Copy each surface face into the resolved table, excluding party walls | `_surface` |
 
 ---
 
@@ -69,7 +73,7 @@ Each building solid is decomposed into typed surface features:
 | `WallSurface` | Facade/wall polygon(s) |
 | `GroundSurface` | The building footprint polygon(s) on the ground |
 
-Scripts 03 and 04 treat these three types differently — for example, tilt and azimuth are computed differently for roofs versus walls, and the footprint area comes from `GroundSurface` only.
+Scripts 03 and 04 treat these three types differently. For example, tilt and azimuth are computed differently for roofs versus walls, and the footprint area comes from `GroundSurface` only.
 
 ### Idempotency
 

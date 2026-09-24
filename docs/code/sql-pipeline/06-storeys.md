@@ -1,4 +1,8 @@
-# Script 06 — Storeys
+---
+audience: developer
+---
+
+# Script 06: Storeys
 
 **File:** `sql/scripts/main/06_calc_storeys.sql`  
 **Reads from:** `{city2tabula_schema}.{lod_schema}_building`  
@@ -44,7 +48,7 @@ Guards: if either value is NULL or zero, the existing `number_of_storeys` is lef
 area_total_floor = footprint_area × number_of_storeys
 ```
 
-This overwrites the value set in script 04 (which was just `footprint_area`). The result is an estimate of the **total heated floor area** across all storeys — the metric used in energy demand calculations.
+This overwrites the value set in script 04 (which was just `footprint_area`). The result is an estimate of the **total heated floor area** across all storeys, the metric used in energy demand calculations.
 
 !!! warning "PostgreSQL UPDATE evaluation order"
     In a `SET` clause, all right-hand side expressions are evaluated from the **row state before the UPDATE begins**. This means `bf.number_of_storeys` in the `area_total_floor` expression reads the *old* value, not the newly computed one from the same SET clause. The effect is that `area_total_floor` is computed as `footprint_area × old_number_of_storeys`, which is the value from script 04's initial estimate. This is a known limitation and is noted in the script comment. The difference is small in practice because both estimates use the same formula.
@@ -53,4 +57,4 @@ This overwrites the value set in script 04 (which was just `footprint_area`). Th
 
 ## What comes next
 
-Script 07 uses the final building feature values — including volume, areas, storeys, and complexity — to match each building to its closest TABULA archetype.
+Script 07 uses the final building feature values (volume, areas, storeys and complexity) to match each building to its closest TABULA archetype.

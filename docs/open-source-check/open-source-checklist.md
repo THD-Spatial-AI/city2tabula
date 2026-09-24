@@ -1,3 +1,7 @@
+---
+audience: developer
+---
+
 # Open Source Readiness Checklist
 
 Use this checklist before making a repository public under the **THD-Spatial** group.

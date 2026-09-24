@@ -11,9 +11,9 @@ For data sources and licence information see [NOTICE](../NOTICE) in the project 
 ```
 testdata/
 ├── germany/
-│   ├── seed_lod2.sql            — lod2 schema + ~355 buildings (pg_dump --schema=lod2)
-│   ├── seed_tabula_variant.sql  — TABULA variant reference data for Germany
-│   └── .gitignore               — excludes large local benchmark dumps
+│   ├── seed_lod2.sql            # lod2 schema + ~355 buildings (pg_dump --schema=lod2)
+│   ├── seed_tabula_variant.sql  # TABULA variant reference data for Germany
+│   └── .gitignore               # excludes large local benchmark dumps
 ├── austria/
 │   ├── seed_lod2.sql
 │   ├── seed_tabula_variant.sql
@@ -42,12 +42,12 @@ so adding a new country only requires dropping the seed files in the right direc
 To export a fresh seed from a CityDB database (replace `YOUR_DB` with the database name):
 
 ```bash
-# Full lod2 schema — DDL + data (~50–500 buildings recommended for CI seeds)
+# Full lod2 schema, DDL and data (~50–500 buildings recommended for CI seeds)
 pg_dump --host=localhost --username=postgres --dbname=YOUR_DB \
   --schema=lod2 --no-owner --no-privileges \
   --file=testdata/<country>/seed_lod2.sql
 
-# TABULA variant data only (no DDL — table is created by RunCity2TabulaDBSetup)
+# TABULA variant data only (no DDL, the table is created by RunCity2TabulaDBSetup)
 pg_dump --host=localhost --username=postgres --dbname=YOUR_DB \
   --table=city2tabula.tabula_variant --data-only --disable-triggers \
   --no-owner --no-privileges \

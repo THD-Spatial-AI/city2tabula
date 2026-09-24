@@ -1,4 +1,8 @@
-# Script 07 — TABULA Labelling
+---
+audience: developer
+---
+
+# Script 07: TABULA Labelling
 
 **File:** `sql/scripts/main/07_label_buildings.sql`  
 **Reads from:** `{city2tabula_schema}.{lod_schema}_building`, `{city2tabula_schema}.tabula_variant`  
@@ -34,7 +38,7 @@ The variant with the smallest distance is the best match.
 
 ## Background: why normalise?
 
-The 8 features have very different scales. Volume is measured in cubic metres and might range from hundreds to tens of thousands. Footprint complexity is a 0–2 integer code. If these are used as-is, volume would dominate the distance calculation simply because its numbers are larger — a 1-unit difference in complexity would be invisible compared to a 1,000-unit difference in volume.
+The 8 features have very different scales. Volume is measured in cubic metres and might range from hundreds to tens of thousands. Footprint complexity is a 0–2 integer code. If these are used as-is, volume would dominate the distance calculation simply because its numbers are larger: a 1-unit difference in complexity would be invisible next to a 1,000-unit difference in volume.
 
 **Min-max normalisation** rescales every feature to the range [0, 1]:
 
@@ -48,7 +52,7 @@ After normalisation, a difference of 1.0 in any dimension means spanning the ful
 
 ## CTE walkthrough
 
-### Step 1 — `stats`
+### Step 1: `stats`
 
 ```sql
 WITH stats AS (
@@ -83,7 +87,7 @@ The 8 features used are:
 
 ---
 
-### Step 2 — `ranked`
+### Step 2: `ranked`
 
 ```sql
 ranked AS (
@@ -111,12 +115,12 @@ This CTE compares **every building against every TABULA variant** using a `CROSS
 
 **Handling NULLs and zero ranges:**
 
-- `COALESCE(..., 0)` — if a building or variant has a NULL value for a feature (e.g. missing roof data), that dimension is treated as sitting at the normalised minimum (0). This keeps the distance computation valid without discarding rows.
-- `NULLIF(range, 0)` — if the global max equals the global min for a feature (all values are identical, so range = 0), division would produce an error. `NULLIF` converts 0 to NULL, making the division produce NULL, which `COALESCE` then converts to 0. The practical effect: a feature with zero discriminating power contributes nothing to the distance.
+- `COALESCE(..., 0)` handles a missing value: if a building or variant has a NULL value for a feature (e.g. missing roof data), that dimension is treated as sitting at the normalised minimum (0). This keeps the distance computation valid without discarding rows.
+- `NULLIF(range, 0)` handles a zero range: if the global max equals the global min for a feature (all values are identical, so range = 0), division would produce an error. `NULLIF` converts 0 to NULL, making the division produce NULL, which `COALESCE` then converts to 0. The practical effect: a feature with zero discriminating power contributes nothing to the distance.
 
 ---
 
-### Step 3 — UPDATE
+### Step 3: UPDATE
 
 ```sql
 UPDATE {lod_schema}_building bf
@@ -144,6 +148,8 @@ These codes are the primary output of the City2TABULA pipeline and are used down
 
 ---
 
-## Pipeline complete
+## What comes next
 
-This is the last of the seven extraction scripts. At this point, `_building` contains a fully populated row for every building in the batch: geometry-derived attributes, height, area, volume, storey count, shape complexity, and a TABULA archetype assignment.
+This is the last script that writes building attributes. `_building` now holds a fully populated row for every building in the batch: geometry-derived attributes, height, area, volume, storey count, shape complexity and a TABULA archetype assignment.
+
+Script 08 then writes the resolved surface table, one row per polygon face with party walls excluded.

@@ -19,10 +19,10 @@ City2TABULA focuses on scalable, database-centric processing of large national- 
 
 | Dependency | Supported version |
 |---|---|
-| citydb-tool | ≤ v1.3.2 |
-| PostgreSQL | 15 – 18 |
+| citydb-tool | v1.3.2 |
+| PostgreSQL | 15 to 18 |
 | PostGIS | 3.4+ |
-| Go | 1.23+ |
+| Go | 1.25+ |
 
 ---
 
@@ -70,7 +70,7 @@ python -m venv .venv
 
 ![test coverage](https://codecov.io/gh/thd-spatial-ai/city2tabula/graphs/icicle.svg?token=R8I6Y22TRL)
 
-The top section in figure above represents the entire project. Proceeding with folders and finally individual files. The size and color of each slice is representing the number of statements and the coverage, respectively.
+In the figure above, the top section is the whole project, the sections below it are folders, and the smallest are individual files. Slice size is the number of statements and slice colour is the coverage.
 
 ```bash
 # Unit tests

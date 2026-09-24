@@ -1,3 +1,7 @@
+---
+audience: developer
+---
+
 # Script 03: Surface Attributes
 
 **File:** `sql/scripts/main/03_calc_child_feat_attr.sql`
@@ -37,7 +41,7 @@ All four attributes are derived from the **surface normal**: a vector that point
 
 ## Background: what is a surface normal?
 
-Imagine a flat wall. If you placed a stick perpendicular to the wall and pointing away from the building, that stick is the surface normal. It encodes two things:
+The surface normal is a stick set perpendicular to a face and pointing away from the building. It encodes two things:
 
 - Its **vertical component** (how much it points up or down) determines tilt.
 - Its **horizontal direction** (which compass bearing it points toward) determines azimuth.
@@ -73,7 +77,7 @@ For a perfectly flat polygon this gives the same answer as a simple cross produc
 
 ## Background: vertex winding order
 
-The sign of a cross-product normal depends on the order in which vertices are listed. If you trace the polygon boundary clockwise, the normal points one way; counter-clockwise, the opposite way. CityGML datasets from different providers may use either convention, and sometimes even mix them. Without correction, a north-facing wall might be computed as south-facing (180° error) purely because its vertices happen to be listed in a different order.
+The sign of a cross-product normal depends on the order in which vertices are listed: tracing the polygon boundary clockwise points the normal one way, counter-clockwise the other. CityGML datasets from different providers may use either convention, and sometimes even mix them. Without correction, a north-facing wall might be computed as south-facing (180° error) purely because its vertices happen to be listed in a different order.
 
 This script corrects for this by comparing the computed normal against a known reference point inside the building (the **interior point**, derived from the GroundSurface). If the normal points toward the interior rather than away from it, it is flipped.
 
@@ -110,7 +114,7 @@ GROUP BY building_feature_id
 
 For each building, computes a single 2D reference point guaranteed to lie **inside** the ground footprint.
 
-- `ST_Force2D` strips Z coordinates: we only need the horizontal position.
+- `ST_Force2D` strips Z coordinates, since only the horizontal position is needed.
 - `ST_Collect` merges all GroundSurface polygons into one geometry without dissolving them.
 - `ST_PointOnSurface` returns a point on the surface that is guaranteed to be inside, even for non-convex shapes like L-shaped footprints (where the centroid can fall outside).
 
@@ -248,7 +252,7 @@ END AS tilt
   <figcaption>Figure 1: Tilt and normal vector components</figcaption>
 </figure>
 
-`nz` is the vertical component of the unit normal. For a vertical wall, `nz = 0`, giving `ASIN(0) = 0°`. For a flat horizontal surface, `|nz| = 1`, giving `ASIN(1) = 90°`. For `|nz| > 0.985` (tilt > ~80°), `tilt` is snapped to exactly `90°` rather than reporting the raw computed value — the same near-horizontal band where the underlying geometry math is close enough to flat that the residual angle is noise, not signal (see azimuth below, which treats the same band as undefined for the same reason).
+`nz` is the vertical component of the unit normal. For a vertical wall, `nz = 0`, giving `ASIN(0) = 0°`. For a flat horizontal surface, `|nz| = 1`, giving `ASIN(1) = 90°`. For `|nz| > 0.985` (tilt > ~80°), `tilt` is snapped to exactly `90°` rather than the raw computed value. This is the same near-horizontal band that azimuth treats as undefined, and for the same reason: the residual angle there is noise rather than signal.
 
 ```sql
 -- Azimuth: compass bearing of the horizontal normal component
@@ -267,7 +271,7 @@ END AS azimuth
 <figure markdown="span">
   ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_light.svg#only-light){ width="600" }
   ![azimuth diagram](../../assets/diagrams/pipeline/tilt-azim-calc/roof_azimuth_undefined_dark.svg#only-dark){ width="600" }
-  <figcaption>Figure 3: Azimuth and normal vector components</figcaption>
+  <figcaption>Figure 3: Azimuth undefined for a near-horizontal surface</figcaption>
 </figure>
 
 `atan2(ny, nx)` computes the mathematical angle (counter-clockwise from East). The formula `(450 − angle) mod 360` converts this to a compass bearing (clockwise from North). For nearly-flat surfaces (tilt > ~80°), the horizontal components are near zero and `atan2` becomes numerically unreliable, so azimuth is set to `-1` (undefined).

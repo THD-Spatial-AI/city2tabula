@@ -1,12 +1,16 @@
-# Job Queue & Worker Pipeline
+---
+audience: developer
+---
 
-This page explains how City2TABULA hands off work from a queue to a pool of parallel workers. If you're new to Go channels, start here.
+# Job Queue and Worker Pipeline
+
+How City2TABULA hands work from a queue to a pool of parallel workers.
 
 ---
 
 ## The problem it solves
 
-Feature extraction runs the same set of SQL scripts for potentially thousands of building batches. We want to run many batches at the same time (one per CPU core) without them stepping on each other. The solution is a **producer/consumer pipeline**:
+Feature extraction runs the same set of SQL scripts over thousands of building batches. Those batches run concurrently, one per CPU core, without interfering with each other. The structure is a **producer/consumer pipeline**:
 
 - One goroutine fills a queue with jobs (producer).
 - Many worker goroutines pull jobs from a shared channel and execute them (consumers).
@@ -15,16 +19,16 @@ Feature extraction runs the same set of SQL scripts for potentially thousands of
 
 ## What is a Go channel?
 
-Think of a channel as a thread-safe conveyor belt. You put things in one end, workers pick them up from the other end. Once the belt is empty and the sender signals it's done (by closing the channel), workers know there's nothing left to wait for.
+A channel is a thread-safe conveyor belt: values go in one end and workers take them off the other. Once the belt is empty and the sender has closed the channel, workers know nothing more is coming.
 
 ```go
-ch := make(chan *Job, 10) // buffered channel — holds up to 10 items without blocking
+ch := make(chan *Job, 10) // buffered channel, holds up to 10 items without blocking
 ch <- job                 // put a job on the belt
 j := <-ch                 // pick a job off the belt
 close(ch)                 // signal: no more jobs coming
 ```
 
-A `for job := range ch` loop in a worker will automatically stop when the channel is closed and drained — no manual "are we done?" check needed.
+A `for job := range ch` loop in a worker will automatically stop when the channel is closed and drained, with no manual completion check.
 
 ---
 
@@ -47,11 +51,9 @@ func (q *JobQueue) ToChannel() <-chan *Job {
 }
 ```
 
-**Why buffer the whole queue?**
-Buffering all jobs upfront means the producer never blocks — it fills the channel in one shot and returns. Workers then race to pick up jobs without any coordination from the caller.
+**Buffering the whole queue** keeps the producer from blocking: it fills the channel in one pass and returns. Workers then take jobs without coordination from the caller.
 
-**Why close the channel here?**
-Closing signals to all workers that there are no more jobs coming. Without it, workers would block forever waiting for the next item.
+**Closing the channel** tells every worker that no more jobs are coming. Without it, workers block forever on the next receive.
 
 ---
 
@@ -75,7 +77,7 @@ func RunJobQueue(queue *JobQueue, conn *pgxpool.Pool, cfg *config.Config) error 
 }
 ```
 
-Each worker just does:
+Each worker runs:
 
 ```go
 for job := range jobChan { // stops automatically when channel is closed + empty
@@ -103,8 +105,8 @@ sequenceDiagram
     participant DB as PostGIS
 
     O->>Q: Enqueue(job)
-    O->>C: ToChannel() — drains Q, closes C
-    W->>C: range jobChan — picks up job
+    O->>C: ToChannel(), drains Q and closes C
+    W->>C: range jobChan, picks up job
     W->>R: RunJob(job)
     loop For each Task in Job
         R->>DB: ExecuteSQLScript()
@@ -125,4 +127,4 @@ sequenceDiagram
 | `internal/process/worker.go` | `RunJobQueue()`, `Worker.Start()` |
 | `internal/process/runner.go` | `RunJob()`, retry logic |
 | `internal/process/orchestrator.go` | Queue builder functions (one per pipeline phase) |
-| `internal/process/task.go` | `Task` struct — note `LodLevel` field |
+| `internal/process/task.go` | `Task` struct, including the `LodLevel` field |

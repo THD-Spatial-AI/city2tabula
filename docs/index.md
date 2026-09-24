@@ -1,8 +1,10 @@
+---
+audience: developer
+---
+
 # City2TABULA Documentation
 
 [![go](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
-&nbsp;
-[![rtd](https://app.readthedocs.org/projects/city2tabula/badge/?version__slug=latest)](https://city2tabula.readthedocs.io/en/latest/)
 &nbsp;
 [![GitHub release](https://img.shields.io/github/v/release/thd-spatial-ai/City2TABULA?include_prereleases&label=release&logo=github)](https://github.com/thd-spatial-ai/city2tabula/releases)
 
@@ -31,4 +33,4 @@ The tool is designed for scalable processing of LoD2 and LoD3 building data stor
 
 ## Support
 
-If you encounter a problem or would like to suggest an improvement, please open an issue in the project repository using relevant [Issue Template](https://github.com/thd-spatial-ai/city2tabula/issues/new/choose).
+Problems and suggestions go in the project repository's issue tracker, using the matching [issue template](https://github.com/thd-spatial-ai/city2tabula/issues/new/choose).
