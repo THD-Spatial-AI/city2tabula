@@ -306,6 +306,20 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Error("script 08 failed: lod2_surface is empty, expected surface rows")
 	}
 
+	// Scripts 03 and 08: every wall, roof and ground face carries an in-plane
+	// length and width, with the short side stored as width.
+	var badDims int
+	if err := testPool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM city2tabula.lod2_surface
+		WHERE surface_type IN ('WallSurface', 'RoofSurface', 'GroundSurface')
+		  AND (length IS NULL OR width IS NULL OR width > length)`,
+	).Scan(&badDims); err != nil {
+		t.Fatalf("failed to query surface dimensions: %v", err)
+	}
+	if badDims > 0 {
+		t.Errorf("scripts 03/08: %d surfaces have missing length/width or width > length", badDims)
+	}
+
 	// Regression (#121): script 08 must carry every polygon face through, not
 	// collapse a multi-face surface feature (a 3DBAG WallSurface is one feature
 	// covering all of a building's walls) to one row. On a fresh DB, with no
