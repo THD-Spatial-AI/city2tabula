@@ -56,3 +56,38 @@ EXCEPTION
         RETURN 0.0;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+-- Long and short side of the minimum-area rectangle around a face, measured in
+-- the face's own plane. Rotated first because ST_OrientedEnvelope is 2D only and
+-- a plan projection shortens a pitched roof's slope side by cos(slope).
+-- A degenerate face whose envelope collapses to a line or point has width 0.
+CREATE OR REPLACE FUNCTION {city2tabula_schema}.surface_dimensions(
+    geom geometry,
+    nx double precision,
+    ny double precision,
+    nz double precision,
+    OUT length double precision,
+    OUT width double precision
+) AS $$
+DECLARE
+    env geometry;
+    side_a double precision;
+    side_b double precision;
+BEGIN
+    env := ST_OrientedEnvelope(ST_Force2D(ST_RotateY(
+        ST_RotateX(geom, atan2(ny, nz)),
+        -atan2(nx, sqrt(ny*ny + nz*nz))
+    )));
+
+    IF GeometryType(env) <> 'POLYGON' THEN
+        length := ST_Length(env);
+        width := 0.0;
+        RETURN;
+    END IF;
+
+    side_a := ST_Distance(ST_PointN(ST_ExteriorRing(env), 1), ST_PointN(ST_ExteriorRing(env), 2));
+    side_b := ST_Distance(ST_PointN(ST_ExteriorRing(env), 2), ST_PointN(ST_ExteriorRing(env), 3));
+    length := GREATEST(side_a, side_b);
+    width := LEAST(side_a, side_b);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;

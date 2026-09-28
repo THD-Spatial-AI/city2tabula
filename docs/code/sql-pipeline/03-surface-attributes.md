@@ -14,14 +14,15 @@ audience: developer
 
 ## Purpose
 
-For each individual polygon face (from script 02), this script computes four physical attributes:
+For each individual polygon face (from script 02), this script computes these physical attributes:
 
 - **Tilt**: the surface's angle from vertical (0° = vertical wall, 90° = flat horizontal roof). This is the opposite of the usual from-horizontal slope convention; see the box below.
 - **Azimuth**: the compass direction the surface faces (0°/360° = North, 90° = East, 180° = South, 270° = West).
 - **Surface area**: the true 3D face area in square metres.
 - **Height span**: the vertical range of the face (Z max − Z min) in metres.
+- **Length and width**: the long and short side of the smallest rectangle around the face, measured in the face's own plane, in metres.
 
-All four attributes are derived from the **surface normal**: a vector that points perpendicularly outward from the face. The bulk of this script's CTEs are dedicated to computing that normal correctly.
+Every attribute except height span is derived from the **surface normal**: a vector that points perpendicularly outward from the face. The bulk of this script's CTEs are dedicated to computing that normal correctly.
 
 !!! warning "Tilt convention: 0° = wall, 90° = flat roof"
     `tilt` is `DEGREES(ASIN(ABS(nz)))`, where `nz` is the vertical component of
@@ -290,6 +291,22 @@ END AS azimuth
 
 The simplest attribute: the difference between the highest and lowest Z coordinate of the polygon's vertices.
 
+```sql
+-- Length and width: minimum-area rectangle in the surface plane
+LEFT JOIN LATERAL {city2tabula_schema}.surface_dimensions(valid_geom, nx, ny, nz) d
+  ON objectclass_id IN (709, 710, 712)
+```
+
+`surface_dimensions` rotates the face into its own plane with the same rotation as `surface_area_corrected_geom`, then takes `ST_OrientedEnvelope`, the minimum-area rotated rectangle. The longer side is `length`, the shorter `width`. The rotation matters for pitched roofs: in plan view, a 30° roof 5 m deep measures 5 m, but its slope side is 5.77 m.
+
+| Face | `length` | `width` | `height` |
+|---|---|---|---|
+| Wall 10 × 3 m | 10 | 3 | 3 |
+| Roof, 12 m eave, 30° pitch, 5 m deep in plan | 12 | 5.77 | 2.89 |
+| Flat roof 8 × 4 m, any orientation | 8 | 4 | 0 |
+
+For triangles, L-shapes and other non-rectangular faces the rectangle is larger than the face. `surface_area / (length * width)` gives the fraction of the rectangle the face fills. A face whose rectangle collapses to a line has `width` 0.
+
 ---
 
 ## Output columns
@@ -302,6 +319,8 @@ The simplest attribute: the difference between the highest and lowest Z coordina
 | `is_valid` | `ST_IsValid` result for the polygon |
 | `is_planar` | Whether all vertices lie on a single plane |
 | `height` | Vertical span: ZMax − ZMin (m) |
+| `length` | Long side of the minimum-area rectangle in the surface plane (m); NULL for classes other than wall, roof and ground |
+| `width` | Short side of that rectangle (m); NULL as for `length` |
 | `geom` | Original polygon geometry (carried through) |
 
 ---
