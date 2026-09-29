@@ -71,8 +71,10 @@ services:
     depends_on:
       city2tabula-db:
         condition: service_healthy
+    # HOST_PORT is the variable the EnerPlanET dev stack sets for every service;
+    # C2T_SERVER_HOST_PORT is kept so existing .env files still apply.
     ports:
-      - "${C2T_SERVER_HOST_PORT:-5050}:5000"
+      - "${HOST_PORT:-${C2T_SERVER_HOST_PORT:-5050}}:5000"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:5000/api/v1/health"]
       interval: 5s
