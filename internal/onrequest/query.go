@@ -85,7 +85,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 		FROM %s.building_link bl
 		JOIN %s b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
 		WHERE bl.country_code = $1 AND bl.osm_id = ANY($2)`,
-		cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building"),
+		cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, osmIDs)
@@ -119,7 +119,7 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 		WHERE b.country_code = $1
 		  AND b.building_footprint_geom IS NOT NULL
 		  AND ST_Intersects(b.building_footprint_geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
-		allLODs(cfg, "building"),
+		allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, bbox.Xmin, bbox.Ymin, bbox.Xmax, bbox.Ymax, cfg.CityDB.SRID)
@@ -137,12 +137,21 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 	return buildings, nil
 }
 
-// allLODs reads one City2TABULA table across the LOD2 and LOD3 schemas. Both
-// come from sql/schema/main/01_create_main_tables.sql, so their columns match;
-// a database holding both levels of one area returns those buildings twice.
-func allLODs(cfg *config.Config, table string) string {
-	return fmt.Sprintf("(SELECT * FROM %[1]s.%[2]s_%[4]s UNION ALL SELECT * FROM %[1]s.%[3]s_%[4]s)",
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3, table)
+// buildingColumns and surfaceColumns are the columns the queries below read,
+// named because a database built by an earlier release has columns added to
+// its lod2_ tables that its lod3_ tables lack, so SELECT * cannot be unioned.
+const (
+	buildingColumns = "object_id, country_code, min_height, max_height, room_height, number_of_storeys, " +
+		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, building_footprint_geom"
+	surfaceColumns = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, geom"
+)
+
+// allLODs reads columns of one City2TABULA table across the LOD2 and LOD3
+// schemas. A database holding both levels of one area returns those buildings
+// twice.
+func allLODs(cfg *config.Config, table, columns string) string {
+	return fmt.Sprintf("(SELECT %[5]s FROM %[1]s.%[2]s_%[4]s UNION ALL SELECT %[5]s FROM %[1]s.%[3]s_%[4]s)",
+		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3, table, columns)
 }
 
 func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
@@ -182,12 +191,16 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 
 	// id (row UUID), not surface_object_id: one source surface feature has many
 	// faces and shares its surface_object_id across all of them.
+	// area_below_precision is derived with script 08's own definition, since a
+	// database built by an earlier release lacks the column on lod3_surface.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, surface_type,
-		       surface_area, azimuth, tilt, area_below_precision, is_valid, is_planar
+		       surface_area, azimuth, tilt,
+		       (surface_area IS NOT NULL AND surface_area <= 0),
+		       is_valid, is_planar
 		FROM %s s
 		WHERE building_object_id = ANY($1)`,
-		allLODs(cfg, "surface"),
+		allLODs(cfg, "surface", surfaceColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)
@@ -252,7 +265,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 		SELECT object_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
 		FROM %s b
 		WHERE country_code = $1 AND object_id = ANY($2)`,
-		allLODs(cfg, "building"),
+		allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, objectIDs)
@@ -311,7 +324,7 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 		FROM %s s
 		WHERE building_object_id = ANY($1)
 		ORDER BY building_object_id, id`,
-		allLODs(cfg, "surface"),
+		allLODs(cfg, "surface", surfaceColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)

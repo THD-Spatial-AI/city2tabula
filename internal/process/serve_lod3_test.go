@@ -81,6 +81,53 @@ func TestServer_ReadsLOD3Buildings(t *testing.T) {
 	}
 }
 
+// TestServer_ServesOlderReleaseSchema pins that the on-request queries still
+// serve a database built by an earlier release, where area_below_precision was
+// added to lod2_surface alone and neither surface table has length or width.
+func TestServer_ServesOlderReleaseSchema(t *testing.T) {
+	ctx := context.Background()
+	cfg := seedLOD3Building(t, ctx, "older-schema")
+	for _, stmt := range []string{
+		`ALTER TABLE city2tabula.lod2_surface DROP COLUMN length, DROP COLUMN width`,
+		`ALTER TABLE city2tabula.lod3_surface DROP COLUMN length, DROP COLUMN width, DROP COLUMN area_below_precision`,
+	} {
+		if _, err := testPool.Exec(ctx, stmt); err != nil {
+			t.Fatalf("reshape surface tables: %v", err)
+		}
+	}
+	t.Cleanup(func() {
+		if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
+			t.Errorf("restore current schema: %v", err)
+		}
+	})
+
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"older-schema"}, true)
+	if err != nil {
+		t.Fatalf("BuildingGeometryByObjectIDs: %v", err)
+	}
+	if len(geometry) != 1 || len(geometry[0].Surfaces) != 1 {
+		t.Fatalf("BuildingGeometryByObjectIDs: want 1 building with 1 surface, got %+v", geometry)
+	}
+
+	var bbox onrequest.Bbox
+	if err := testPool.QueryRow(ctx, `
+		SELECT ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e)
+		FROM (SELECT ST_Transform(ST_MakeEnvelope(499990, 5399990, 500020, 5400020, 25832), 4326) AS e) s`,
+	).Scan(&bbox.Xmin, &bbox.Ymin, &bbox.Xmax, &bbox.Ymax); err != nil {
+		t.Fatalf("build bbox: %v", err)
+	}
+	buildings, err := onrequest.BuildingsByBBox(ctx, testPool, cfg, bbox)
+	if err != nil {
+		t.Fatalf("BuildingsByBBox: %v", err)
+	}
+	if len(buildings) != 1 || len(buildings[0].Surfaces) != 1 {
+		t.Fatalf("BuildingsByBBox: want 1 building with 1 surface, got %+v", buildings)
+	}
+	if abp := buildings[0].Surfaces[0].AreaBelowPrecision; abp == nil || *abp {
+		t.Errorf("area_below_precision for a 30 m2 wall: want false, got %v", abp)
+	}
+}
+
 // TestRunPyLovoLinkBuild_LinksLOD3Buildings pins that -link-pylovo matches
 // LOD3 buildings, and that the linked building is then served by OSM id.
 func TestRunPyLovoLinkBuild_LinksLOD3Buildings(t *testing.T) {
