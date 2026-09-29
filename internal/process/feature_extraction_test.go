@@ -39,7 +39,7 @@ func TestPyLovoLinkJobQueue_EmptyBatches(t *testing.T) {
 	}
 
 	// When: no batches are passed
-	queue, err := PyLovoLinkJobQueue(cfg, nil)
+	queue, err := PyLovoLinkJobQueue(cfg, nil, 2)
 
 	// Then: queue is created with no jobs
 	if err != nil {
@@ -73,14 +73,23 @@ func TestPyLovoLinkJobQueue_WithBatches(t *testing.T) {
 	batches := [][]int64{{1, 2, 3}, {4, 5}}
 
 	// When
-	queue, err := PyLovoLinkJobQueue(cfg, batches)
+	queue, err := PyLovoLinkJobQueue(cfg, batches, 3)
 
-	// Then: one job per batch
+	// Then: one job per batch, every task reading the requested LOD schema
 	if err != nil {
 		t.Fatalf("PyLovoLinkJobQueue returned unexpected error: %v", err)
 	}
 	if queue.Len() != len(batches) {
 		t.Errorf("expected %d jobs, got %d", len(batches), queue.Len())
+	}
+	tasks := queue.Peek().Tasks
+	if len(tasks) == 0 {
+		t.Fatal("expected link script tasks in the first job, got none")
+	}
+	for _, task := range tasks {
+		if task.LodLevel != 3 {
+			t.Errorf("task %s: LodLevel = %d, want 3", task.TaskType, task.LodLevel)
+		}
 	}
 }
 

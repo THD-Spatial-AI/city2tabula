@@ -114,7 +114,7 @@ func TestJobQueueBuilders_LoadSQLScriptsFailurePropagates(t *testing.T) {
 			return err
 		},
 		"PyLovoLinkJobQueue": func() error {
-			_, err := PyLovoLinkJobQueue(cfg, nil)
+			_, err := PyLovoLinkJobQueue(cfg, nil, 2)
 			return err
 		},
 	}
