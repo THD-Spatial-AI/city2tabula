@@ -88,8 +88,8 @@ func TestServer_ServesOlderReleaseSchema(t *testing.T) {
 	ctx := context.Background()
 	cfg := seedLOD3Building(t, ctx, "older-schema")
 	for _, stmt := range []string{
-		`ALTER TABLE city2tabula.lod2_surface DROP COLUMN length, DROP COLUMN width`,
-		`ALTER TABLE city2tabula.lod3_surface DROP COLUMN length, DROP COLUMN width, DROP COLUMN area_below_precision`,
+		`ALTER TABLE city2tabula.lod2_surface DROP COLUMN IF EXISTS length, DROP COLUMN IF EXISTS width`,
+		`ALTER TABLE city2tabula.lod3_surface DROP COLUMN IF EXISTS length, DROP COLUMN IF EXISTS width, DROP COLUMN area_below_precision`,
 	} {
 		if _, err := testPool.Exec(ctx, stmt); err != nil {
 			t.Fatalf("reshape surface tables: %v", err)
