@@ -166,8 +166,8 @@ func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 
 // RunPyLovoLinkBuild populates city2tabula.building_link by spatially joining 3D building
 // footprints against pylovo.res and pylovo.oth. Must be run after RunFeatureExtraction.
-// Only LOD2 buildings are processed — the link table is keyed on object_id, which is
-// LOD-agnostic, so a single LOD pass is sufficient.
+// LOD2 and LOD3 buildings are linked in separate passes, because building_feature_id
+// is only unique within one LOD schema.
 //
 // Buildings are batched by spatial grid cell (default 1 km²) so each batch covers a
 // compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
@@ -177,42 +177,63 @@ func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to set up PyLovo FDW: %w", err)
 	}
 
-	batches, err := GetGridBatches(
-		pool,
-		cfg.DB.Schemas.City2Tabula,
-		cfg.DB.Schemas.Lod2,
-		cfg.City2Tabula.LinkGridSize,
-		cfg.Batch.BuildingLimit,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to build spatial grid batches: %w", err)
+	limit := cfg.Batch.BuildingLimit
+	linked := 0
+	for _, lod := range []int{2, 3} {
+		remaining := 0
+		if limit > 0 {
+			remaining = limit - linked
+			if remaining <= 0 {
+				break
+			}
+		}
+		n, err := runPyLovoLinkForLOD(cfg, pool, lod, remaining)
+		if err != nil {
+			return err
+		}
+		linked += n
 	}
 
+	if linked == 0 {
+		utils.Warn.Println("No LOD2 or LOD3 buildings with footprints found. Nothing to link.")
+	}
+	return nil
+}
+
+// runPyLovoLinkForLOD links the unlinked buildings of one LOD schema, at most
+// buildingLimit of them when it is above 0, and returns how many it batched.
+func runPyLovoLinkForLOD(cfg *config.Config, pool *pgxpool.Pool, lod, buildingLimit int) (int, error) {
+	schema, err := lodSchema(cfg, lod)
+	if err != nil {
+		return 0, err
+	}
+
+	batches, err := GetGridBatches(pool, cfg.DB.Schemas.City2Tabula, schema, cfg.City2Tabula.LinkGridSize, buildingLimit)
+	if err != nil {
+		return 0, fmt.Errorf("failed to build LOD%d spatial grid batches: %w", lod, err)
+	}
 	if len(batches) == 0 {
-		utils.Warn.Println("No LOD2 buildings with footprints found. Nothing to link.")
-		return nil
+		return 0, nil
 	}
 
 	total := 0
 	for _, b := range batches {
 		total += len(b)
 	}
-	utils.Info.Printf("Spatial grid batching: %d grid cells, %d buildings total (grid size: %dm)",
-		len(batches), total, cfg.City2Tabula.LinkGridSize)
+	utils.Info.Printf("LOD%d spatial grid batching: %d grid cells, %d buildings total (grid size: %dm)",
+		lod, len(batches), total, cfg.City2Tabula.LinkGridSize)
 
-	jobQueue, err := PyLovoLinkJobQueue(cfg, batches)
+	jobQueue, err := PyLovoLinkJobQueue(cfg, batches, lod)
 	if err != nil {
-		return fmt.Errorf("failed to build PyLovo link job queue: %w", err)
+		return 0, fmt.Errorf("failed to build LOD%d PyLovo link job queue: %w", lod, err)
 	}
-
 	if jobQueue.Len() > 0 {
 		utils.PrintJobQueueInfo(jobQueue.Len(), len(jobQueue.Peek().Tasks), cfg.Batch)
 	}
-
-	return RunJobQueue(jobQueue, pool, cfg)
+	return total, RunJobQueue(jobQueue, pool, cfg)
 }
 
-// GetGridBatches divides LOD2 buildings into spatial batches using a square grid.
+// GetGridBatches divides one LOD schema's buildings into spatial batches using a square grid.
 // Each returned slice contains the building_feature_ids that fall within one grid cell.
 // Buildings with no footprint geometry or no object_id are excluded, as are buildings
 // already present in building_link — this is what makes re-running -link-pylovo after

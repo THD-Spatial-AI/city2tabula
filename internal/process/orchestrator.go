@@ -137,18 +137,21 @@ func SupplementaryJobQueue(config *config.Config) (*JobQueue, error) {
 	return queue, nil
 }
 
-// PyLovoLinkJobQueue builds the queue for the PyLovo building link pipeline.
-// Runs after feature extraction; requires pylovo.res and pylovo.oth to be populated.
-// LOD2 batches are used — the link table is keyed on object_id which is LOD-agnostic,
-// so a single LOD pass is sufficient.
-func PyLovoLinkJobQueue(config *config.Config, lod2Batches [][]int64) (*JobQueue, error) {
+// PyLovoLinkJobQueue builds the queue for the PyLovo building link pipeline over
+// batches of building_feature_ids from the lodLevel schema. Runs after feature
+// extraction; requires pylovo.res and pylovo.oth to be populated.
+func PyLovoLinkJobQueue(config *config.Config, batches [][]int64, lodLevel int) (*JobQueue, error) {
 	scripts, queue, err := loadScriptsAndQueue(config)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, batch := range lod2Batches {
-		queue.Enqueue(createJob(batch, scripts.PyLovoLinkScripts, PyLovoLink))
+	for _, batch := range batches {
+		job := createJob(batch, scripts.PyLovoLinkScripts, PyLovoLink)
+		for _, task := range job.Tasks {
+			task.LodLevel = lodLevel
+		}
+		queue.Enqueue(job)
 	}
 
 	return queue, nil
