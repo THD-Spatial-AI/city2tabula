@@ -28,13 +28,22 @@ Germany (testdata/germany/seed_lod2.sql):
   Source: Bayerische Vermessungsverwaltung - [www.geodaten.bayern.de](https://www.ldbv.bayern.de/)
   Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
   Link: <https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=lod2>
+  Changes: imported from CityGML into 3DCityDB with citydb-tool, reduced to
+    a subset of 259 buildings and exported as a PostgreSQL dump. Coordinates
+    stay in the source reference system (EPSG:25832). No other edits.
 
 Austria (testdata/austria/seed_lod2.sql):
   Source: Stadt Wien - [data.wien.gv.at](https://www.data.gv.at/auftritte/?organisation=stadt-wien)
   Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
   Link: https://www.wien.gv.at/downloads/ma41/dach-lod2-gml.zip
+  Changes: imported from CityGML into 3DCityDB with citydb-tool, reduced to
+    a subset of 51 buildings and exported as a PostgreSQL dump. Coordinates
+    stay in the source reference system (EPSG:31256). No other edits.
 
 Netherlands (testdata/netherlands/seed_lod2.sql):
   Source: © 3DBAG by tudelft3d and 3DGI - <https://docs.3dbag.nl/en/copyright/>
   Licence: Creative Commons Attribution 4.0 (CC BY 4.0)
   Link: https://www.3dbag.nl/data
+  Changes: imported from CityJSON into 3DCityDB with citydb-tool, reduced to
+    a subset of 246 buildings and exported as a PostgreSQL dump. Coordinates
+    stay in the source reference system (EPSG:28992). No other edits.
