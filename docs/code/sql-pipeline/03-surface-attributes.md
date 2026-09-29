@@ -22,6 +22,8 @@ For each individual polygon face (from script 02), this script computes these ph
 - **Height span**: the vertical range of the face (Z max − Z min) in metres.
 - **Length and width**: the long and short side of the smallest rectangle around the face, measured in the face's own plane, in metres.
 
+It then marks the faces that lie between two solids of the same building as internal (see [Internal faces](#internal-faces)).
+
 Every attribute except height span is derived from the **surface normal**: a vector that points perpendicularly outward from the face. The bulk of this script's CTEs are dedicated to computing that normal correctly.
 
 !!! warning "Tilt convention: 0° = wall, 90° = flat roof"
@@ -80,7 +82,7 @@ For a perfectly flat polygon this gives the same answer as a simple cross produc
 
 The sign of a cross-product normal depends on the order in which vertices are listed: tracing the polygon boundary clockwise points the normal one way, counter-clockwise the other. CityGML datasets from different providers may use either convention, and sometimes even mix them. Without correction, a north-facing wall might be computed as south-facing (180° error) purely because its vertices happen to be listed in a different order.
 
-This script corrects for this by comparing the computed normal against a known reference point inside the building (the **interior point**, derived from the GroundSurface). If the normal points toward the interior rather than away from it, it is flipped.
+This script corrects for this by comparing the computed normal against a known reference point inside the solid the face bounds (the **interior point**, derived from that solid's GroundSurface). If the normal points toward the interior rather than away from it, it is flipped.
 
 ---
 
@@ -102,18 +104,18 @@ Idempotency guard: selects only buildings not yet present in the output table.
 
 ---
 
-### Step 2: `building_interior_pts`
+### Step 2: `owner_interior_pts`
 
 ```sql
 SELECT
-  building_feature_id,
+  owner_feature_id,
   ST_PointOnSurface(ST_Collect(ST_Force2D(geom))) AS interior_pt
 FROM ...
 WHERE classname = 'GroundSurface'
-GROUP BY building_feature_id
+GROUP BY owner_feature_id
 ```
 
-For each building, computes a single 2D reference point guaranteed to lie **inside** the ground footprint.
+For each solid (the Building or one of its BuildingParts), computes a single 2D reference point guaranteed to lie **inside** its ground footprint. It is taken per solid because, in a building of several parts, a point inside one part would flip the outward test for walls of another.
 
 - `ST_Force2D` strips Z coordinates, since only the horizontal position is needed.
 - `ST_Collect` merges all GroundSurface polygons into one geometry without dissolving them.
@@ -206,7 +208,7 @@ COALESCE(
 
 For each `WallSurface` and `RoofSurface`, computes a **dot product** between:
 - The horizontal component of the surface normal (nx, ny), and
-- The vector from the building's interior point to the surface centroid.
+- The vector from the solid's interior point to the surface centroid.
 
 If the dot product is ≥ 0, the normal already points away from the interior (outward): `surface_flip = +1`, keep as-is. If the dot product is negative, the normal points inward: `surface_flip = −1`, flip it.
 
@@ -309,10 +311,37 @@ For triangles, L-shapes and other non-rectangular faces the rectangle is larger 
 
 ---
 
+## Internal faces
+
+Where two solids of one building touch, the face region between them is interior. A source that models each part as a closed solid (Vienna) has that face on both parts; a source that leaves the parts open on that side (Prague) has it on neither. A second statement after the INSERT finds these faces for the batch.
+
+A face of one solid is internal where a face of another solid of the same building lies on it:
+
+| Test | Rule |
+|---|---|
+| Classes | Wall against wall, or roof against ground |
+| Orientation | Normals parallel within about 2.6° (`\|cos\| ≥ 0.999`); the sign of the normals is not used |
+| Plane offset | ≤ 0.05 m |
+| Overlap | 2D intersection of the two faces in the plane of the first |
+
+`face_to_plane` (in `sql/functions/02_face_plane.sql`) rotates both faces so the first face's normal points along +Z. The plane offset is then a Z difference and the overlap a 2D intersection. `face_from_plane` rotates the exposed remainder back into world coordinates.
+
+The sign of the normals is not used because the outward flip in `oriented_normals` points some walls of concave footprints inward. Two solids cannot both have exterior wall on the same patch, so the overlap is interior whichever way the stored normals point.
+
+The exposed remainder keeps only pieces wider than 0.04 m and larger than 0.01 m², so the tolerance band leaves no slivers. For each face with an overlap of at least 0.01 m²:
+
+- `area_internal` = `surface_area` minus the exposed area.
+- `geom_exposed` = the exposed pieces, or an empty geometry when the whole face is internal.
+
+Faces with no overlap keep both columns NULL. Faces between different buildings (party walls) are not tested here.
+
+---
+
 ## Output columns
 
 | Column | Description |
 |--------|------------|
+| `owner_feature_id` | Feature id of the solid the face bounds: the Building or one of its BuildingParts |
 | `surface_area` | True 3D area of the face (sqm) |
 | `tilt` | Angle of the surface from vertical (degrees; 0° = wall, 90° = flat roof, snapped to 90° for `\|nz\| > 0.985`). Complement of the usual from-horizontal slope angle: `90 − tilt`. |
 | `azimuth` | Compass bearing of outward-facing normal (degrees; −1 = undefined) |
@@ -321,10 +350,13 @@ For triangles, L-shapes and other non-rectangular faces the rectangle is larger 
 | `height` | Vertical span: ZMax − ZMin (m) |
 | `length` | Long side of the minimum-area rectangle in the surface plane (m); NULL for classes other than wall, roof and ground |
 | `width` | Short side of that rectangle (m); NULL as for `length` |
+| `normal_x`, `normal_y`, `normal_z` | Unit normal after the orientation rules above |
+| `area_internal` | Part of `surface_area` that lies against another solid of the same building (sqm); NULL when none |
+| `geom_exposed` | Exterior remainder of an internal face; empty when fully internal; NULL when the face has no internal part |
 | `geom` | Original polygon geometry (carried through) |
 
 ---
 
 ## What comes next
 
-Script 04 reads `_surface_raw` and aggregates the per-face attributes into a single summary row per building.
+Script 04 reads `_surface_raw` and aggregates the per-face attributes into one row per solid and one summary row per building.

@@ -163,6 +163,7 @@ func resetSchemas(t *testing.T) {
 	_, err := testPool.Exec(ctx, `
 		DO $$ BEGIN
 			TRUNCATE city2tabula.lod2_building         CASCADE;
+			TRUNCATE city2tabula.lod2_building_part    CASCADE;
 			TRUNCATE city2tabula.lod2_child_feature            CASCADE;
 			TRUNCATE city2tabula.lod2_surface_raw    CASCADE;
 			TRUNCATE city2tabula.lod2_surface                  CASCADE;
@@ -264,35 +265,78 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 
 	// Regression (#115): 3DBAG ships every building at LoD 1.2/1.3/2.2. Script 01
 	// must attach only the requested LoD's surface set via the `boundary` property,
-	// not every geometry that intersects the solid, so each building has exactly
-	// one GroundSurface.
-	var multiGroundBuildings int
+	// not every geometry that intersects the solid, so each solid (the Building or
+	// one of its BuildingParts) has exactly one GroundSurface.
+	var multiGroundSolids int
 	if err := testPool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM (
-			SELECT building_feature_id FROM city2tabula.lod2_surface_raw
+			SELECT owner_feature_id FROM city2tabula.lod2_surface_raw
 			WHERE classname = 'GroundSurface'
-			GROUP BY building_feature_id HAVING COUNT(*) <> 1
+			GROUP BY owner_feature_id HAVING COUNT(*) <> 1
 		) x`,
-	).Scan(&multiGroundBuildings); err != nil {
+	).Scan(&multiGroundSolids); err != nil {
 		t.Fatalf("failed to query ground-surface count: %v", err)
 	}
-	if multiGroundBuildings > 0 {
-		t.Errorf("script 01 attached more than one LoD representation: %d buildings have != 1 GroundSurface", multiGroundBuildings)
+	if multiGroundSolids > 0 {
+		t.Errorf("script 01 attached more than one LoD representation: %d solids have != 1 GroundSurface", multiGroundSolids)
 	}
 
-	// script 04: surface_count_{roof,wall,floor} must account for every extracted
-	// surface face, so a consumer's "expected" total matches what it loads.
+	// One row per CityGML Building that owns a solid itself or through its parts,
+	// keyed by the Building's own object_id, never a part's.
+	var wantBuildings, partKeyed int
+	if err := testPool.QueryRow(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM lod2.feature b
+			 WHERE b.objectclass_id = 901
+			   AND EXISTS (
+			       SELECT 1 FROM lod2.property s
+			       WHERE s.name = 'lod2Solid'
+			         AND (s.feature_id = b.id OR s.feature_id IN (
+			             SELECT val_feature_id FROM lod2.property
+			             WHERE feature_id = b.id AND name = 'buildingPart')))),
+			(SELECT COUNT(*) FROM city2tabula.lod2_building lb
+			 JOIN lod2.feature f ON f.id = lb.building_feature_id
+			 WHERE f.objectclass_id <> 901 OR f.objectid IS DISTINCT FROM lb.object_id)
+	`).Scan(&wantBuildings, &partKeyed); err != nil {
+		t.Fatalf("failed to query building identity: %v", err)
+	}
+	if buildingCount != wantBuildings {
+		t.Errorf("expected one lod2_building row per CityGML Building (%d), got %d", wantBuildings, buildingCount)
+	}
+	if partKeyed > 0 {
+		t.Errorf("%d lod2_building rows are not keyed by their Building's feature id and object_id", partKeyed)
+	}
+
+	// script 04: surface_count_{roof,wall,floor} must account for every served
+	// surface row, so a consumer's "expected" total matches what it loads.
 	var surfaceCountMismatch int
 	if err := testPool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM city2tabula.lod2_building b
 		 WHERE b.surface_count_roof + b.surface_count_wall + b.surface_count_floor
-		     <> (SELECT COUNT(*) FROM city2tabula.lod2_surface_raw r
-		         WHERE r.building_feature_id = b.building_feature_id)`,
+		     <> (SELECT COUNT(*) FROM city2tabula.lod2_surface s
+		         WHERE s.building_object_id = b.object_id)`,
 	).Scan(&surfaceCountMismatch); err != nil {
 		t.Fatalf("failed to query surface-count consistency: %v", err)
 	}
 	if surfaceCountMismatch > 0 {
-		t.Errorf("script 04 surface counts do not sum to the extracted surface rows for %d buildings", surfaceCountMismatch)
+		t.Errorf("script 04 surface counts do not sum to the served surface rows for %d buildings", surfaceCountMismatch)
+	}
+
+	// The served walls must add up to the building's wall area, so walls between
+	// parts are excluded from both or from neither. Each value is rounded to 2
+	// decimals on its own, hence the per-face tolerance.
+	var wallAreaMismatch int
+	if err := testPool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM city2tabula.lod2_building b
+		 JOIN (SELECT building_object_id, SUM(surface_area) AS area, COUNT(*) AS n
+		       FROM city2tabula.lod2_surface WHERE surface_type = 'WallSurface'
+		       GROUP BY building_object_id) s ON s.building_object_id = b.object_id
+		 WHERE ABS(s.area - b.area_total_wall) > 0.01 * s.n + 0.01`,
+	).Scan(&wallAreaMismatch); err != nil {
+		t.Fatalf("failed to query wall-area consistency: %v", err)
+	}
+	if wallAreaMismatch > 0 {
+		t.Errorf("served wall area differs from area_total_wall for %d buildings", wallAreaMismatch)
 	}
 
 	// Verify script 08 built the surface link table.
@@ -323,12 +367,15 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 	// Regression (#121): script 08 must carry every polygon face through, not
 	// collapse a multi-face surface feature (a 3DBAG WallSurface is one feature
 	// covering all of a building's walls) to one row. On a fresh DB, with no
-	// party-wall detection wired in, lod2_surface should hold exactly the raw
-	// faces that pass script 08's filters.
+	// party-wall detection wired in, lod2_surface holds one row per exposed piece
+	// of every raw face that passes script 08's filters: the face itself when no
+	// part of it is internal, otherwise each piece of geom_exposed.
 	var rawEligible, resolved int
 	if err := testPool.QueryRow(ctx, `
 		SELECT
-			(SELECT COUNT(*) FROM city2tabula.lod2_surface_raw
+			(SELECT COALESCE(SUM(CASE WHEN geom_exposed IS NULL THEN 1
+			                          ELSE ST_NumGeometries(geom_exposed) END), 0)
+			 FROM city2tabula.lod2_surface_raw
 			 WHERE building_object_id IS NOT NULL AND surface_object_id IS NOT NULL
 			   AND (is_party_wall IS NULL OR is_party_wall = FALSE)),
 			(SELECT COUNT(*) FROM city2tabula.lod2_surface)
@@ -336,7 +383,7 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Fatalf("failed to compare raw vs resolved surface counts: %v", err)
 	}
 	if resolved != rawEligible {
-		t.Errorf("script 08 dropped faces: lod2_surface has %d rows, expected %d (all eligible raw faces)", resolved, rawEligible)
+		t.Errorf("script 08 dropped faces: lod2_surface has %d rows, expected %d (all exposed pieces of eligible raw faces)", resolved, rawEligible)
 	}
 
 	t.Logf("pipeline complete: %d buildings processed, %d labeled with TABULA codes, %d surface links, %d surfaces with objectids",

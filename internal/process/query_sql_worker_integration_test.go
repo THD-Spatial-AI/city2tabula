@@ -16,7 +16,7 @@ import (
 )
 
 // TestRunFeatureExtraction_BadLod2SchemaPropagatesQueryError drives
-// getBuildingObjectClassIDs's real query-error branch (query.go) through
+// getBuildingIDsFromCityDB's real query-error branch (query.go) through
 // RunFeatureExtraction's own error-wrap: a schema name that doesn't exist at
 // all produces a genuine Postgres "relation does not exist" error, not a
 // simulated one.
@@ -144,20 +144,19 @@ func TestWorkerStart_ContinuesPastFailedJob(t *testing.T) {
 	}
 }
 
-// TestGetBuildingObjectClassIDs_ScanErrorPropagates drives query.go's
-// getBuildingObjectClassIDs rows.Scan error branch - not simulated: a NUMERIC
-// column holding a fractional value (950.5) makes the query itself succeed
-// (950.5 legitimately satisfies "BETWEEN 900 AND 999") while pgx's scan into
-// a plain int genuinely fails, since a fractional value can't be losslessly
-// converted.
-func TestGetBuildingObjectClassIDs_ScanErrorPropagates(t *testing.T) {
+// TestGetBuildingIDsFromCityDB_ScanErrorPropagates drives query.go's
+// getBuildingIDsFromCityDB rows.Scan error branch - not simulated: a NUMERIC id
+// holding a fractional value (1.5) makes the query itself succeed while pgx's
+// scan into an int64 genuinely fails, since a fractional value can't be
+// losslessly converted.
+func TestGetBuildingIDsFromCityDB_ScanErrorPropagates(t *testing.T) {
 	ctx := context.Background()
-	const schema = "scan_error_objectclass_test"
+	const schema = "scan_error_building_id_test"
 	mustExec(t, ctx, `DROP SCHEMA IF EXISTS `+schema+` CASCADE`)
 	t.Cleanup(func() { testPool.Exec(ctx, `DROP SCHEMA IF EXISTS `+schema+` CASCADE`) })
 	mustExec(t, ctx, `CREATE SCHEMA `+schema)
-	mustExec(t, ctx, `CREATE TABLE `+schema+`.feature (objectclass_id NUMERIC)`)
-	mustExec(t, ctx, `INSERT INTO `+schema+`.feature (objectclass_id) VALUES (950.5)`)
+	mustExec(t, ctx, `CREATE TABLE `+schema+`.feature (id NUMERIC, objectclass_id INTEGER)`)
+	mustExec(t, ctx, `INSERT INTO `+schema+`.feature (id, objectclass_id) VALUES (1.5, 901)`)
 
 	cfg := pipelineConfig(pipelineTestCase{country: "germany", srid: "25832"})
 	cfg.DB.Schemas.Lod2 = schema

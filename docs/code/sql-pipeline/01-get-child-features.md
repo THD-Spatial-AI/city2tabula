@@ -12,7 +12,7 @@ audience: developer
 
 ## Purpose
 
-A CityDB building solid is stored as a single feature, but it is *composed of* many smaller surface features: the roof faces, wall faces, and ground faces. This script finds those child surface features for each building by following the CityDB `boundary` property, then writes one row per surface feature per building into `_child_feature`.
+A CityDB building is stored as a Building feature, one or more solids, and many smaller surface features: the roof faces, wall faces, and ground faces. This script collects the surface features of every solid that belongs to a Building, following the CityDB `buildingPart` and `boundary` properties, and writes one row per surface feature into `_child_feature`, keyed by the Building.
 
 ---
 
@@ -20,47 +20,48 @@ A CityDB building solid is stored as a single feature, but it is *composed of* m
 
 CityDB does not store a building and its surfaces in the same table row. Instead:
 
-- A **building** is a row in `feature` with an `objectclass_id` in the range 900–999 (`901` Building, `902` BuildingPart).
+- A **Building** is a row in `feature` with `objectclass_id` `901`. A **BuildingPart** (`902`) is a separate row, linked from its Building (or from another part) by a `buildingPart` property whose `val_feature_id` points at the part.
 - Its **surfaces** (WallSurface `709`, GroundSurface `710`, RoofSurface `712`) are separate `feature` rows.
-- The `property` table carries the feature hierarchy. The feature that owns the solid holds one `boundary` property per surface, with `val_feature_id` pointing at the surface feature. It also holds one `lodNSolid` property whose `val_geometry_id` points at the solid geometry in `geometry_data`.
+- A feature that owns a solid holds one `lodNSolid` property and one `boundary` property per surface, with `val_feature_id` pointing at the surface feature.
 - Each surface feature holds one `lodNMultiSurface` property per LoD it is modelled at, with `val_geometry_id` pointing at that LoD's geometry.
 
-For most datasets (DE, AT) the Building feature owns both the solid and the `boundary` rows. For 3DBAG (NL) the geometry sits on a child BuildingPart, which owns the solid and the `boundary` rows; the Building feature above it only carries thematic attributes. In both cases the feature holding `lodNSolid` also holds that building's `boundary` rows, so the script keys on that feature.
+Which features own solids depends on the source. See [Buildings and BuildingParts](index.md#buildings-and-buildingparts) for the patterns. The script takes every solid owner under the Building, so the same query covers all of them.
 
 3DBAG also ships every building at LoD 1.2, 1.3 and 2.2 as separate surface features under the same BuildingPart. Filtering the surface geometry to `lodNMultiSurface` for the requested LoD keeps only that representation.
+
+BuildingInstallation features (`905`: dormers, chimneys, balconies) are linked by a `buildingInstallation` property that the script does not follow. Their surfaces sit on an envelope the solids already close, so counting them would count that envelope twice.
 
 ---
 
 ## Step-by-step walkthrough
 
-### Step 1: `buildings` CTE
+### Step 1: `members` CTE (recursive)
 
 ```sql
-WITH buildings AS (
-  SELECT DISTINCT f.id AS building_feature_id, f.objectid AS building_object_id
+WITH RECURSIVE members AS (
+  SELECT f.id AS building_feature_id, f.objectid AS building_object_id, f.id AS member_id
   FROM {lod_schema}.feature f
-  JOIN {lod_schema}.property p ON f.id = p.feature_id
-    AND p.name = 'lod' || {lod_level} || 'Solid'
-  WHERE f.objectclass_id BETWEEN 900 AND 999
-    AND f.id NOT IN (
-      SELECT building_feature_id FROM {city2tabula_schema}.{lod_schema}_child_feature
-    )
+  WHERE f.objectclass_id = 901
     AND f.id IN {building_ids}
+    AND f.id NOT IN (SELECT building_feature_id FROM {city2tabula_schema}.{lod_schema}_child_feature)
+  UNION ALL
+  SELECT m.building_feature_id, m.building_object_id, p.val_feature_id
+  FROM members m
+  JOIN {lod_schema}.property p ON p.feature_id = m.member_id AND p.name = 'buildingPart'
 )
 ```
 
-Selects the feature that owns the solid for each building in the current batch:
+Lists each Building in the batch together with every BuildingPart below it, at any depth. The `NOT IN` guard skips Buildings already in `_child_feature`, so re-runs are safe.
 
-1. **`p.name = 'lodNSolid'`**: the feature carrying the full building solid, which is also the feature carrying the `boundary` rows.
-2. **`objectclass_id BETWEEN 900 AND 999`**: buildings and building parts only.
-3. **`f.id NOT IN (...)`**: idempotency guard: skips buildings already in `_child_feature` so re-runs are safe.
-4. **`f.id IN {building_ids}`**: restricts to the current batch.
+### Step 2: `owners` CTE
 
-### Step 2: Main SELECT: follow `boundary`, then take the LoD's geometry
+Keeps the members that hold an `lodNSolid` property for the requested LoD. Each row carries the Building's `building_feature_id` and `building_object_id`, and the solid owner's id as `owner_feature_id`.
+
+### Step 3: Main SELECT: follow `boundary`, then take the LoD's geometry
 
 ```sql
-FROM buildings b
-JOIN {lod_schema}.property boundary_link ON boundary_link.feature_id = b.building_feature_id
+FROM owners o
+JOIN {lod_schema}.property boundary_link ON boundary_link.feature_id = o.owner_feature_id
   AND boundary_link.name = 'boundary'
 JOIN {lod_schema}.feature sf ON sf.id = boundary_link.val_feature_id
 JOIN {lod_schema}.objectclass oc ON oc.id = sf.objectclass_id
@@ -71,7 +72,7 @@ WHERE sf.objectclass_id NOT BETWEEN 900 AND 999
   AND GeometryType(g.geometry) = 'MULTIPOLYGON'
 ```
 
-- **`boundary_link`**: every surface feature attached to this building.
+- **`boundary_link`**: every surface feature attached to this solid.
 - **`surface_geom`**: the surface's geometry for the requested LoD. A surface modelled only at another LoD is dropped here.
 - **`GeometryType = 'MULTIPOLYGON'`**: keeps polygon-based surfaces; script 02 explodes these into individual faces.
 
@@ -83,9 +84,10 @@ WHERE sf.objectclass_id NOT BETWEEN 900 AND 999
 |--------|------------|
 | `id` | Auto-generated UUID for this row |
 | `lod` | LoD level (2 or 3) |
-| `building_feature_id` | Feature id of the building (or BuildingPart) that owns the solid |
+| `building_feature_id` | Feature id of the Building |
+| `owner_feature_id` | Feature id of the solid owner: the Building or one of its BuildingParts |
 | `surface_feature_id` | Feature id of the surface |
-| `building_object_id` / `surface_object_id` | Stable CityDB object ids, carried through all downstream tables |
+| `building_object_id` / `surface_object_id` | Stable CityDB object ids of the Building and the surface, carried through all downstream tables |
 | `objectclass_id` | Numeric type code (`709` WallSurface, `710` GroundSurface, `712` RoofSurface) |
 | `classname` | Human-readable type name |
 | `geom` | 3D MULTIPOLYGON geometry of the surface at this LoD |
