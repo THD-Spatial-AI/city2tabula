@@ -10,7 +10,7 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
 
-// Building is one LOD2 building's thematic (non-geometric) 3D attributes,
+// Building is one LOD2 or LOD3 building's thematic (non-geometric) 3D attributes,
 // joined to its PyLovo OSM match. No geometry here on purpose — a
 // calculation consumer doesn't need it; see BuildingGeometryByObjectIDs
 // for that, fetched separately only when something (e.g. a frontend)
@@ -66,7 +66,7 @@ type Surface struct {
 	IsPlanar           *bool `json:"is_planar,omitempty"`
 }
 
-// BuildingsByOSMIDs returns 3D attributes for every LOD2 building in cfg's
+// BuildingsByOSMIDs returns 3D attributes for every building in cfg's
 // country whose building_link row matches one of osmIDs. Buildings with no
 // match_type=1 link (no OSM counterpart found) are silently absent from the
 // result — callers should treat a missing osm_id as "no 3D data for this
@@ -82,10 +82,10 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
 			b.tabula_variant_code
-		FROM %[1]s.building_link bl
-		JOIN %[1]s.%[2]s_building b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
+		FROM %s.building_link bl
+		JOIN %s b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
 		WHERE bl.country_code = $1 AND bl.osm_id = ANY($2)`,
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+		cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building"),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, osmIDs)
@@ -103,7 +103,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 	return buildings, nil
 }
 
-// BuildingsByBBox returns 3D attributes for every LOD2 building in cfg's
+// BuildingsByBBox returns 3D attributes for every building in cfg's
 // country whose footprint intersects bbox, independent of whether a PyLovo
 // building_link row exists for it yet. osm_id/match_type are left at their
 // zero value on every returned Building — callers that need the PyLovo
@@ -115,11 +115,11 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
 			b.tabula_variant_code
-		FROM %[1]s.%[2]s_building b
+		FROM %s b
 		WHERE b.country_code = $1
 		  AND b.building_footprint_geom IS NOT NULL
 		  AND ST_Intersects(b.building_footprint_geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+		allLODs(cfg, "building"),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, bbox.Xmin, bbox.Ymin, bbox.Xmax, bbox.Ymax, cfg.CityDB.SRID)
@@ -135,6 +135,14 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 		return nil, err
 	}
 	return buildings, nil
+}
+
+// allLODs reads one City2TABULA table across the LOD2 and LOD3 schemas. Both
+// come from sql/schema/main/01_create_main_tables.sql, so their columns match;
+// a database holding both levels of one area returns those buildings twice.
+func allLODs(cfg *config.Config, table string) string {
+	return fmt.Sprintf("(SELECT * FROM %[1]s.%[2]s_%[4]s UNION ALL SELECT * FROM %[1]s.%[3]s_%[4]s)",
+		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3, table)
 }
 
 func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
@@ -177,9 +185,9 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, surface_type,
 		       surface_area, azimuth, tilt, area_below_precision, is_valid, is_planar
-		FROM %s.%s_surface
+		FROM %s s
 		WHERE building_object_id = ANY($1)`,
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+		allLODs(cfg, "surface"),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)
@@ -242,9 +250,9 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 
 	q := fmt.Sprintf(`
 		SELECT object_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
-		FROM %s.%s_building
+		FROM %s b
 		WHERE country_code = $1 AND object_id = ANY($2)`,
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+		allLODs(cfg, "building"),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, objectIDs)
@@ -300,10 +308,10 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, COALESCE(surface_type, ''),
 		       COALESCE(ST_AsGeoJSON(geom), '')
-		FROM %s.%s_surface
+		FROM %s s
 		WHERE building_object_id = ANY($1)
 		ORDER BY building_object_id, id`,
-		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2,
+		allLODs(cfg, "surface"),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)
