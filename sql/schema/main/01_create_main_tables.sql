@@ -82,8 +82,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
 );
 
 -- One row per solid of a building: the Building itself when it owns a solid, and
--- each BuildingPart that owns one. Script 04 aggregates these into _building;
--- scripts 05 and 06 sum volume and floor area over them.
+-- each BuildingPart that owns one. Script 04 aggregates these into _building.
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_part CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_building_part (
   owner_feature_id BIGINT PRIMARY KEY,

@@ -8,9 +8,10 @@
 --   min_height — maximum vertical span of any WallSurface face (eave height).
 --                Named "min" because it excludes the roof ridge contribution.
 --   max_height — eave height + maximum vertical span of any RoofSurface face (ridge height).
--- A building takes both heights from its tallest solid (highest max_height).
--- Scripts 05 and 06 sum volume and floor area over the solids instead, so a tall
--- tower does not lend its height to the podium beside it.
+-- A building takes the footprint-weighted mean of its solids' heights, so scripts 05
+-- and 06 (height × footprint_area, footprint_area × storeys) equal the sums over its
+-- solids, and a tower does not lend its height to the podium beside it. A building
+-- whose solids have no ground area falls back to the tallest solid.
 --
 -- Complexity codes (0 = simple, 1 = regular, 2 = complex):
 --   footprint_complexity — based on vertex count of the merged GroundSurface boundary.
@@ -46,12 +47,18 @@ WHERE s.geom IS NOT NULL
 GROUP BY s.owner_feature_id, f.objectid
 ON CONFLICT (owner_feature_id) DO NOTHING;
 
-WITH tallest AS (
-    SELECT DISTINCT ON (building_feature_id)
-        building_feature_id, min_height, max_height
+WITH heights AS (
+    SELECT
+        building_feature_id,
+        COALESCE(ROUND((SUM(min_height * footprint_area) /
+            NULLIF(SUM(footprint_area) FILTER (WHERE min_height IS NOT NULL), 0))::numeric, 2),
+            MAX(min_height)) AS min_height,
+        COALESCE(ROUND((SUM(max_height * footprint_area) /
+            NULLIF(SUM(footprint_area) FILTER (WHERE max_height IS NOT NULL), 0))::numeric, 2),
+            MAX(max_height)) AS max_height
     FROM {city2tabula_schema}.{lod_schema}_building_part
     WHERE building_feature_id IN {building_ids}
-    ORDER BY building_feature_id, max_height DESC NULLS LAST, min_height DESC NULLS LAST
+    GROUP BY building_feature_id
 ),
 faces AS (
     SELECT
@@ -169,4 +176,4 @@ SELECT
     a.building_centroid_geom,
     a.building_footprint_geom
 FROM aggregated_surfaces a
-LEFT JOIN tallest t ON t.building_feature_id = a.building_feature_id;
+LEFT JOIN heights t ON t.building_feature_id = a.building_feature_id;

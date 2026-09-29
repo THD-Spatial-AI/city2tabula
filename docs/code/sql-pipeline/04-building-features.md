@@ -36,17 +36,15 @@ The column names `min_height` / `max_height` refer to minimum and maximum height
 
 ## Stage 2: `_building`
 
-### Heights: the tallest solid
+### Heights: footprint-weighted over the solids
 
 ```sql
-SELECT DISTINCT ON (building_feature_id) building_feature_id, min_height, max_height
-FROM _building_part
-ORDER BY building_feature_id, max_height DESC NULLS LAST, min_height DESC NULLS LAST
+SUM(min_height * footprint_area) / SUM(footprint_area)   -- per building, from _building_part
 ```
 
-A building takes `min_height` and `max_height` from its solid with the highest ridge. The initial `number_of_storeys` is that solid's eave height divided by the default room height of 2.5 m (1 when the eave height is 0 or missing). Script 06 refines it.
+A building's `min_height` and `max_height` are the means of its solids' heights, each weighted by the solid's footprint. Script 05's `height × footprint_area` and script 06's `footprint_area × number_of_storeys` then equal the sums over the solids, so a tower does not lend its height to the podium beside it. The per-solid heights stay in `_building_part`. A building whose solids have no ground area falls back to its tallest solid.
 
-Volume and floor area are not derived from these heights. Scripts 05 and 06 sum them over the solids, so a tower does not lend its height to the podium beside it.
+The initial `number_of_storeys` is `min_height` divided by the default room height of 2.5 m (1 when `min_height` is 0 or missing). Script 06 refines it.
 
 ### Surface areas by type
 
@@ -96,7 +94,7 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | `construction_year` | 0 | External data (not automated) |
 | `has_attached_neighbour` | `FALSE` | Not yet implemented |
 | `area_total_floor` | Exposed GroundSurface sum | Script 06 (overwritten) |
-| `number_of_storeys` | Tallest solid's eave height / 2.5 | Script 06 (refined) |
+| `number_of_storeys` | `min_height` / 2.5 | Script 06 (refined) |
 
 ---
 
@@ -111,9 +109,9 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | `area_total_roof` | Sum of exposed RoofSurface area (sqm) |
 | `area_total_wall` | Sum of exposed WallSurface area (sqm) |
 | `area_total_floor` | Initially the GroundSurface sum; overwritten in script 06 |
-| `min_height` | Eave height of the tallest solid (m) |
-| `max_height` | Ridge height of the tallest solid (m) |
-| `number_of_storeys` | Tallest solid's eave height / 2.5; refined in script 06 |
+| `min_height` | Footprint-weighted mean eave height of the solids (m) |
+| `max_height` | Footprint-weighted mean ridge height of the solids (m) |
+| `number_of_storeys` | `min_height` / 2.5; refined in script 06 |
 | `building_centroid_geom` | 2D centroid of the merged footprint |
 | `building_footprint_geom` | Merged 2D footprint geometry |
 
@@ -121,4 +119,4 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 
 ## What comes next
 
-Script 05 adds volume estimates summed over the solids. Script 06 then refines the storey count and overwrites the floor area.
+Script 05 adds volume estimates (height × footprint area). Script 06 then refines the storey count and overwrites the floor area.

@@ -23,9 +23,6 @@
 --   4. number_of_storeys changes (directly, or cascaded from trigger 3)
 --        -> room_height recomputed as min_height / number_of_storeys (the mirror image of 3)
 --        -> area_total_floor recomputed as footprint_area * number_of_storeys (mirrors script 06)
--- The formulas treat the building as one block. For a building of one solid they
--- match scripts 04-06; for one of several solids (a row in _building_part each), a
--- correction re-derives volume and floor area from the tallest solid's heights.
 -- Trigger 4 firing is itself watched by trigger 2 (area_total_floor and
 -- number_of_storeys are both variant-matching dimensions), so editing either
 -- room_height or number_of_storeys directly re-matches the TABULA variant too.

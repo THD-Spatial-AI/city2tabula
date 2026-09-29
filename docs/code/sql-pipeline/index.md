@@ -18,7 +18,7 @@ Given a batch of building IDs, the pipeline:
 2. Flattens compound multi-polygon geometries into individual polygon faces.
 3. Computes a surface normal for each face, then derives tilt, azimuth, area, and height, and marks the faces that lie between two solids of the same building as internal.
 4. Aggregates those per-surface values into one row per solid, then one summary row per building.
-5. Approximates building volume from height × footprint area of each solid.
+5. Approximates building volume from height × footprint area.
 6. Refines the storey count and total floor area.
 7. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
 8. Writes the resolved surface table: one row per exposed polygon face or face piece, party-wall surfaces excluded.
@@ -36,7 +36,6 @@ flowchart TD
     D -->|script 04| E["_building<br>Aggregated building summary"]
     P -->|script 04| E
     E -->|script 05| F["_building<br>Volume added"]
-    P -->|scripts 05, 06| F
     F -->|script 06| G["_building<br>Storeys + floor area refined"]
     G -->|script 07| H["_building<br>TABULA variant code assigned"]
     I[("tabula.tabula_variant<br>(reference archetypes)")] -->|script 07| H
@@ -53,8 +52,8 @@ flowchart TD
 | [02 Dump geometry](02-dump-geometry.md) | Explode multi-polygon surfaces to individual polygon faces | `_child_feature_geom_dump` |
 | [03 Surface attributes](03-surface-attributes.md) | Compute surface normal, tilt, azimuth, area, and height per face; mark faces between solids of a building as internal | `_surface_raw` |
 | [04 Building features](04-building-features.md) | Aggregate surface attributes into one row per solid, then one row per building | `_building_part`, `_building` |
-| [05 Volume](05-volume.md) | Approximate building volume as the sum of height × footprint over its solids | `_building` (UPDATE) |
-| [06 Storeys](06-storeys.md) | Refine storey count; overwrite floor area as the sum of footprint × storeys over its solids | `_building` (UPDATE) |
+| [05 Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
+| [06 Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
 | [07 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
 | 08 Build surface | Copy each exposed surface face or face piece into the resolved table, excluding party walls | `_surface` |
 
@@ -77,7 +76,7 @@ A building is a CityGML `Building` feature (objectclass `901`), and every output
 | Vienna LoD2 | The Building when it has no parts, otherwise two or more BuildingParts | Modelled on both solids |
 | Prague LoD3 | The Building and each of its BuildingParts | Omitted on both solids |
 
-The pipeline applies one rule to all of them. A building's geometry is every `lodNSolid` owned by the Building or by any BuildingPart below it. A face of one solid that lies against a face of another solid of the same building is internal and is excluded from areas and from `_surface`; where a source omits those faces, nothing is found to exclude. Heights come from the tallest solid; volume and floor area are summed over the solids.
+The pipeline applies one rule to all of them. A building's geometry is every `lodNSolid` owned by the Building or by any BuildingPart below it. A face of one solid that lies against a face of another solid of the same building is internal and is excluded from areas and from `_surface`; where a source omits those faces, nothing is found to exclude. A building's heights are the footprint-weighted mean of its solids' heights, so height × footprint and footprint × storeys equal the sums over its solids.
 
 BuildingInstallation features (`905`) are not part of the envelope and are ignored. Faces between two different buildings (party walls) are a separate step, not yet wired in.
 

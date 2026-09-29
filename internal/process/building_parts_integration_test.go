@@ -168,8 +168,9 @@ INSERT INTO lod2.objectclass VALUES (709, 'WallSurface'), (710, 'GroundSurface')
 
 // TestPipeline_BuildingParts_OneRowPerBuilding runs extraction over every
 // BuildingPart pattern and checks that each CityGML Building yields one row keyed
-// by its own object_id, with walls between its parts excluded, heights from its
-// tallest part, and volume and floor area summed over its parts.
+// by its own object_id, with walls between its parts excluded and heights
+// weighted by each part's footprint, so volume and floor area equal the sums
+// over its parts.
 func TestPipeline_BuildingParts_OneRowPerBuilding(t *testing.T) {
 	ctx := context.Background()
 	resetSchemas(t)
@@ -189,8 +190,8 @@ func TestPipeline_BuildingParts_OneRowPerBuilding(t *testing.T) {
 		storeys, wallCount                                   int
 	}
 	want := map[string]row{
-		"PRAGUE": {200, 1000, 200, 1200, 20, 20, 3000, 3000, 8, 7},
-		"VIENNA": {200, 1000, 200, 1200, 20, 20, 3000, 3000, 8, 7},
+		"PRAGUE": {200, 1000, 200, 1200, 15, 15, 3000, 3000, 6, 7},
+		"VIENNA": {200, 1000, 200, 1200, 15, 15, 3000, 3000, 6, 7},
 		"BAG":    {100, 400, 100, 400, 10, 10, 1000, 1000, 4, 4},
 		"BREMEN": {100, 400, 100, 400, 10, 10, 1000, 1000, 4, 4},
 		"UNOTCH": {900, 1200, 900, 3600, 10, 10, 9000, 9000, 4, 6},
