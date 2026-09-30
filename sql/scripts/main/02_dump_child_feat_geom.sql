@@ -16,6 +16,7 @@ dumped AS (
   SELECT
     c.id AS child_row_id,
     c.building_feature_id,
+    c.owner_feature_id,
     c.surface_feature_id,
     c.building_object_id,
     c.surface_object_id,
@@ -29,6 +30,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     id,
     child_row_id,
     building_feature_id,
+    owner_feature_id,
     surface_feature_id,
     building_object_id,
     surface_object_id,
@@ -42,6 +44,7 @@ SELECT
     gen_random_uuid() AS id,
     child_row_id,
     building_feature_id,
+    owner_feature_id,
     surface_feature_id,
     building_object_id,
     surface_object_id,

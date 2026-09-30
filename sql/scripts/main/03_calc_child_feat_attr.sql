@@ -2,7 +2,7 @@
 --
 -- Pipeline stages:
 --   1. new_buildings -> skip already-processed buildings
---   2. building_interior_pts -> one interior point per building (from GroundSurface)
+--   2. owner_interior_pts -> one interior point per solid (from GroundSurface)
 --   3. raw_surfaces -> one row per polygon face
 --   4. surface_points -> explode polygon to 3D vertices (ST_DumpPoints)
 --   5. surface_edges -> pair each vertex with its LEAD successor
@@ -11,6 +11,7 @@
 --   8. normalized_normals -> per-class flip rules + unit normalisation
 --   9. convergence_corrected -> placeholder for UTM meridian convergence (see Discussion)
 --   10. INSERT -> _surface_raw (length/width via surface_dimensions)
+--   11. UPDATE -> area_internal / geom_exposed for faces between solids of one building
 --
 -- Newell's method (surface_normals):
 --   nx = SUM (y_i − y_{i+1}) * (z_i + z_{i+1})
@@ -29,19 +30,21 @@ WITH new_buildings AS (
     )
 ),
 
-building_interior_pts AS (
+owner_interior_pts AS (
   -- ST_PointOnSurface guarantees a point inside the polygon even for non-convex
   -- footprints (L-shaped, U-shaped) where ST_Centroid can fall outside.
+  -- Taken per solid, not per building: inside a building of several parts, a
+  -- point in one part would flip the outward test for walls of another.
   -- ST_Collect (not ST_Union) aggregates without dissolving, avoiding lock
   -- contention during parallel batch processing.
   -- LEFT-joined downstream so buildings without a GroundSurface still proceed.
   SELECT
-    building_feature_id,
+    owner_feature_id,
     ST_PointOnSurface(ST_Collect(ST_Force2D(geom))) AS interior_pt
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
   WHERE building_feature_id IN (SELECT building_feature_id FROM new_buildings)
     AND classname = 'GroundSurface'
-  GROUP BY building_feature_id
+  GROUP BY owner_feature_id
 ),
 
 raw_surfaces AS (
@@ -51,6 +54,7 @@ raw_surfaces AS (
     gd.id,
     gd.child_row_id,
     gd.building_feature_id,
+    gd.owner_feature_id,
     gd.surface_feature_id,
     gd.building_object_id,
     gd.surface_object_id,
@@ -75,7 +79,7 @@ surface_edges AS (
   -- filtered in surface_normals. The closing vertex (duplicate of the first)
   -- provides the final edge back to the ring start automatically.
   SELECT
-    id, child_row_id, building_feature_id, surface_feature_id,
+    id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
     building_object_id, surface_object_id,
     objectclass_id, classname, valid_geom, is_planar,
     point_geom,
@@ -88,14 +92,14 @@ surface_normals AS (
   -- The outer WHERE discards degenerate surfaces (all vertices collinear →
   -- zero cross-product magnitude → no well-defined normal).
   SELECT
-    id, child_row_id, building_feature_id, surface_feature_id,
+    id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
     building_object_id, surface_object_id,
     objectclass_id, classname, valid_geom, is_planar,
     n_x, n_y, n_z,
     sqrt(n_x * n_x + n_y * n_y + n_z * n_z) AS cross_magnitude
   FROM (
     SELECT
-      id, child_row_id, building_feature_id, surface_feature_id,
+      id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
       building_object_id, surface_object_id,
       objectclass_id, classname, valid_geom, is_planar,
       SUM((ST_Y(point_geom) - ST_Y(next_pt)) * (ST_Z(point_geom) + ST_Z(next_pt))) AS n_x,
@@ -103,7 +107,7 @@ surface_normals AS (
       SUM((ST_X(point_geom) - ST_X(next_pt)) * (ST_Y(point_geom) + ST_Y(next_pt))) AS n_z
     FROM surface_edges
     WHERE next_pt IS NOT NULL
-    GROUP BY id, child_row_id, building_feature_id, surface_feature_id,
+    GROUP BY id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
              building_object_id, surface_object_id,
              objectclass_id, classname, valid_geom, is_planar
     HAVING COUNT(*) >= 2
@@ -132,7 +136,7 @@ oriented_normals AS (
       1.0
     ) AS surface_flip
   FROM surface_normals n
-  LEFT JOIN building_interior_pts bp ON bp.building_feature_id = n.building_feature_id
+  LEFT JOIN owner_interior_pts bp ON bp.owner_feature_id = n.owner_feature_id
 ),
 
 normalized_normals AS (
@@ -145,6 +149,7 @@ normalized_normals AS (
     id,
     child_row_id,
     building_feature_id,
+    owner_feature_id,
     surface_feature_id,
     building_object_id,
     surface_object_id,
@@ -184,11 +189,15 @@ convergence_corrected AS (
 INSERT INTO {city2tabula_schema}.{lod_schema}_surface_raw (
     id,
     building_feature_id,
+    owner_feature_id,
     surface_feature_id,
     building_object_id,
     surface_object_id,
     objectclass_id,
     classname,
+    normal_x,
+    normal_y,
+    normal_z,
     surface_area,
     surface_area_unit,
     tilt,
@@ -209,11 +218,15 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_surface_raw (
 SELECT
     gen_random_uuid() AS id,
     building_feature_id,
+    owner_feature_id,
     surface_feature_id,
     building_object_id,
     surface_object_id,
     objectclass_id,
     classname,
+    nx,
+    ny,
+    nz,
     -- Self-intersecting geometries give net signed area via the shoelace formula
     -- (crossing sub-regions cancel). ST_MakeValid decomposes them into valid
     -- sub-polygons so ST_Area sums correctly. Called only for invalid surfaces;
@@ -269,3 +282,70 @@ FROM convergence_corrected
 -- LATERAL evaluates the function once per row; same classes as surface_area.
 LEFT JOIN LATERAL {city2tabula_schema}.surface_dimensions(valid_geom, nx, ny, nz) d
   ON objectclass_id IN (709, 710, 712);
+
+-- Internal faces. Where two solids of one building touch, the face region between
+-- them is interior: a source that models each part as a closed solid (Vienna) has
+-- it on both parts, a source that leaves the parts open on that side (Prague) has
+-- it on neither. A face is internal where a face of another solid of the same
+-- building lies on it:
+--   * normals parallel within ~2.6 degrees (|cos| >= 0.999), between two walls or
+--     between a roof and a ground. The sign of the wall normals is not used: the
+--     outward flip above points some walls of concave footprints inward, and two
+--     solids cannot both have exterior wall on the same patch in any case;
+--   * plane offset <= 0.05 m, read as a Z difference in the face_to_plane frame;
+--   * overlap = 2D intersection in that plane.
+-- The exposed remainder keeps only pieces wider than 0.04 m and larger than
+-- 0.01 m2, so the tolerance band leaves no slivers. Faces between different
+-- buildings (party walls) are not considered here.
+WITH faces AS (
+  SELECT id, building_feature_id, owner_feature_id, classname,
+         normal_x AS nx, normal_y AS ny, normal_z AS nz, geom
+  FROM {city2tabula_schema}.{lod_schema}_surface_raw
+  WHERE building_feature_id IN {building_ids}
+    AND normal_x IS NOT NULL
+    AND classname IN ('WallSurface', 'RoofSurface', 'GroundSurface')
+),
+covered AS (
+  SELECT a.id,
+         ST_Union(ST_CollectionExtract(ST_Intersection(
+           ST_ReducePrecision(ST_MakeValid(ST_Force2D(ra.g)), 0.001),
+           ST_ReducePrecision(ST_MakeValid(ST_Force2D(rb.g)), 0.001)
+         ), 3)) AS geom_2d
+  FROM faces a
+  JOIN faces b
+    ON b.building_feature_id = a.building_feature_id
+   AND b.owner_feature_id <> a.owner_feature_id
+   AND ABS(a.nx * b.nx + a.ny * b.ny + a.nz * b.nz) >= 0.999
+   AND (
+         (a.classname = 'WallSurface' AND b.classname = 'WallSurface')
+         OR (a.classname <> b.classname AND 'WallSurface' NOT IN (a.classname, b.classname))
+       )
+   AND ST_3DDWithin(a.geom, b.geom, 0.05)
+  CROSS JOIN LATERAL (SELECT {city2tabula_schema}.face_to_plane(a.geom, a.nx, a.ny, a.nz) AS g) ra
+  CROSS JOIN LATERAL (SELECT {city2tabula_schema}.face_to_plane(b.geom, a.nx, a.ny, a.nz) AS g) rb
+  WHERE ABS((ST_ZMin(rb.g) + ST_ZMax(rb.g)) - (ST_ZMin(ra.g) + ST_ZMax(ra.g))) / 2 <= 0.05
+  GROUP BY a.id
+),
+exposed AS (
+  SELECT
+    f.id, f.nx, f.ny, f.nz,
+    (ST_ZMin(r.g) + ST_ZMax(r.g)) / 2 AS z,
+    (SELECT ST_Collect(d.geom)
+     FROM ST_Dump(ST_Buffer(ST_Buffer(
+            ST_Difference(ST_ReducePrecision(ST_MakeValid(ST_Force2D(r.g)), 0.001), c.geom_2d),
+            -0.02, 'join=mitre'), 0.02, 'join=mitre')) d
+     WHERE ST_Area(d.geom) >= 0.01) AS geom_2d
+  FROM covered c
+  JOIN faces f ON f.id = c.id
+  CROSS JOIN LATERAL (SELECT {city2tabula_schema}.face_to_plane(f.geom, f.nx, f.ny, f.nz) AS g) r
+  WHERE ST_Area(c.geom_2d) >= 0.01
+)
+UPDATE {city2tabula_schema}.{lod_schema}_surface_raw sr
+SET
+  area_internal = GREATEST(ROUND((sr.surface_area - COALESCE(ST_Area(e.geom_2d), 0))::numeric, 2), 0),
+  geom_exposed = COALESCE(
+    ST_Multi({city2tabula_schema}.face_from_plane(e.geom_2d, e.z, e.nx, e.ny, e.nz)),
+    ST_SetSRID('MULTIPOLYGON Z EMPTY'::geometry, {srid})
+  )
+FROM exposed e
+WHERE sr.id = e.id;

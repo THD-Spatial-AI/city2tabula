@@ -325,6 +325,7 @@ components:
       properties:
         object_id:
           type: string
+          description: Object id of the CityGML Building, never of one of its BuildingParts.
         osm_id:
           type: string
           description: Empty when this result came from the bbox query mode
@@ -406,6 +407,7 @@ components:
       properties:
         object_id:
           type: string
+          description: Object id of the CityGML Building, never of one of its BuildingParts.
         footprint_geojson:
           type: object
           nullable: true

@@ -3,6 +3,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lod INT NOT NULL,
     building_feature_id BIGINT NOT NULL,
+    -- owner_feature_id: the feature owning the solid this surface bounds, the
+    -- Building itself or one of its BuildingParts.
+    owner_feature_id BIGINT NOT NULL,
     surface_feature_id BIGINT NOT NULL,
     building_object_id VARCHAR(100),
     surface_object_id  VARCHAR(100),
@@ -17,6 +20,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     child_row_id UUID,
     building_feature_id INTEGER NOT NULL,
+    owner_feature_id BIGINT NOT NULL,
     surface_feature_id INTEGER NOT NULL,
     building_object_id VARCHAR(100),
     surface_object_id  VARCHAR(100),
@@ -34,6 +38,7 @@ DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_surface_raw CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   building_feature_id INTEGER,
+  owner_feature_id BIGINT,
   surface_feature_id INTEGER,
   building_object_id VARCHAR(100),
   surface_object_id  VARCHAR(100),
@@ -57,6 +62,16 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   -- outside 0-360 so it cannot be read as a bearing. Energy ADE 1.0 uses 0 for horizontal surfaces.
   azimuth DOUBLE PRECISION,
   azimuth_unit VARCHAR CHECK (azimuth_unit IN ('degrees')),
+  -- normal_x/y/z: unit normal after the orientation rules of script 03 (walls
+  -- outward, roofs upward, other classes as wound in the source).
+  normal_x DOUBLE PRECISION,
+  normal_y DOUBLE PRECISION,
+  normal_z DOUBLE PRECISION,
+  -- area_internal / geom_exposed: set only on a face that lies against a face of
+  -- another solid of the same building (script 03). geom_exposed is the part of
+  -- the face that stays exterior, empty when the whole face is internal.
+  area_internal DOUBLE PRECISION,
+  geom_exposed geometry(MULTIPOLYGONZ, {srid}),
   is_valid BOOLEAN,
   is_planar BOOLEAN,
   is_party_wall BOOLEAN DEFAULT FALSE,
@@ -66,8 +81,21 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   geom geometry(POLYGONZ, {srid})
 );
 
--- Building-level attributes aggregated from surface data.
--- object_id is the stable 3D city model object identifier (supports both CityGML
+-- One row per solid of a building: the Building itself when it owns a solid, and
+-- each BuildingPart that owns one. Script 04 aggregates these into _building.
+DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_building_part CASCADE;
+CREATE TABLE {city2tabula_schema}.{lod_schema}_building_part (
+  owner_feature_id BIGINT PRIMARY KEY,
+  owner_object_id VARCHAR(100),
+  building_feature_id INTEGER NOT NULL,
+  footprint_area DOUBLE PRECISION,
+  min_height DOUBLE PRECISION,
+  max_height DOUBLE PRECISION
+);
+
+-- Building-level attributes aggregated from surface data, one row per CityGML
+-- Building however many BuildingParts carry its geometry.
+-- object_id is the Building's stable 3D city model object identifier (supports both CityGML
 -- and CityJSON); used as the external join key in city2tabula.building_link.
 -- building_feature_id is session-local; changes on every re-import and is
 -- only used as a fast join key within a single pipeline run.
@@ -163,6 +191,8 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_child_geometry_idx
 
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_geom_idx
     ON {city2tabula_schema}.{lod_schema}_surface_raw USING GIST (geom);
+CREATE INDEX IF NOT EXISTS {lod_schema}_building_part_building_idx
+    ON {city2tabula_schema}.{lod_schema}_building_part (building_feature_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_building_feature_id_idx
     ON {city2tabula_schema}.{lod_schema}_surface_raw (building_feature_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_surface_feature_id_idx
