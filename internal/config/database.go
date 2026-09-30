@@ -77,8 +77,9 @@ func loadDBConfig(countryCode string) *DBConfig {
 }
 
 // dbNameForCountry suffixes name with the country's ISO2 code (e.g. "city2tabula_de").
-// 3DCityDB stores one SRS per database, and different countries use different
-// national CRSs, so each country gets its own database rather than sharing one.
+// Each country gets its own database so a destructive per-country rebuild cannot
+// reach another country's data, and the lod2/lod3 schema names stay the same for
+// every consumer.
 // Falls back to the bare name when name or countryCode is empty, so an unsupported
 // country (caught later by Validate()) never produces a trailing "_".
 func dbNameForCountry(name, countryCode string) string {
