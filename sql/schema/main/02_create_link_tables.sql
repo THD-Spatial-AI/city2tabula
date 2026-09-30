@@ -1,5 +1,5 @@
 -- Bridge table linking 3D city model buildings to OSM buildings (pylovo.res / pylovo.oth).
--- Populated by the -build-link pipeline step after feature extraction.
+-- Populated by the -link-pylovo pipeline step after feature extraction.
 --
 -- object_id — stable 3D city model identifier (supports CityGML and CityJSON).
 --             References {lod_schema}_building.object_id.
