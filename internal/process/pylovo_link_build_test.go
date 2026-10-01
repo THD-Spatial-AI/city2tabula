@@ -6,7 +6,10 @@ import (
 	"context"
 	"testing"
 
+	"bytes"
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
+	"strings"
 )
 
 // pylovoLinkFixtureBuildings picks 3 distinct, real object_ids from the already-
@@ -176,4 +179,83 @@ func TestRunPyLovoLinkBuild_PrefersResOverOth(t *testing.T) {
 	if got.pylovoTable == nil || *got.pylovoTable != "res" || got.osmID == nil || *got.osmID != "RES-PREFERRED" {
 		t.Errorf("expected res to be preferred over oth when both match, got pylovo_table=%v osm_id=%v", got.pylovoTable, got.osmID)
 	}
+}
+
+// captureWarn redirects utils.Warn into a buffer for the rest of the test.
+func captureWarn(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := utils.Warn.Writer()
+	utils.Warn.SetOutput(&buf)
+	t.Cleanup(func() { utils.Warn.SetOutput(prev) })
+	return &buf
+}
+
+// TestRunPyLovoLinkBuild_ReportsAlreadyLinked pins the message of a run that
+// finds every building already linked: it must say so, not claim the buildings
+// have no footprints.
+func TestRunPyLovoLinkBuild_ReportsAlreadyLinked(t *testing.T) {
+	cfg, _ := setupCorrectionAuditFixture(t)
+	ctx := context.Background()
+	cfg.DB.Schemas.Pylvo = "public"
+	cfg.City2Tabula.LinkGridSize = 1000
+	seedPylovoTestTables(t, ctx)
+
+	if err := process.RunPyLovoLinkBuild(cfg, testPool); err != nil {
+		t.Fatalf("first RunPyLovoLinkBuild: %v", err)
+	}
+	warn := captureWarn(t)
+	if err := process.RunPyLovoLinkBuild(cfg, testPool); err != nil {
+		t.Fatalf("second RunPyLovoLinkBuild: %v", err)
+	}
+	if got := warn.String(); !strings.Contains(got, "already have a building_link row") {
+		t.Errorf("second run should report the buildings as already linked, logged:\n%s", got)
+	}
+}
+
+// TestRunPyLovoRelink_UpdatesExistingLinks pins the re-link path: after the PyLovo
+// row a building matched is replaced, a plain link run leaves the old link alone
+// and RunPyLovoRelink replaces it with the new match.
+func TestRunPyLovoRelink_UpdatesExistingLinks(t *testing.T) {
+	cfg, _ := setupCorrectionAuditFixture(t)
+	ctx := context.Background()
+	cfg.DB.Schemas.Pylvo = "public"
+	cfg.City2Tabula.LinkGridSize = 1000
+	seedPylovoTestTables(t, ctx)
+	building, _, _ := pylovoLinkFixtureBuildings(t, ctx)
+
+	insertPylovoRowFromBuilding(t, ctx, "res", "RES-OLD", building)
+	if err := process.RunPyLovoLinkBuild(cfg, testPool); err != nil {
+		t.Fatalf("first RunPyLovoLinkBuild: %v", err)
+	}
+	if got := readBuildingLink(t, ctx, building); got.osmID == nil || *got.osmID != "RES-OLD" {
+		t.Fatalf("expected %s linked to RES-OLD after the first run, got %s", building, osmIDString(got.osmID))
+	}
+
+	if _, err := testPool.Exec(ctx, `DELETE FROM public.res WHERE osm_id = 'RES-OLD'`); err != nil {
+		t.Fatalf("remove RES-OLD: %v", err)
+	}
+	insertPylovoRowFromBuilding(t, ctx, "res", "RES-NEW", building)
+
+	if err := process.RunPyLovoLinkBuild(cfg, testPool); err != nil {
+		t.Fatalf("second RunPyLovoLinkBuild: %v", err)
+	}
+	if got := readBuildingLink(t, ctx, building); got.osmID == nil || *got.osmID != "RES-OLD" {
+		t.Errorf("a plain link run must leave the existing link alone, got %s", osmIDString(got.osmID))
+	}
+
+	if err := process.RunPyLovoRelink(cfg, testPool); err != nil {
+		t.Fatalf("RunPyLovoRelink: %v", err)
+	}
+	if got := readBuildingLink(t, ctx, building); got.osmID == nil || *got.osmID != "RES-NEW" {
+		t.Errorf("expected RunPyLovoRelink to re-link %s to RES-NEW, got %s", building, osmIDString(got.osmID))
+	}
+}
+
+// osmIDString renders a nullable osm_id for test messages.
+func osmIDString(id *string) string {
+	if id == nil {
+		return "<nil>"
+	}
+	return *id
 }

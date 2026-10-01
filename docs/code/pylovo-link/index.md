@@ -54,9 +54,14 @@ flowchart TD
 [Feature extraction](https://thd-spatial-ai.github.io/city2tabula/installation/setup/) must have run first so that `lod2_building` is populated with footprint geometries.
 
 ```bash
-# Run PyLovo link
+# Link buildings that have no building_link row yet
 ./c2t -link-pylovo
+
+# Re-link every building, e.g. after the PyLovo data changed
+./c2t -link-pylovo -relink
 ```
+
+`-link-pylovo` skips buildings that already have a `building_link` row, so a run after a small import links only the new buildings. When every building is already linked it reports that and changes nothing. `-relink` recomputes the links of all buildings against the current PyLovo data.
 
 ---
 
@@ -164,7 +169,7 @@ DROP ROLE c2t_fdw_reader;
 
 ## Output: `city2tabula.building_link`
 
-One row per 3D building that has a footprint geometry and a valid `object_id`. The pipeline is idempotent, so re-running `-link-pylovo` after updated PyLovo data will overwrite existing rows for the affected buildings.
+One row per 3D building that has a footprint geometry and a valid `object_id`. Re-running `-link-pylovo` adds rows for new buildings only; `-link-pylovo -relink` overwrites the existing rows (see [Running the link step](#running-the-link-step)).
 
 | Column | Type | Description |
 |---|---|---|

@@ -9,6 +9,7 @@ type Flags struct {
 	ResetC2T        bool
 	ExtractFeatures bool
 	LinkPylovo      bool
+	Relink          bool
 	ShowVersion     bool
 	ShowV           bool
 	Bbox            string
@@ -23,6 +24,7 @@ func ParseFlags() *Flags {
 	flag.BoolVar(&f.ResetC2T, "reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline over buildings not yet processed. Safe to re-run; already-processed buildings are skipped")
 	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
+	flag.BoolVar(&f.Relink, "relink", false, "With -link-pylovo, also re-link buildings that already have a building_link row, e.g. after the PyLovo data changed")
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
 	flag.BoolVar(&f.ShowV, "v", false, "print version and exit (shorthand)")
 	flag.StringVar(&f.Bbox, "bbox", "", "Bounding box spatial filter for -import-data, format xmin,ymin,xmax,ymax[,srid] (passed through to citydb-tool)")
