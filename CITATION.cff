@@ -7,7 +7,7 @@ abstract: >
   (3DCityDB schema). Output feeds downstream TABULA/EPISCOPE-based building
   typology classification and heating demand estimation workflows.
 type: software
-version: "0.5.2-alpha"
+version: "0.7"
 date-released: "2025-01-01"
 repository-code: "https://github.com/THD-Spatial-AI/city2tabula"
 license: Apache-2.0
