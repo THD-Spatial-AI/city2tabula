@@ -138,8 +138,8 @@ func TestRunPyLovoLinkBuild_LinksLOD3Buildings(t *testing.T) {
 
 	seedPylovoTestTables(t, ctx)
 	if _, err := testPool.Exec(ctx, `
-		INSERT INTO public.res (osm_id, geom)
-		SELECT 'RES-LOD3', ST_Multi(ST_Force2D(ST_Transform(building_footprint_geom, 3035)))
+		INSERT INTO public.res (osm_id, country_code, geom)
+		SELECT 'RES-LOD3', country_code, ST_Multi(ST_Force2D(ST_Transform(building_footprint_geom, 3035)))
 		FROM city2tabula.lod3_building WHERE object_id = 'lod3-linked'`,
 	); err != nil {
 		t.Fatalf("seed pylovo.res: %v", err)

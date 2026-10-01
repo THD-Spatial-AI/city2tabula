@@ -4,8 +4,8 @@
 --
 -- Runs per batch of {building_ids}. For each batch:
 --   1. Compute a bounding box from the batch footprints (batch_bbox).
---   2. Pre-filter pylovo.res / pylovo.oth to only buildings within that bbox
---      and pre-transform their geometry to the native 3D CRS ({srid}).
+--   2. Pre-filter pylovo.res / pylovo.oth to this country's buildings within that
+--      bbox and pre-transform their geometry to the native 3D CRS ({srid}).
 --   3. IoU join against the subset only — avoids scanning the full PyLovo table.
 --
 -- Match confidence = intersection area / area of the smaller footprint (IoU proxy).
@@ -14,12 +14,10 @@
 -- Existing rows for buildings in {building_ids} are deleted and re-inserted so
 -- this script is safe to re-run after updated PyLovo data.
 --
--- When {pylovo_schema} is a postgres_fdw foreign schema (PYLOVO_FDW_HOST set),
--- batch_bbox is computed from local rows, so postgres_fdw cannot push it into the
--- remote query: the full res/oth geometry crosses the connection once per batch,
--- then ST_Intersects filters locally. Fine at city scale (grid batching keeps the
--- table read bounded per run); revisit for country-scale runs by passing the
--- batch bbox in as a literal parameter so the filter ships to the PyLovo side.
+-- When {pylovo_schema} is a postgres_fdw foreign schema (PYLOVO_FDW_HOST set), the
+-- pre-filter must reach PyLovo, which holds every country in one table. The bbox
+-- is read through a scalar subquery so postgres_fdw sends it as a bound parameter
+-- (a join against batch_bbox is not shippable), and country_code is a literal.
 
 DELETE FROM {city2tabula_schema}.building_link
 WHERE object_id IN (
@@ -54,15 +52,17 @@ res_subset AS (
     -- PyLovo residential buildings within the batch bbox, pre-transformed to
     -- native 3D CRS so no per-row ST_Transform inside the IoU calculation.
     SELECT r.osm_id, ST_Transform(r.geom, {srid}) AS geom_native
-    FROM {pylovo_schema}.res r, batch_bbox
-    WHERE ST_Intersects(r.geom, batch_bbox.geom_3035)
+    FROM {pylovo_schema}.res r
+    WHERE r.country_code = '{country_code}'
+      AND ST_Intersects(r.geom, (SELECT geom_3035 FROM batch_bbox))
 ),
 
 oth_subset AS (
     -- Same pre-filter for commercial/public/industrial buildings.
     SELECT o.osm_id, ST_Transform(o.geom, {srid}) AS geom_native
-    FROM {pylovo_schema}.oth o, batch_bbox
-    WHERE ST_Intersects(o.geom, batch_bbox.geom_3035)
+    FROM {pylovo_schema}.oth o
+    WHERE o.country_code = '{country_code}'
+      AND ST_Intersects(o.geom, (SELECT geom_3035 FROM batch_bbox))
 ),
 
 res_candidates AS (

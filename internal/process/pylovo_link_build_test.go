@@ -40,15 +40,16 @@ func pylovoLinkFixtureBuildings(t *testing.T, ctx context.Context) (a, b, c stri
 
 // seedPylovoTestTables creates minimal pylovo.res / pylovo.oth tables (normally
 // owned by the external enerplanet-pylovo database, not this repo) under the
-// "public" schema, matching the columns 01_build_pylovo_link.sql reads: osm_id and
-// geom in EPSG:3035 (PyLovo's native CRS, per that script's own comments).
+// "public" schema, matching the columns 01_build_pylovo_link.sql reads: osm_id,
+// country_code and geom in EPSG:3035 (PyLovo's native CRS, per that script's own
+// comments).
 func seedPylovoTestTables(t *testing.T, ctx context.Context) {
 	t.Helper()
 	for _, stmt := range []string{
 		`DROP TABLE IF EXISTS public.res CASCADE`,
 		`DROP TABLE IF EXISTS public.oth CASCADE`,
-		`CREATE TABLE public.res (osm_id TEXT, geom GEOMETRY(MultiPolygon, 3035))`,
-		`CREATE TABLE public.oth (osm_id TEXT, geom GEOMETRY(MultiPolygon, 3035))`,
+		`CREATE TABLE public.res (osm_id TEXT, country_code VARCHAR(2), geom GEOMETRY(MultiPolygon, 3035))`,
+		`CREATE TABLE public.oth (osm_id TEXT, country_code VARCHAR(2), geom GEOMETRY(MultiPolygon, 3035))`,
 	} {
 		if _, err := testPool.Exec(ctx, stmt); err != nil {
 			t.Fatalf("failed to prepare pylovo test tables (%s): %v", stmt, err)
@@ -60,14 +61,23 @@ func seedPylovoTestTables(t *testing.T, ctx context.Context) {
 // (transformed to PyLovo's native CRS) into pylovo.res or pylovo.oth as osmID,
 // guaranteeing a near-exact IoU match by construction — no hand-crafted EPSG:3035
 // coordinates needed, and no ambiguity about what the "correct" match should be.
+// The row carries the building's own country_code, as PyLovo's would.
 func insertPylovoRowFromBuilding(t *testing.T, ctx context.Context, table, osmID, objectID string) {
 	t.Helper()
+	insertPylovoRowWithCountry(t, ctx, table, osmID, objectID, "")
+}
+
+// insertPylovoRowWithCountry is insertPylovoRowFromBuilding with the PyLovo row's
+// country_code set to countryCode instead of the building's, when it is not empty.
+func insertPylovoRowWithCountry(t *testing.T, ctx context.Context, table, osmID, objectID, countryCode string) {
+	t.Helper()
 	if _, err := testPool.Exec(ctx, `
-		INSERT INTO public.`+table+` (osm_id, geom)
-		SELECT $1, ST_Multi(ST_Force2D(ST_Transform(building_footprint_geom, 3035)))
+		INSERT INTO public.`+table+` (osm_id, country_code, geom)
+		SELECT $1, COALESCE(NULLIF($3, ''), country_code),
+		       ST_Multi(ST_Force2D(ST_Transform(building_footprint_geom, 3035)))
 		FROM city2tabula.lod2_building
 		WHERE object_id = $2`,
-		osmID, objectID,
+		osmID, objectID, countryCode,
 	); err != nil {
 		t.Fatalf("failed to seed pylovo.%s row for %s: %v", table, objectID, err)
 	}
@@ -108,6 +118,9 @@ func TestRunPyLovoLinkBuild_MatchesResOthAndUnmatched(t *testing.T) {
 
 	insertPylovoRowFromBuilding(t, ctx, "res", "RES-MATCH", buildingWithResMatch)
 	insertPylovoRowFromBuilding(t, ctx, "oth", "OTH-MATCH", buildingWithOthMatch)
+	// Same footprint as the unmatched building but another country's row: PyLovo
+	// holds every country in one table, so the link must filter on country_code.
+	insertPylovoRowWithCountry(t, ctx, "res", "RES-OTHER-COUNTRY", buildingUnmatched, "NL")
 
 	if err := process.RunPyLovoLinkBuild(cfg, testPool); err != nil {
 		t.Fatalf("RunPyLovoLinkBuild: %v", err)

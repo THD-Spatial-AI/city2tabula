@@ -156,8 +156,8 @@ DROP ROLE c2t_fdw_reader;
 
 - One `pylovo_srv` per City2TABULA database; each country database sets it up on its own `-link-pylovo` run.
 - The user mapping is `FOR CURRENT_USER`, i.e. the `DB_USER` role. If a different role runs `-link-pylovo`, run it once as that role to create the mapping.
-- `res` / `oth` are country-agnostic. The link query's EPSG:3035 bounding-box pre-filter isolates the current extent, so a shared multi-country PyLovo database is fine.
-- The bbox pre-filter is computed from local rows, so `postgres_fdw` pulls the batch's `res` / `oth` geometry across the connection and filters locally. Acceptable at city scale; not yet optimised for country-wide runs.
+- `res` / `oth` hold every country. Each batch reads only rows whose `country_code` matches the run's country and whose geometry intersects the batch's EPSG:3035 bounding box, so a shared multi-country PyLovo database is fine.
+- Both conditions run on the PyLovo side, where its GiST index on `geom` and btree index on `country_code` answer them. `EXPLAIN VERBOSE` on the link query shows them in the foreign scan's `Remote SQL`.
 - `PYLOVO_FDW_PASSWORD` lives in `.env` (gitignored). Rotate it as the deployment's security policy requires; the tool re-applies it on the next run.
 
 ---
@@ -200,4 +200,4 @@ sql/scripts/link/
 A future OGR2OGR-based OSM import would add a parallel subdirectory (`ogr2ogr/`) with its own script and a new `-link-ogr2ogr` flag, with no changes to the existing pipeline.
 
 !!! info "Pre-requisite"
-    `res` and `oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`, either as local tables in `PYLOVO_SCHEMA` or in the central database named by `PYLOVO_FDW_*`. The link step reads from PyLovo but does not modify it.
+    `res` and `oth` must be populated by the [enerplanet-pylovo/datapipeline](https://github.com/enerplanet/enerplanet-pylovo/tree/main/datapipeline) before running `-link-pylovo`, either as local tables in `PYLOVO_SCHEMA` or in the central database named by `PYLOVO_FDW_*`. The link step reads their `osm_id`, `country_code` and `geom` (EPSG:3035) columns and does not modify them.
