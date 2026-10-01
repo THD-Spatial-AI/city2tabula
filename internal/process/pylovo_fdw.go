@@ -19,9 +19,8 @@ import (
 //
 // The server, user mapping and foreign schema are dropped and recreated on every
 // call, so a changed host or credential in .env takes effect without hand-run
-// DDL. `extensions 'postgis'` marks PostGIS operators as shippable to the remote
-// side; the link script's bbox filter is not pushed down (see the header of
-// sql/scripts/link/pylovo/01_build_pylovo_link.sql).
+// DDL. `extensions 'postgis'` marks PostGIS operators as shippable, which is what
+// lets the link script's ST_Intersects bbox pre-filter run on the PyLovo side.
 func setupPylovoFDW(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config) error {
 	fdw := cfg.PylovoFDW
 	if !fdw.Enabled() {

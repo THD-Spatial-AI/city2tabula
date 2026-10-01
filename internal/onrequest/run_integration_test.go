@@ -71,8 +71,8 @@ func seedEmptyPylovoTables(t *testing.T, pool *pgxpool.Pool) {
 	for _, stmt := range []string{
 		`DROP TABLE IF EXISTS public.res CASCADE`,
 		`DROP TABLE IF EXISTS public.oth CASCADE`,
-		`CREATE TABLE public.res (osm_id TEXT, geom GEOMETRY(MultiPolygon, 3035))`,
-		`CREATE TABLE public.oth (osm_id TEXT, geom GEOMETRY(MultiPolygon, 3035))`,
+		`CREATE TABLE public.res (osm_id TEXT, country_code VARCHAR(2), geom GEOMETRY(MultiPolygon, 3035))`,
+		`CREATE TABLE public.oth (osm_id TEXT, country_code VARCHAR(2), geom GEOMETRY(MultiPolygon, 3035))`,
 	} {
 		if _, err := pool.Exec(ctx, stmt); err != nil {
 			t.Fatalf("seedEmptyPylovoTables (%s): %v", stmt, err)
