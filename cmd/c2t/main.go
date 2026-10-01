@@ -23,6 +23,9 @@ func main() {
 		fmt.Printf("%s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
 		os.Exit(0)
 	}
+	if f.Relink && !f.LinkPylovo {
+		utils.Error.Fatal("-relink only applies together with -link-pylovo")
+	}
 
 	// Start timing
 	startTime := time.Now()
@@ -98,7 +101,11 @@ func main() {
 
 	if f.LinkPylovo {
 		utils.Info.Println(flagMessages.LinkPylovo.Progress)
-		if err := process.RunPyLovoLinkBuild(&config, pool); err != nil {
+		link := process.RunPyLovoLinkBuild
+		if f.Relink {
+			link = process.RunPyLovoRelink
+		}
+		if err := link(&config, pool); err != nil {
 			utils.Error.Fatalf(flagMessages.LinkPylovo.Error+": %v", err)
 		}
 		utils.Info.Println(flagMessages.LinkPylovo.Success)

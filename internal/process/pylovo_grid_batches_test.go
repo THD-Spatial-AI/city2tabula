@@ -71,7 +71,7 @@ func TestGetGridBatches_SingleLargeCellCoversAllEligibleBuildings(t *testing.T) 
 	}
 
 	const hugeGridSizeM = 100_000 // 100km: comfortably covers the whole fixture extent
-	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, hugeGridSizeM, 0)
+	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, hugeGridSizeM, 0, false)
 	if err != nil {
 		t.Fatalf("GetGridBatches: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestGetGridBatches_BuildingLimitCapsTotal(t *testing.T) {
 	cfg, _ := setupCorrectionAuditFixture(t)
 
 	const limit = 10
-	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, limit)
+	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, limit, false)
 	if err != nil {
 		t.Fatalf("GetGridBatches: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestGetGridBatches_ExcludesAlreadyLinkedBuildings(t *testing.T) {
 		t.Fatalf("failed to seed building_link row: %v", err)
 	}
 
-	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0)
+	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0, false)
 	if err != nil {
 		t.Fatalf("GetGridBatches: %v", err)
 	}
@@ -153,6 +153,16 @@ func TestGetGridBatches_ExcludesAlreadyLinkedBuildings(t *testing.T) {
 	}
 	if len(got) != len(want)-1 {
 		t.Errorf("expected %d buildings (all eligible minus the linked one), got %d", len(want)-1, len(got))
+	}
+
+	// includeLinked is what -link-pylovo -relink uses: the linked building is back.
+	all, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0, true)
+	if err != nil {
+		t.Fatalf("GetGridBatches with includeLinked: %v", err)
+	}
+	if got := batchUnion(all); !got[linkedFeatureID] || len(got) != len(want) {
+		t.Errorf("includeLinked: expected all %d eligible buildings including %d, got %d (linked present: %v)",
+			len(want), linkedFeatureID, len(got), got[linkedFeatureID])
 	}
 }
 
@@ -165,12 +175,12 @@ func TestGetGridBatches_SmallerGridProducesMoreCells(t *testing.T) {
 	cfg, _ := setupCorrectionAuditFixture(t)
 	ctx := context.Background()
 
-	bigCellBatches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0)
+	bigCellBatches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 100_000, 0, false)
 	if err != nil {
 		t.Fatalf("GetGridBatches (large grid): %v", err)
 	}
 
-	smallCellBatches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 50, 0)
+	smallCellBatches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 50, 0, false)
 	if err != nil {
 		t.Fatalf("GetGridBatches (small grid): %v", err)
 	}

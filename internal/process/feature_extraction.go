@@ -172,7 +172,20 @@ func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 // Buildings are batched by spatial grid cell (default 1 km²) so each batch covers a
 // compact geographic area. This keeps the PyLovo bounding-box pre-filter tight and
 // avoids scanning the full PyLovo table for every batch.
+//
+// Only buildings without a building_link row are linked, so a run after an
+// on-request import touches just the new buildings. RunPyLovoRelink re-links all.
 func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
+	return runPyLovoLink(cfg, pool, false)
+}
+
+// RunPyLovoRelink is RunPyLovoLinkBuild over every building, linked or not, so
+// existing building_link rows are recomputed against the current PyLovo data.
+func RunPyLovoRelink(cfg *config.Config, pool *pgxpool.Pool) error {
+	return runPyLovoLink(cfg, pool, true)
+}
+
+func runPyLovoLink(cfg *config.Config, pool *pgxpool.Pool, relink bool) error {
 	if err := setupPylovoFDW(context.Background(), pool, cfg); err != nil {
 		return fmt.Errorf("failed to set up PyLovo FDW: %w", err)
 	}
@@ -187,28 +200,59 @@ func RunPyLovoLinkBuild(cfg *config.Config, pool *pgxpool.Pool) error {
 				break
 			}
 		}
-		n, err := runPyLovoLinkForLOD(cfg, pool, lod, remaining)
+		n, err := runPyLovoLinkForLOD(cfg, pool, lod, remaining, relink)
 		if err != nil {
 			return err
 		}
 		linked += n
 	}
-
-	if linked == 0 {
-		utils.Warn.Println("No LOD2 or LOD3 buildings with footprints found. Nothing to link.")
+	if linked > 0 {
+		return nil
 	}
+
+	linkable, err := countLinkableBuildings(pool, cfg)
+	if err != nil {
+		return err
+	}
+	if linkable > 0 && !relink {
+		utils.Warn.Printf("All %d buildings with footprints already have a building_link row. Nothing to link; run -link-pylovo -relink to re-link them.", linkable)
+		return nil
+	}
+	utils.Warn.Println("No LOD2 or LOD3 buildings with footprints found. Nothing to link.")
 	return nil
 }
 
-// runPyLovoLinkForLOD links the unlinked buildings of one LOD schema, at most
-// buildingLimit of them when it is above 0, and returns how many it batched.
-func runPyLovoLinkForLOD(cfg *config.Config, pool *pgxpool.Pool, lod, buildingLimit int) (int, error) {
+// countLinkableBuildings counts the LOD2 and LOD3 buildings that have the
+// footprint and object_id the link needs, linked or not.
+func countLinkableBuildings(pool *pgxpool.Pool, cfg *config.Config) (int, error) {
+	total := 0
+	for _, lod := range []int{2, 3} {
+		schema, err := lodSchema(cfg, lod)
+		if err != nil {
+			return 0, err
+		}
+		var n int
+		q := fmt.Sprintf(`SELECT count(*) FROM %s.%s_building
+			WHERE building_footprint_geom IS NOT NULL AND object_id IS NOT NULL`,
+			cfg.DB.Schemas.City2Tabula, schema)
+		if err := pool.QueryRow(context.Background(), q).Scan(&n); err != nil {
+			return 0, fmt.Errorf("failed to count linkable LOD%d buildings: %w", lod, err)
+		}
+		total += n
+	}
+	return total, nil
+}
+
+// runPyLovoLinkForLOD links the buildings of one LOD schema, the unlinked ones only
+// unless relink is set, at most buildingLimit of them when it is above 0, and
+// returns how many it batched.
+func runPyLovoLinkForLOD(cfg *config.Config, pool *pgxpool.Pool, lod, buildingLimit int, relink bool) (int, error) {
 	schema, err := lodSchema(cfg, lod)
 	if err != nil {
 		return 0, err
 	}
 
-	batches, err := GetGridBatches(pool, cfg.DB.Schemas.City2Tabula, schema, cfg.City2Tabula.LinkGridSize, buildingLimit)
+	batches, err := GetGridBatches(pool, cfg.DB.Schemas.City2Tabula, schema, cfg.City2Tabula.LinkGridSize, buildingLimit, relink)
 	if err != nil {
 		return 0, fmt.Errorf("failed to build LOD%d spatial grid batches: %w", lod, err)
 	}
@@ -235,16 +279,21 @@ func runPyLovoLinkForLOD(cfg *config.Config, pool *pgxpool.Pool, lod, buildingLi
 
 // GetGridBatches divides one LOD schema's buildings into spatial batches using a square grid.
 // Each returned slice contains the building_feature_ids that fall within one grid cell.
-// Buildings with no footprint geometry or no object_id are excluded, as are buildings
-// already present in building_link — this is what makes re-running -link-pylovo after
-// a small on-request import cheap: only newly imported buildings get re-batched,
-// mirroring the excludeProcessedBuildingIDs pattern used by feature extraction.
+// Buildings with no footprint geometry or no object_id are excluded, and so are
+// buildings already present in building_link unless includeLinked is set. Skipping
+// them is what makes re-running -link-pylovo after a small on-request import cheap:
+// only newly imported buildings get re-batched, mirroring the
+// excludeProcessedBuildingIDs pattern used by feature extraction.
 // If buildingLimit > 0, at most that many buildings are included in total.
 // Exported so integration tests (package process_test) can drive it directly.
-func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int) ([][]int64, error) {
+func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, buildingLimit int, includeLinked bool) ([][]int64, error) {
 	limitClause := ""
 	if buildingLimit > 0 {
 		limitClause = fmt.Sprintf("LIMIT %d", buildingLimit)
+	}
+	unlinkedClause := "AND bl.object_id IS NULL"
+	if includeLinked {
+		unlinkedClause = ""
 	}
 
 	// ST_SquareGrid requires PostGIS >= 3.1.
@@ -257,7 +306,7 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 				ON bl.object_id = ab.object_id AND bl.country_code = ab.country_code
 			WHERE ab.building_footprint_geom IS NOT NULL
 			  AND ab.object_id IS NOT NULL
-			  AND bl.object_id IS NULL
+			  %s
 			%s
 		),
 		extent AS (
@@ -274,7 +323,7 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 		JOIN grid g ON ST_Intersects(b.geom, g.cell)
 		GROUP BY g.cell
 		HAVING count(*) > 0
-	`, c2tSchema, lodSchema, c2tSchema, limitClause)
+	`, c2tSchema, lodSchema, c2tSchema, unlinkedClause, limitClause)
 
 	rows, err := pool.Query(context.Background(), q, gridSizeM)
 	if err != nil {

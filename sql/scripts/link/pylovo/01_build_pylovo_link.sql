@@ -11,8 +11,9 @@
 -- Match confidence = intersection area / area of the smaller footprint (IoU proxy).
 -- Threshold: >= 0.5 → match_type 1 (complete), < 0.5 → no OSM match → match_type 2.
 --
--- Existing rows for buildings in {building_ids} are deleted and re-inserted so
--- this script is safe to re-run after updated PyLovo data.
+-- Existing rows for buildings in {building_ids} are deleted and re-inserted.
+-- -link-pylovo batches only buildings without a row; -link-pylovo -relink batches
+-- every building, which re-links them after the PyLovo data changed.
 --
 -- When {pylovo_schema} is a postgres_fdw foreign schema (PYLOVO_FDW_HOST set), the
 -- pre-filter must reach PyLovo, which holds every country in one table. The bbox
