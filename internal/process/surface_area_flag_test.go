@@ -26,8 +26,8 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 	// One sliver, one ordinary wall, distinguished only by area. Script 08 serves
 	// surfaces only for buildings script 04 gave a row, so the building row is seeded too.
 	seed := `
-		INSERT INTO city2tabula.lod2_building (object_id, country_code, building_feature_id)
-		VALUES ('bld-sliver', 'DE', 4242);
+		INSERT INTO city2tabula.lod2_building (object_id, country_code, dataset_id, building_feature_id)
+		VALUES ('bld-sliver', 'DE', 'test-dataset', 4242);
 		INSERT INTO city2tabula.lod2_surface_raw
 			(building_feature_id, surface_feature_id, building_object_id,
 			 surface_object_id, objectclass_id, classname, surface_area,
@@ -40,6 +40,7 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 			(4242, 2, 'bld-sliver', 'srf-normal', 709, 'WallSurface', 12.50,
 			 'sqm', 0, 'degrees', 45.0, 'degrees', TRUE, FALSE,
 			 ST_GeomFromText('POLYGON Z((1 0 0, 1 5 0, 1 5 2.5, 1 0 0))', 25832))`
+	seedDB(t) // the dataset_attribution row the building's dataset_id references
 	if _, err := testPool.Exec(ctx, seed); err != nil {
 		t.Fatalf("seed lod2_surface_raw: %v", err)
 	}

@@ -273,6 +273,7 @@ func TestPipeline_GroundOnlyBuilding_Dropped(t *testing.T) {
 	fmt.Fprintf(&f.sql, "INSERT INTO lod2.property (id, feature_id, name, val_lod) VALUES (%d, %d, 'lod2Solid', '2');\n", f.id(), part)
 	f.surface(part, 710, [][3]float64{{x, y, 200}, {x, y + 10, 200}, {x + 10, y + 10, 200}, {x + 10, y, 200}})
 	mustExec(t, ctx, buildPartsFixture()+f.sql.String())
+	seedDB(t)
 
 	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)
