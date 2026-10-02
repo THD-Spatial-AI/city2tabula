@@ -178,12 +178,13 @@ func resetSchemas(t *testing.T) {
 	}
 }
 
-// seedDB executes one or more SQL files via psql.
+// seedDB executes one or more SQL files via psql, then assigns the seeded
+// features a dataset, as an import from a dataset folder would.
 // pg_dump files use COPY FROM stdin which pool.Exec() cannot handle —
 // psql processes the COPY protocol correctly.
 func seedDB(t *testing.T, paths ...string) {
 	t.Helper()
-	for _, path := range paths {
+	for _, path := range append(paths, testDatasetSeed) {
 		// ON_ERROR_STOP=1 makes psql exit non-zero on any SQL error so we catch failures.
 		cmd := exec.Command("psql", testConnStr, "-v", "ON_ERROR_STOP=1", "-f", path)
 		cmd.Env = append(os.Environ(), "PGPASSWORD=test")
@@ -193,6 +194,10 @@ func seedDB(t *testing.T, paths ...string) {
 		}
 	}
 }
+
+// testDatasetSeed gives seeded features the lineage "test-dataset" and inserts
+// that dataset's dataset_attribution row.
+const testDatasetSeed = "testdata/assign_test_dataset.sql"
 
 // runPipelineTest is the shared test driver for all country/LOD pipeline tests.
 // It resets schemas, seeds the database, runs feature extraction, and asserts results.

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "dataset_id": "tabula-episcope",
+  "provider": "IEE Projects TABULA + EPISCOPE",
+  "dataset": "TABULA building typologies",
+  "licence": "LicenseRef-TABULA-EPISCOPE",
+  "licence_url": "https://episcope.eu/communication/download/",
+  "credit": "IEE Projects TABULA + EPISCOPE (www.episcope.eu)",
+  "credit_url": "https://www.episcope.eu",
+  "changes": "City2TABULA derives geometric attributes (volume, areas, storeys, complexity) for each TABULA building variant and assigns each building the variant nearest to its own geometry."
+}

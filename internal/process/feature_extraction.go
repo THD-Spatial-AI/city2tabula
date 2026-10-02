@@ -35,6 +35,9 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 			utils.Warn.Printf("No LOD%d buildings to extract (none in CityDB, or all already processed). Skipping LOD%d feature extraction.", lod, lod)
 			continue
 		}
+		if err := checkBuildingDatasets(pool, cfg, schema); err != nil {
+			return err
+		}
 		utils.Info.Printf("Found %d buildings for LOD%d in CityDB", len(ids), lod)
 
 		if limit := cfg.Batch.BuildingLimit; limit > 0 && limit < len(ids) {

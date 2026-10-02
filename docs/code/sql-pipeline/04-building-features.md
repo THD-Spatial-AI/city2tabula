@@ -105,6 +105,7 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | Column | Description |
 |--------|------------|
 | `object_id` | The Building's object id |
+| `dataset_id` | Source dataset, from the Building feature's lineage; foreign key to [`dataset_attribution`](../attribution/index.md#how-city2tabula-uses-the-file) |
 | `footprint_area` | Sum of exposed GroundSurface area over all solids (sqm) |
 | `footprint_complexity` | 0 = simple, 1 = regular, 2 = complex |
 | `roof_complexity` | 0 = simple, 1 = regular, 2 = complex |

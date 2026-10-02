@@ -5,9 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/thd-spatial-ai/city2tabula/internal/attribution"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 )
 
@@ -50,7 +52,7 @@ func TestGetCityDBImportCommand_ArgsStructure(t *testing.T) {
 	cfg := minimalCityDBConfig()
 
 	// When
-	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "", "")
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", "ds-1", cfg, "", "")
 
 	// Then: data path is the final argument
 	args := cmd.Args
@@ -63,6 +65,11 @@ func TestGetCityDBImportCommand_ArgsStructure(t *testing.T) {
 		if strings.HasPrefix(a, "--limit=") {
 			t.Errorf("unexpected --limit flag when ImportLimit=0, args: %v", args)
 		}
+	}
+
+	// Then: the dataset id is passed as every feature's lineage
+	if !slices.Contains(args, "--lineage=ds-1") {
+		t.Errorf("expected --lineage=ds-1 in args, got %v", args)
 	}
 
 	// Then: no --bbox flag when bbox is empty
@@ -78,7 +85,7 @@ func TestGetCityDBImportCommand_WithBbox(t *testing.T) {
 	cfg := minimalCityDBConfig()
 
 	// When
-	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "11.0,48.0,11.5,48.5,4326", "contains")
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", "ds-1", cfg, "11.0,48.0,11.5,48.5,4326", "contains")
 
 	// Then: --bbox and --bbox-mode flags are present
 	var foundBbox, foundMode bool
@@ -104,7 +111,7 @@ func TestGetCityDBImportCommand_WithImportLimit(t *testing.T) {
 	cfg.CityDB.ImportLimit = 10
 
 	// When
-	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", cfg, "", "")
+	cmd := getCityDBImportCommand("/bin/citydb", "/data/lod2", "lod2", "citygml", "ds-1", cfg, "", "")
 
 	// Then: --limit flag is present
 	found := false
@@ -133,7 +140,7 @@ func TestGetCityDBImportCommand_FormatAndSchema(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.format, func(t *testing.T) {
 			// When
-			cmd := getCityDBImportCommand("/bin/citydb", "/data", tc.schema, tc.format, cfg, "", "")
+			cmd := getCityDBImportCommand("/bin/citydb", "/data", tc.schema, tc.format, "ds-1", cfg, "", "")
 
 			// Then: format and schema appear in args
 			foundFormat, foundSchema := false, false
@@ -152,19 +159,6 @@ func TestGetCityDBImportCommand_FormatAndSchema(t *testing.T) {
 				t.Errorf("schema flag --db-schema=%s not found in args %v", tc.schema, cmd.Args)
 			}
 		})
-	}
-}
-
-func TestImportCityDBFiles_MissingPathReturnsNil(t *testing.T) {
-	// Given: a data path that does not exist
-	cfg := minimalCityDBConfig()
-
-	// When
-	err := importCityDBFiles("/bin/citydb", "/nonexistent/path/xyz", "lod2", "LOD2", cfg, "", "")
-
-	// Then: missing path is treated as optional — skip with no error
-	if err != nil {
-		t.Errorf("expected nil error for missing data path, got %v", err)
 	}
 }
 
@@ -213,7 +207,11 @@ func TestImportCityDBFiles_BothFormatsAttemptedOnSuccess(t *testing.T) {
 	exe := writeFakeExecutable(t, exeDir, 0, logPath)
 	cfg := minimalCityDBConfig()
 
-	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg, "", ""); err != nil {
+	d := Dataset{Dir: dataDir, Schema: "lod2", Inputs: []importInput{
+		{"citygml", "CityGML", filepath.Join(dataDir, "gml")},
+		{"cityjson", "CityJSON", filepath.Join(dataDir, "cityjson")},
+	}, Attribution: attribution.Attribution{DatasetID: "ds-1"}}
+	if err := importCityDBFiles(exe, d, cfg, "", ""); err != nil {
 		t.Fatalf("importCityDBFiles: %v", err)
 	}
 
@@ -221,7 +219,13 @@ func TestImportCityDBFiles_BothFormatsAttemptedOnSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read invocation log: %v", err)
 	}
-	for _, want := range []string{"citygml", "cityjson"} {
+	// Each format reads only its own model folder.
+	for _, want := range []string{
+		"citygml --import-mode=skip",
+		"--lineage=ds-1 " + filepath.Join(dataDir, "gml"),
+		"cityjson --import-mode=skip",
+		"--lineage=ds-1 " + filepath.Join(dataDir, "cityjson"),
+	} {
 		if !strings.Contains(string(logContent), want) {
 			t.Errorf("expected %q to have been invoked, log:\n%s", want, logContent)
 		}
@@ -238,7 +242,11 @@ func TestImportCityDBFiles_CityGMLFailureShortCircuitsCityJSON(t *testing.T) {
 	exe := writeFakeExecutable(t, exeDir, 1, logPath) // always fails
 	cfg := minimalCityDBConfig()
 
-	if err := importCityDBFiles(exe, dataDir, "lod2", "LOD2", cfg, "", ""); err == nil {
+	d := Dataset{Dir: dataDir, Schema: "lod2", Inputs: []importInput{
+		{"citygml", "CityGML", filepath.Join(dataDir, "gml")},
+		{"cityjson", "CityJSON", filepath.Join(dataDir, "cityjson")},
+	}, Attribution: attribution.Attribution{DatasetID: "ds-1"}}
+	if err := importCityDBFiles(exe, d, cfg, "", ""); err == nil {
 		t.Fatal("expected an error when the citygml import fails, got nil")
 	}
 
@@ -266,6 +274,11 @@ func TestImportCityDBData_Success(t *testing.T) {
 	writeFakeExecutable(t, exeDir, 0, logPath) // must be named "citydb" inside exeDir
 
 	lod2Dir, lod3Dir := t.TempDir(), t.TempDir()
+	lod2Dataset := writeDataset(t, lod2Dir, "region-a", "xx-region-a-lod2")
+	lod3Dataset := writeDataset(t, lod3Dir, "region-b", "xx-region-b-lod3")
+	if err := os.Mkdir(filepath.Join(lod2Dataset, "zips"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	cfg := minimalCityDBConfig()
 	cfg.CityDB.ToolPath = exeDir
 	cfg.Data = &config.DataPaths{Lod2: lod2Dir, Lod3: lod3Dir}
@@ -279,9 +292,23 @@ func TestImportCityDBData_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read invocation log: %v", err)
 	}
-	// -help, then citygml+cityjson for each of LOD2 and LOD3 = 5 invocations.
+	// -help, then citygml+cityjson for each of the two dataset folders = 5 invocations.
 	lines := strings.Split(strings.TrimSpace(string(logContent)), "\n")
 	if len(lines) != 5 {
-		t.Errorf("expected 5 invocations (-help + 2 formats x 2 LOD levels), got %d:\n%s", len(lines), logContent)
+		t.Fatalf("expected 5 invocations (-help + 2 formats x 2 dataset folders), got %d:\n%s", len(lines), logContent)
+	}
+	// Each folder is imported into its own LOD schema with its own lineage.
+	for _, want := range []string{
+		"--db-schema=lod2 --lineage=xx-region-a-lod2 " + filepath.Join(lod2Dataset, "gml"),
+		"--db-schema=lod2 --lineage=xx-region-a-lod2 " + filepath.Join(lod2Dataset, "cityjson"),
+		"--db-schema=lod3 --lineage=xx-region-b-lod3 " + filepath.Join(lod3Dataset, "gml"),
+		"--db-schema=lod3 --lineage=xx-region-b-lod3 " + filepath.Join(lod3Dataset, "cityjson"),
+	} {
+		if !strings.Contains(string(logContent), want) {
+			t.Errorf("expected an invocation containing %q, log:\n%s", want, logContent)
+		}
+	}
+	if strings.Contains(string(logContent), "zips") {
+		t.Errorf("a folder other than gml or cityjson was imported, log:\n%s", logContent)
 	}
 }

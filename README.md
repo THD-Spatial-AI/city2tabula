@@ -61,6 +61,7 @@ python -m venv .venv
 | `-reset-city2tabula` | Reset only City2TABULA schemas (preserves CityDB) |
 | `-import-data` | Import new 3D city data into an existing database, skipping files already imported |
 | `-extract-features` | Run the feature extraction pipeline over buildings not yet processed |
+| `-sync-attribution` | Re-read every dataset's `attribution.json` and update the stored credits, without re-importing |
 | `-link-pylovo` | Link 3D buildings to PyLovo res/oth via IoU spatial join (after `-extract-features`) |
 | `-relink` | With `-link-pylovo`, also re-link buildings that already have a link, e.g. after the PyLovo data changed |
 | `-version` / `-v` | Print version and exit |

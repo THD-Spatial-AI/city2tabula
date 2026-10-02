@@ -112,7 +112,7 @@ func buildPartsFixture() string {
 	f.sql.WriteString(`
 CREATE SCHEMA lod2;
 CREATE TABLE lod2.objectclass (id INTEGER PRIMARY KEY, classname TEXT);
-CREATE TABLE lod2.feature (id BIGINT PRIMARY KEY, objectclass_id INTEGER NOT NULL, objectid TEXT);
+CREATE TABLE lod2.feature (id BIGINT PRIMARY KEY, objectclass_id INTEGER NOT NULL, objectid TEXT, lineage TEXT);
 CREATE TABLE lod2.geometry_data (id BIGINT PRIMARY KEY, geometry geometry(GeometryZ, 31256));
 CREATE TABLE lod2.property (id BIGINT PRIMARY KEY, feature_id BIGINT, name TEXT, val_lod TEXT,
     val_geometry_id BIGINT, val_feature_id BIGINT);
@@ -180,6 +180,7 @@ func TestPipeline_BuildingParts_OneRowPerBuilding(t *testing.T) {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
 	mustExec(t, ctx, buildPartsFixture())
+	seedDB(t)
 
 	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)
@@ -272,6 +273,7 @@ func TestPipeline_GroundOnlyBuilding_Dropped(t *testing.T) {
 	fmt.Fprintf(&f.sql, "INSERT INTO lod2.property (id, feature_id, name, val_lod) VALUES (%d, %d, 'lod2Solid', '2');\n", f.id(), part)
 	f.surface(part, 710, [][3]float64{{x, y, 200}, {x, y + 10, 200}, {x + 10, y + 10, 200}, {x + 10, y, 200}})
 	mustExec(t, ctx, buildPartsFixture()+f.sql.String())
+	seedDB(t)
 
 	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)

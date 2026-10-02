@@ -12,6 +12,7 @@
 .github/*.json -filter -diff -merge text
 .vscode/*.json -filter -diff -merge text
 docs/**/*.json !filter !diff !merge text
+**/attribution.json !filter !diff !merge text
 data/*.gml filter=lfs diff=lfs merge=lfs -text
 data/*.json filter=lfs diff=lfs merge=lfs -text
 # Ignore Jupyter notebooks in language stats

@@ -22,6 +22,19 @@ import (
 // binary and the --bbox flag against real geometry.
 const deggendorfTile = "data/lod2/deggendorf/786_5416.gml"
 
+// deggendorfAttribution credits the tile's provider, as the dataset folder the
+// importer reads it from must.
+const deggendorfAttribution = `{
+  "schema_version": 1,
+  "dataset_id": "de-bavaria-lod2",
+  "provider": "Bayerische Vermessungsverwaltung",
+  "dataset": "3D-Gebäudemodelle (LoD2)",
+  "licence": "CC-BY-4.0",
+  "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+  "credit": "Bayerische Vermessungsverwaltung – www.geodaten.bayern.de",
+  "changes": "Test import of one tile."
+}`
+
 // skipUnlessRealResourcesAvailable skips the test unless this machine has a real
 // citydb-tool install and the real TABULA CSVs — both absent by design in most
 // CI environments but present on this dev machine. Must be called after
@@ -159,10 +172,17 @@ func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 	host, port := testutil.StartPostGISAddr(t)
 	cfg := e2eConfig(t, host, port, "onrequest_e2e_test_de", toolPath)
 
-	// Point Data.Lod2 at a temp dir holding just the one small tile, instead of
-	// the real (much larger) data/lod2/germany/ directory.
+	// Point Data.Lod2 at a temp dir holding one dataset folder with just the one
+	// small tile, instead of the real (much larger) data/lod2/germany/ directory.
 	lod2Dir := t.TempDir()
-	copyFile(t, deggendorfTile, filepath.Join(lod2Dir, filepath.Base(deggendorfTile)))
+	datasetDir := filepath.Join(lod2Dir, "deggendorf")
+	if err := os.MkdirAll(filepath.Join(datasetDir, "gml"), 0o755); err != nil {
+		t.Fatalf("create dataset folder: %v", err)
+	}
+	copyFile(t, deggendorfTile, filepath.Join(datasetDir, "gml", filepath.Base(deggendorfTile)))
+	if err := os.WriteFile(filepath.Join(datasetDir, "attribution.json"), []byte(deggendorfAttribution), 0o644); err != nil {
+		t.Fatalf("write attribution.json: %v", err)
+	}
 	cfg.Data = &config.DataPaths{
 		Lod2:   lod2Dir,
 		Lod3:   t.TempDir(), // empty -> skipped
@@ -214,6 +234,18 @@ func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 	}
 	if linkRows == 0 {
 		t.Error("expected at least one building_link row after a real import of a real GML tile, got 0")
+	}
+
+	// Every extracted building carries the dataset folder's dataset_id, read
+	// from the lineage the import gave its feature.
+	var withDataset, total int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*) FILTER (WHERE dataset_id = 'de-bavaria-lod2'), count(*) FROM city2tabula.lod2_building`,
+	).Scan(&withDataset, &total); err != nil {
+		t.Fatalf("count lod2_building dataset_id: %v", err)
+	}
+	if total == 0 || withDataset != total {
+		t.Errorf("expected every one of %d buildings to have dataset_id de-bavaria-lod2, got %d", total, withDataset)
 	}
 
 	buildings, err := onrequest.BuildingsByOSMIDs(context.Background(), pool, cfg, []string{"nonexistent-osm-id"})

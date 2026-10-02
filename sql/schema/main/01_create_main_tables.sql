@@ -104,6 +104,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   object_id VARCHAR(100) UNIQUE,
   country_code CHAR(2),
+  -- Source dataset, from the building's 3DCityDB feature.lineage (script 04).
+  dataset_id TEXT NOT NULL REFERENCES {city2tabula_schema}.dataset_attribution (dataset_id) ON UPDATE CASCADE,
   building_feature_id INTEGER UNIQUE,
   tabula_variant_code_id INTEGER,
   tabula_variant_code VARCHAR,
@@ -193,6 +195,8 @@ CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_geom_idx
     ON {city2tabula_schema}.{lod_schema}_surface_raw USING GIST (geom);
 CREATE INDEX IF NOT EXISTS {lod_schema}_building_part_building_idx
     ON {city2tabula_schema}.{lod_schema}_building_part (building_feature_id);
+CREATE INDEX IF NOT EXISTS {lod_schema}_building_dataset_idx
+    ON {city2tabula_schema}.{lod_schema}_building (dataset_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_building_feature_id_idx
     ON {city2tabula_schema}.{lod_schema}_surface_raw (building_feature_id);
 CREATE INDEX IF NOT EXISTS {lod_schema}_surface_raw_surface_feature_id_idx

@@ -66,10 +66,12 @@ func RunCity2TabulaDBSetup(config *config.Config, conn *pgxpool.Pool) error {
 	if err := CreateSchemas(conn, schemas); err != nil {
 		return fmt.Errorf("failed to create schemas: %w", err)
 	}
-	if err := setupMainDB(config, conn); err != nil {
+	// Supplementary first: it creates dataset_attribution, which the main
+	// setup's building tables reference by foreign key.
+	if err := setupSupplementaryDB(config, conn); err != nil {
 		return err
 	}
-	return setupSupplementaryDB(config, conn)
+	return setupMainDB(config, conn)
 }
 
 // ResetCity2TabulaSchemas drops the city2tabula and tabula schemas and rebuilds them from scratch.
@@ -123,6 +125,9 @@ func setupSupplementaryDB(config *config.Config, conn *pgxpool.Pool) error {
 func ImportAllData(config *config.Config, conn *pgxpool.Pool, bbox, bboxMode string) error {
 	if err := importer.ImportSupplementaryData(conn, config); err != nil {
 		return fmt.Errorf("failed to import supplementary data: %w", err)
+	}
+	if _, err := importer.SyncAttribution(context.Background(), conn, config); err != nil {
+		return fmt.Errorf("failed to sync dataset attribution: %w", err)
 	}
 	if err := importer.ImportCityDBData(conn, config, bbox, bboxMode); err != nil {
 		return fmt.Errorf("failed to import CityDB data: %w", err)

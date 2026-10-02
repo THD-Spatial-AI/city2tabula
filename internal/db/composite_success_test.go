@@ -68,6 +68,27 @@ func setupMinimalTabulaTable(t *testing.T, ctx context.Context) {
 	}
 }
 
+// setupAttribution gives cfg's City2TABULA schema the shipped dataset_attribution
+// table and copies the repository's TABULA attribution file into tabulaDir: the
+// two things ImportAllData's attribution sync reads before the CityDB import.
+func setupAttribution(t *testing.T, ctx context.Context, cfg *config.Config, tabulaDir string) {
+	t.Helper()
+	ddl, err := os.ReadFile(filepath.Join(projectRoot(), "sql", "schema", "supplementary", "02_create_attribution_table.sql"))
+	if err != nil {
+		t.Fatalf("read attribution DDL: %v", err)
+	}
+	if _, err := testPool.Exec(ctx, strings.ReplaceAll(string(ddl), "{city2tabula_schema}", cfg.DB.Schemas.City2Tabula)); err != nil {
+		t.Fatalf("create dataset_attribution: %v", err)
+	}
+	file, err := os.ReadFile(filepath.Join(projectRoot(), "data", "tabula", "attribution.json"))
+	if err != nil {
+		t.Fatalf("read TABULA attribution: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tabulaDir, "attribution.json"), file, 0644); err != nil {
+		t.Fatalf("write TABULA attribution: %v", err)
+	}
+}
+
 // writeMinimalTabulaCSV writes one data row matching setupMinimalTabulaTable's
 // column order exactly - empty fields become NULL under COPY ... CSV, which
 // COALESCE(..., 0) in 01_extract_tabula_attributes.sql then zeroes out.
@@ -132,6 +153,7 @@ func TestImportAllData_Success(t *testing.T) {
 		t.Fatalf("failed to seed tabula_variant table: %v", err)
 	}
 	setupMinimalTabulaTable(t, ctx)
+	setupAttribution(t, ctx, cfg, dataDir)
 
 	if err := db.ImportAllData(cfg, testPool, "", ""); err != nil {
 		t.Fatalf("ImportAllData: %v", err)
@@ -195,6 +217,7 @@ func TestImportAllData_ImportCityDBDataFailure(t *testing.T) {
 		t.Fatalf("failed to seed tabula_variant table: %v", err)
 	}
 	setupMinimalTabulaTable(t, ctx)
+	setupAttribution(t, ctx, cfg, dataDir)
 
 	err := db.ImportAllData(cfg, testPool, "", "")
 	if err == nil {

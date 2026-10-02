@@ -19,6 +19,9 @@ IEE (Intelligent Energy Europe) programme.
 
 **Source:** IEE Projects TABULA + EPISCOPE ([www.episcope.eu](https://www.episcope.eu))
 
+`data/tabula/attribution.json` carries this credit. City2TABULA stores it with the 3D datasets'
+credits.
+
 **Reference:**
 
 > Loga, T., Stein, B., Diefenbach, N. (2016). *TABULA building typologies in 20 European
@@ -27,6 +30,9 @@ IEE (Intelligent Energy Europe) programme.
 
 ## LoD2 / LoD3 Building Data
 
-CityGML and CityJSON files placed under `data/lod2/` and `data/lod3/` are user-supplied.
+CityGML and CityJSON files placed under `data/lod2/` and `data/lod3/` are user-supplied, one
+folder per source dataset: `data/lod2/<country>/<dataset>/` holds an `attribution.json` crediting
+the provider, a `gml/` folder for CityGML and a `cityjson/` folder for CityJSON. Nothing else in a
+dataset folder is imported. See `docs/code/attribution/index.md`.
 See the country-specific `.gitignore` files in each subdirectory; large files are excluded
 from the repository. Refer to the original data provider for licensing terms.

@@ -1,6 +1,11 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 // Data directory constants
 const (
@@ -16,6 +21,17 @@ type DataPaths struct {
 	Lod2   string
 	Lod3   string
 	Tabula string
+}
+
+// countryDataDir returns the country's folder under root, refusing a name that
+// resolves outside root. The country comes from a server request; CountryCode's
+// allowlist rejects such names first, and this keeps the path safe without it.
+func countryDataDir(root, country string) (string, error) {
+	dir := filepath.Join(root, country)
+	if !strings.HasPrefix(dir, filepath.Clean(root)+string(os.PathSeparator)) {
+		return "", fmt.Errorf("country %q resolves outside the data directory %s", country, root)
+	}
+	return dir, nil
 }
 
 // loadDataPaths loads data directory paths

@@ -22,12 +22,13 @@ func seedLOD3Building(t *testing.T, ctx context.Context, objectID string) *confi
 	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
+	seedDB(t)
 
 	for _, stmt := range []string{
 		`INSERT INTO city2tabula.lod3_building
-			(object_id, country_code, building_feature_id, footprint_area,
+			(object_id, country_code, dataset_id, building_feature_id, footprint_area,
 			 tabula_variant_code, building_footprint_geom)
-		VALUES ($1, 'DE', 9001, 100.0, 'DE.N.SFH.01.Gen.ReEx.001.001',
+		VALUES ($1, 'DE', 'test-dataset', 9001, 100.0, 'DE.N.SFH.01.Gen.ReEx.001.001',
 			ST_Multi(ST_GeomFromText('POLYGON Z((500000 5400000 0, 500010 5400000 0, 500010 5400010 0, 500000 5400010 0, 500000 5400000 0))', 25832)))`,
 		`INSERT INTO city2tabula.lod3_surface
 			(building_object_id, surface_object_id, surface_type, surface_area, geom)
