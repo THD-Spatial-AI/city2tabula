@@ -36,6 +36,14 @@ func RegionConfig(base Config, country string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	lod2, err := countryDataDir(Lod2DataDir, normalized)
+	if err != nil {
+		return Config{}, err
+	}
+	lod3, err := countryDataDir(Lod3DataDir, normalized)
+	if err != nil {
+		return Config{}, err
+	}
 
 	db := *base.DB
 	db.Name = dbNameForCountry(base.DB.Name, code)
@@ -60,8 +68,8 @@ func RegionConfig(base Config, country string) (Config, error) {
 		DB:          &db,
 		Data: &DataPaths{
 			Base:   base.Data.Base,
-			Lod2:   Lod2DataDir + normalized,
-			Lod3:   Lod3DataDir + normalized,
+			Lod2:   lod2,
+			Lod3:   lod3,
 			Tabula: base.Data.Tabula,
 		},
 		CityDB:      &cityDB,
