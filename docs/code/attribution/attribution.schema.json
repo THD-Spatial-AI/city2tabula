@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thd-spatial-ai/city2tabula/blob/main/docs/code/attribution/attribution.schema.json",
+  "title": "City2TABULA dataset attribution",
+  "description": "Credits the provider of one source dataset. One attribution.json sits at the root of each dataset folder.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "provider",
+    "dataset",
+    "licence",
+    "licence_url",
+    "credit",
+    "changes"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Format version of this file.",
+      "const": 1
+    },
+    "dataset_id": {
+      "description": "Stable identifier of the dataset, unique across all datasets. 3D datasets use <country code>-<region>-<lod>, e.g. cz-brno-lod2.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "provider": {
+      "description": "Organisation that publishes the dataset.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "dataset": {
+      "description": "Name of the dataset as the provider publishes it.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "licence": {
+      "description": "SPDX licence id, e.g. CC-BY-4.0, or LicenseRef-<id> for a licence not on the SPDX list.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*\\+?$"
+    },
+    "licence_url": {
+      "description": "Page holding the licence text or the provider's usage rules.",
+      "type": "string",
+      "pattern": "^https?://[^/\\s]+"
+    },
+    "credit": {
+      "description": "Credit line exactly as the provider requires it, shown with any output derived from the dataset.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "credit_url": {
+      "description": "Link the provider asks the credit to carry. Omit when the provider names none.",
+      "type": "string",
+      "pattern": "^https?://[^/\\s]+"
+    },
+    "terms_url": {
+      "description": "Provider's terms of use, when separate from the licence.",
+      "type": "string",
+      "pattern": "^https?://[^/\\s]+"
+    },
+    "changes": {
+      "description": "What City2TABULA does to the data, stated wherever the credit is shown.",
+      "type": "string",
+      "pattern": "\\S"
+    }
+  }
+}

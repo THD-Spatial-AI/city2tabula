@@ -122,6 +122,7 @@ nav:
   - Code:
     - Job queue and worker pipeline: code/job-queue.md
     - Extending the Pipeline: code/extending-pipeline.md
+    - Dataset attribution file: code/attribution/index.md
     - PyLovo Building Link:
       - code/pylovo-link/index.md
     - SQL Extraction Pipeline:
