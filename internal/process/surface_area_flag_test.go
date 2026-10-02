@@ -23,8 +23,11 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
 
-	// One sliver, one ordinary wall, distinguished only by area.
+	// One sliver, one ordinary wall, distinguished only by area. Script 08 serves
+	// surfaces only for buildings script 04 gave a row, so the building row is seeded too.
 	seed := `
+		INSERT INTO city2tabula.lod2_building (object_id, country_code, building_feature_id)
+		VALUES ('bld-sliver', 'DE', 4242);
 		INSERT INTO city2tabula.lod2_surface_raw
 			(building_feature_id, surface_feature_id, building_object_id,
 			 surface_object_id, objectclass_id, classname, surface_area,
@@ -45,6 +48,8 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 			`DELETE FROM city2tabula.lod2_surface WHERE building_object_id = 'bld-sliver'`)
 		_, _ = testPool.Exec(ctx,
 			`DELETE FROM city2tabula.lod2_surface_raw WHERE building_object_id = 'bld-sliver'`)
+		_, _ = testPool.Exec(ctx,
+			`DELETE FROM city2tabula.lod2_building WHERE object_id = 'bld-sliver'`)
 	})
 
 	script, err := os.ReadFile("sql/scripts/main/08_build_surface.sql")
