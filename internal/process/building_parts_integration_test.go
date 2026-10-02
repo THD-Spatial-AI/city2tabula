@@ -251,3 +251,45 @@ func TestPipeline_BuildingParts_OneRowPerBuilding(t *testing.T) {
 		}
 	}
 }
+
+// TestPipeline_GroundOnlyBuilding_Dropped adds a building whose only part carries a
+// single GroundSurface, the shape a converter emits when it loses a segment's walls
+// and roof. It has no envelope to classify or serve, so extraction must give it no
+// lod2_building row and no lod2_surface rows, and leave the other buildings intact.
+func TestPipeline_GroundOnlyBuilding_Dropped(t *testing.T) {
+	ctx := context.Background()
+	resetSchemas(t)
+	tc := pipelineTestCase{country: "austria", srid: fmt.Sprint(partsSRID)}
+	cfg := pipelineConfig(tc)
+	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
+		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
+	}
+
+	f := &partsFixture{nextID: 100000}
+	const x, y = -10000.0, 342800.0
+	flat := f.feature(901, "GROUNDONLY")
+	part := f.feature(902, "GROUNDONLY-1")
+	f.link(flat, "buildingPart", part)
+	fmt.Fprintf(&f.sql, "INSERT INTO lod2.property (id, feature_id, name, val_lod) VALUES (%d, %d, 'lod2Solid', '2');\n", f.id(), part)
+	f.surface(part, 710, [][3]float64{{x, y, 200}, {x, y + 10, 200}, {x + 10, y + 10, 200}, {x + 10, y, 200}})
+	mustExec(t, ctx, buildPartsFixture()+f.sql.String())
+
+	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
+		t.Fatalf("RunFeatureExtraction: %v", err)
+	}
+
+	var buildings, groundOnly, surfaces int
+	if err := testPool.QueryRow(ctx, `
+		SELECT COUNT(*), COUNT(*) FILTER (WHERE object_id = 'GROUNDONLY'),
+		       (SELECT COUNT(*) FROM city2tabula.lod2_surface WHERE building_object_id = 'GROUNDONLY')
+		FROM city2tabula.lod2_building`,
+	).Scan(&buildings, &groundOnly, &surfaces); err != nil {
+		t.Fatalf("query lod2_building: %v", err)
+	}
+	if groundOnly != 0 || surfaces != 0 {
+		t.Errorf("GROUNDONLY: got %d lod2_building rows and %d lod2_surface rows, want 0 and 0", groundOnly, surfaces)
+	}
+	if buildings != 5 {
+		t.Errorf("expected the 5 buildings with walls and roofs to remain, got %d rows", buildings)
+	}
+}

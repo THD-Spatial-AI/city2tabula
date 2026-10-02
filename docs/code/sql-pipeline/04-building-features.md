@@ -36,6 +36,8 @@ The column names `min_height` / `max_height` refer to minimum and maximum height
 
 ## Stage 2: `_building`
 
+A building with no WallSurface or RoofSurface face gets no `_building` row, so it is not classified, linked or served, and script 08 writes no `_surface` rows for it. Its faces stay in `_surface_raw`.
+
 ### Heights: footprint-weighted over the solids
 
 ```sql
