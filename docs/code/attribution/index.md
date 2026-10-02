@@ -43,7 +43,7 @@ Unknown fields are rejected, so a misspelt key fails rather than leaving its fie
 ## How City2TABULA uses the file
 
 1. `-create-db` and `-import-data` read every dataset folder's file and the TABULA file, validate them all, and upsert one row per dataset into `city2tabula.dataset_attribution`. A missing or invalid file stops the run before anything is imported.
-2. Each dataset folder is imported with `citydb import --lineage=<dataset_id>`, so every feature records its dataset in the 3DCityDB `feature.lineage` column. The model files sit in subfolders of the dataset folder, since citydb-tool would read `attribution.json` as CityJSON if given the folder itself. The folder layout is in [Setup](../../installation/setup.md#step-2-download-data).
+2. Each dataset's `gml/` and `cityjson/` folders are imported with `citydb import --lineage=<dataset_id>`, so every feature records its dataset in the 3DCityDB `feature.lineage` column. Only those two folders are passed to citydb-tool, which reads every `.json` file in a folder it is given and imports archives as data. The folder layout is in [Setup](../../installation/setup.md#step-2-download-data).
 3. `-extract-features` copies each building's lineage into `dataset_id` on `lod2_building` and `lod3_building`, a `NOT NULL` foreign key to `dataset_attribution`. A building with no lineage, or with a lineage that has no row, stops extraction with an error naming one such building or dataset.
 
 To correct a credit, edit the file and run `c2t -sync-attribution`. It re-reads every file and updates only the rows whose content changed, without re-importing data.

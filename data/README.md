@@ -32,6 +32,7 @@ credits.
 
 CityGML and CityJSON files placed under `data/lod2/` and `data/lod3/` are user-supplied, one
 folder per source dataset: `data/lod2/<country>/<dataset>/` holds an `attribution.json` crediting
-the provider and subfolders with the model files. See `docs/code/attribution/index.md`.
+the provider, a `gml/` folder for CityGML and a `cityjson/` folder for CityJSON. Nothing else in a
+dataset folder is imported. See `docs/code/attribution/index.md`.
 See the country-specific `.gitignore` files in each subdirectory; large files are excluded
 from the repository. Refer to the original data provider for licensing terms.

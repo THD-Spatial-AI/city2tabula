@@ -13,13 +13,15 @@ import (
 )
 
 // writeDataset creates lodDir/name holding a valid attribution.json for
-// datasetID and an empty gml subfolder for its model files, and returns the
-// dataset folder's path.
+// datasetID and empty gml and cityjson model folders, and returns the dataset
+// folder's path.
 func writeDataset(t *testing.T, lodDir, name, datasetID string) string {
 	t.Helper()
 	dir := filepath.Join(lodDir, name)
-	if err := os.MkdirAll(filepath.Join(dir, "gml"), 0o755); err != nil {
-		t.Fatalf("create dataset folder: %v", err)
+	for _, sub := range []string{"gml", "cityjson"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			t.Fatalf("create dataset folder: %v", err)
+		}
 	}
 	data, err := json.Marshal(attribution.Attribution{
 		SchemaVersion: attribution.SchemaVersion,
@@ -75,9 +77,10 @@ func TestDiscoverDatasets_FindsFoldersInBothLODs(t *testing.T) {
 	}
 	for _, d := range got {
 		w, ok := want[d.Attribution.DatasetID]
-		// The dataset folder itself is never an input, so citydb-tool never
-		// reads attribution.json as CityJSON.
-		inputs := []string{filepath.Join(w.Dir, "gml")}
+		inputs := []importInput{
+			{"citygml", "CityGML", filepath.Join(w.Dir, "gml")},
+			{"cityjson", "CityJSON", filepath.Join(w.Dir, "cityjson")},
+		}
 		if !ok || d.Dir != w.Dir || d.Schema != w.Schema || !slices.Equal(d.Inputs, inputs) {
 			t.Errorf("unexpected dataset %s in %s (schema %s)", d.Attribution.DatasetID, d.Dir, d.Schema)
 		}
@@ -115,17 +118,49 @@ func TestDiscoverDatasets_RejectsModelFileOutsideDatasetFolder(t *testing.T) {
 	}
 }
 
-func TestDiscoverDatasets_RejectsModelFileInDatasetFolder(t *testing.T) {
+// Source material beside the data, such as a 3D Tiles index, a rules PDF or a
+// folder of downloaded archives, is never passed to citydb-tool.
+func TestDiscoverDatasets_IgnoresEverythingButModelFolders(t *testing.T) {
+	lod2Dir := t.TempDir()
+	dir := filepath.Join(lod2Dir, "region-a")
+	writeDataset(t, lod2Dir, "region-a", "xx-region-a-lod2")
+	if err := os.Remove(filepath.Join(dir, "gml")); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"tileset.json", "rules.pdf", "tile.gml"} {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, "zips"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := DiscoverDatasets(discoverConfig(lod2Dir, t.TempDir()))
+	if err != nil {
+		t.Fatalf("DiscoverDatasets: %v", err)
+	}
+	want := []importInput{{"cityjson", "CityJSON", filepath.Join(dir, "cityjson")}}
+	if len(got) != 1 || !slices.Equal(got[0].Inputs, want) {
+		t.Errorf("want only %+v as input, got %+v", want, got)
+	}
+}
+
+func TestDiscoverDatasets_RejectsDatasetFolderWithoutModelFolder(t *testing.T) {
 	lod2Dir := t.TempDir()
 	dir := writeDataset(t, lod2Dir, "region-a", "xx-region-a-lod2")
-	path := filepath.Join(dir, "tile.city.json")
-	if err := os.WriteFile(path, []byte("{}"), 0o644); err != nil {
+	for _, sub := range []string{"gml", "cityjson"} {
+		if err := os.Remove(filepath.Join(dir, sub)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, "zips"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	_, err := DiscoverDatasets(discoverConfig(lod2Dir, t.TempDir()))
-	if err == nil || !strings.Contains(err.Error(), path) {
-		t.Errorf("want an error naming %s, got %v", path, err)
+	if err == nil || !strings.Contains(err.Error(), dir) {
+		t.Errorf("want an error naming %s, got %v", dir, err)
 	}
 }
 

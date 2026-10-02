@@ -15,14 +15,27 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
-// Dataset is one source dataset folder under a LOD data directory. The model
-// files sit in Inputs, its subfolders, and are imported into Schema with the
-// dataset_id as each feature's lineage.
+// Dataset is one source dataset folder under a LOD data directory. Its model
+// folders are imported into Schema with the dataset_id as each feature's lineage.
 type Dataset struct {
 	Dir         string
 	Schema      string
-	Inputs      []string
+	Inputs      []importInput
 	Attribution attribution.Attribution
+}
+
+// importInput is one model folder of a dataset and the citydb-tool format that
+// reads it.
+type importInput struct {
+	format, label, path string
+}
+
+// modelFolders maps each citydb-tool import format to the dataset subfolder it
+// reads. Nothing else in a dataset folder is imported: citydb-tool reads every
+// .json in a folder it is given, and archives would be imported as data.
+var modelFolders = []struct{ format, label, folder string }{
+	{"citygml", "CityGML", "gml"},
+	{"cityjson", "CityJSON", "cityjson"},
 }
 
 // modelExtensions are the file types citydb-tool imports. One lying directly in
@@ -31,8 +44,8 @@ var modelExtensions = map[string]bool{".gml": true, ".xml": true, ".json": true,
 
 // DiscoverDatasets returns every dataset folder under cfg's LOD2 and LOD3 data
 // directories with its validated attribution. A missing LOD directory is
-// skipped, which keeps LOD3 optional. A model file directly in a LOD directory
-// or a dataset folder, a folder without a valid attribution.json, or a
+// skipped, which keeps LOD3 optional. A model file directly in a LOD directory,
+// a folder without a valid attribution.json or without a model folder, or a
 // dataset_id claimed by two folders is an error naming the path.
 func DiscoverDatasets(cfg *config.Config) ([]Dataset, error) {
 	var datasets []Dataset
@@ -94,27 +107,33 @@ func discoverLOD(dir, schema string) ([]Dataset, error) {
 	return datasets, nil
 }
 
-// datasetInputs returns a dataset folder's subfolders, which hold its model
-// files. citydb-tool would read attribution.json as CityJSON if given the folder,
-// and imports an explicitly named file whatever its format.
-func datasetInputs(dir string) ([]string, error) {
+// datasetInputs returns the model folders of a dataset folder, at least one of
+// which must exist. Every other subfolder is logged and left alone.
+func datasetInputs(dir string) ([]importInput, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read dataset folder %s: %w", dir, err)
 	}
-	var inputs []string
+	present := map[string]bool{}
 	for _, e := range entries {
-		path := filepath.Join(dir, e.Name())
-		switch {
-		case strings.HasPrefix(e.Name(), "."), e.Name() == attribution.FileName:
-		case e.IsDir():
-			inputs = append(inputs, path)
-		case modelExtensions[strings.ToLower(filepath.Ext(e.Name()))]:
-			return nil, fmt.Errorf("%s lies directly in dataset folder %s; move it into a subfolder such as %s", path, dir, filepath.Join(dir, "gml"))
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		present[e.Name()] = true
+	}
+
+	var inputs []importInput
+	for _, f := range modelFolders {
+		if present[f.folder] {
+			inputs = append(inputs, importInput{format: f.format, label: f.label, path: filepath.Join(dir, f.folder)})
+			delete(present, f.folder)
 		}
 	}
+	for name := range present {
+		utils.Info.Printf("Ignoring %s: only gml and cityjson folders are imported", filepath.Join(dir, name))
+	}
 	if len(inputs) == 0 {
-		utils.Warn.Printf("Dataset folder %s has no subfolders with model files, nothing to import from it", dir)
+		return nil, fmt.Errorf("dataset folder %s has neither a gml nor a cityjson subfolder holding its model files", dir)
 	}
 	return inputs, nil
 }
