@@ -71,6 +71,11 @@ WHERE sr.building_feature_id IN {building_ids}
   AND sr.building_object_id IS NOT NULL
   AND sr.surface_object_id  IS NOT NULL
   AND (sr.is_party_wall IS NULL OR sr.is_party_wall = FALSE)
+  -- Script 04 gives no row to a building with ground faces only; serve no surfaces for it.
+  AND EXISTS (
+      SELECT 1 FROM {city2tabula_schema}.{lod_schema}_building b
+      WHERE b.building_feature_id = sr.building_feature_id
+  )
   AND sr.building_object_id NOT IN (
       SELECT s.building_object_id
       FROM {city2tabula_schema}.{lod_schema}_surface s

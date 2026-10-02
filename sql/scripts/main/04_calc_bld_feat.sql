@@ -113,6 +113,9 @@ aggregated_surfaces AS (
         ST_Transform(ST_Union(geom) FILTER (WHERE classname = 'GroundSurface'), {srid}) AS building_footprint_geom
     FROM faces cfs
     GROUP BY cfs.building_feature_id
+    -- A building with ground faces only has no envelope to classify or serve, so
+    -- it gets no row. Its raw surfaces stay in _surface_raw for inspection.
+    HAVING COUNT(*) FILTER (WHERE cfs.classname IN ('WallSurface', 'RoofSurface')) > 0
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     id,
