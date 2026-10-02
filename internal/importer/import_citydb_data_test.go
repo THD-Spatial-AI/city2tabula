@@ -49,7 +49,8 @@ func TestImportCityDBData_TestExecPathFailure(t *testing.T) {
 func TestImportCityDBData_LOD2ImportFailure(t *testing.T) {
 	toolDir := t.TempDir()
 	writeHelpOnlyExecutable(t, toolDir)
-	lod2Dir := t.TempDir() // exists -> importCityDBFiles won't skip it
+	lod2Dir := t.TempDir()
+	writeDataset(t, lod2Dir, "region-a", "xx-region-a-lod2")
 	cfg := cityDBDataConfig(t, toolDir, lod2Dir, "/nonexistent/lod3")
 
 	err := ImportCityDBData(nil, cfg, "", "")
@@ -65,6 +66,7 @@ func TestImportCityDBData_LOD3ImportFailure(t *testing.T) {
 	toolDir := t.TempDir()
 	writeHelpOnlyExecutable(t, toolDir)
 	lod3Dir := t.TempDir()
+	writeDataset(t, lod3Dir, "region-a", "xx-region-a-lod3")
 	cfg := cityDBDataConfig(t, toolDir, "/nonexistent/lod2", lod3Dir)
 
 	err := ImportCityDBData(nil, cfg, "", "")

@@ -25,33 +25,35 @@ cd city2tabula-<version>
 
 ### Step 2. Download data
 
-Place the 3D city data files (`.gml` or `.json`) under `data/` before starting the containers:
+Place the 3D city data under `data/` before starting the containers, one folder per source dataset:
 
 ```bash
 data/
-├── lod2/<country>/*(.gml | .json)
-└── lod3/<country>/*(.gml | .json)
+├── lod2/<country>/<dataset>/
+│   ├── attribution.json
+│   └── <subfolder>/*(.gml | .json)
+└── lod3/<country>/<dataset>/
+    ├── attribution.json
+    └── <subfolder>/*(.gml | .json)
 ```
 
 !!! example
-    A LoD2 CityGML file for Germany goes in `data/lod2/germany/`, and a corresponding LoD3 file in `data/lod3/germany/`:
+    A Bavarian LoD2 dataset goes in its own folder under `data/lod2/germany/`, with its CityGML files in a subfolder:
 
     ```bash
     data/
-    ├── lod2/
-    │   └── germany/
-    │       └── germany_lod2.gml
-    └── lod3/
+    └── lod2/
         └── germany/
-            └── germany_lod3.gml
+            └── bavaria/
+                ├── attribution.json
+                └── gml/
+                    └── 786_5416.gml
     ```
 
+!!! warning "Every dataset folder needs an attribution file"
+    `attribution.json` credits the dataset's provider and is required: a missing or invalid file stops the import with an error naming the folder. Its format is described in [Dataset attribution file](../code/attribution/index.md). Model files must sit in subfolders of the dataset folder, never directly in it or in the country folder.
 
-
-!!! tip
-    Subdirectories within a country directory are allowed, for example `data/lod2/germany/berlin/` and `data/lod2/germany/munich/`. Files must sit under the correct LoD and country directory to be processed.
-
-    The [Data](../example/example.md) page lists sources to download from.
+The [Data](../example/example.md) page lists sources to download from.
 
 ### Step 3. Create Docker Container
 
@@ -181,12 +183,12 @@ CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed
 
 ### Step 5. Add the data
 
-Place the 3D city data files under `data/`, in the same layout as the Docker setup:
+Place the 3D city data under `data/` in the same layout as the Docker setup: one folder per source dataset holding an `attribution.json` and subfolders with the model files.
 
 ```bash
 data/
-├── lod2/<country>/*(.gml | .json)
-└── lod3/<country>/*(.gml | .json)
+├── lod2/<country>/<dataset>/{attribution.json, <subfolder>/*(.gml | .json)}
+└── lod3/<country>/<dataset>/{attribution.json, <subfolder>/*(.gml | .json)}
 ```
 
 ### Step 6. Create the database and run the pipeline

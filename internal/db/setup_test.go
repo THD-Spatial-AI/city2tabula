@@ -101,8 +101,10 @@ func TestRunCity2TabulaDBSetup_Success(t *testing.T) {
 	}
 }
 
-// TestRunCity2TabulaDBSetup_LoadSQLScriptsFailurePropagates drives setupMainDB's
-// own "failed to build main DB setup queue" wrap. City2Tabula/Tabula schema
+// TestRunCity2TabulaDBSetup_LoadSQLScriptsFailurePropagates drives the error
+// wrap of the first setup step, setupSupplementaryDB's "failed to build
+// supplementary DB setup queue". Both steps load every SQL directory, so the
+// supplementary step, which runs first, is the one that reports it. City2Tabula/Tabula schema
 // names must be non-empty here: CreateSchemas quotes its identifier
 // (`CREATE SCHEMA IF NOT EXISTS ""`is valid SQL), so an empty schema name
 // would let CreateSchemas succeed and this test would - misleadingly - be
@@ -120,8 +122,8 @@ func TestRunCity2TabulaDBSetup_LoadSQLScriptsFailurePropagates(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected RunCity2TabulaDBSetup to propagate a LoadSQLScripts failure, got nil")
 	}
-	if !strings.Contains(err.Error(), "failed to build main DB setup queue") {
-		t.Errorf("expected setupMainDB's own error wrap, got: %v", err)
+	if !strings.Contains(err.Error(), "failed to build supplementary DB setup queue") {
+		t.Errorf("expected setupSupplementaryDB's own error wrap, got: %v", err)
 	}
 }
 

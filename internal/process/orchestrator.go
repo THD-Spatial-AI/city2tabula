@@ -112,7 +112,8 @@ func MainDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
 }
 
 // SupplementaryDBSetupJobQueue builds the queue for the supplementary schema setup
-// (tabula classification tables). Runs after MainDBSetupJobQueue.
+// (tabula classification tables and dataset_attribution). Runs before
+// MainDBSetupJobQueue, whose building tables reference dataset_attribution.
 func SupplementaryDBSetupJobQueue(config *config.Config) (*JobQueue, error) {
 	scripts, queue, err := loadScriptsAndQueue(config)
 	if err != nil {

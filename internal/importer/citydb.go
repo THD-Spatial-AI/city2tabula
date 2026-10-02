@@ -33,14 +33,22 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config, bbox, bboxMode 
 		return err
 	}
 
-	// Import LOD2 data (both CityGML and CityJSON formats)
-	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod2, config.DB.Schemas.Lod2, "LOD2", config, bbox, bboxMode); err != nil {
+	// Every folder is validated before the first import, so a bad attribution
+	// file stops the run before any data lands.
+	datasets, err := DiscoverDatasets(config)
+	if err != nil {
 		return err
 	}
-
-	// Import LOD3 data (both CityGML and CityJSON formats)
-	if err := importCityDBFiles(cityDBExecPath, config.Data.Lod3, config.DB.Schemas.Lod3, "LOD3", config, bbox, bboxMode); err != nil {
-		return err
+	if len(datasets) == 0 {
+		utils.Warn.Printf("No dataset folders under %s or %s, nothing to import", config.Data.Lod2, config.Data.Lod3)
+	}
+	for _, d := range datasets {
+		if len(d.Inputs) == 0 {
+			continue
+		}
+		if err := importCityDBFiles(cityDBExecPath, d, config, bbox, bboxMode); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -55,14 +63,9 @@ func testCityDBExecPath(cityDBExecPath string) error {
 	return nil
 }
 
-// importCityDBFiles imports CityGML and CityJSON files from a directory into the given schema.
-// If dataPath does not exist the LOD level is skipped with a warning — this makes LOD3 optional.
-func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, config *config.Config, bbox, bboxMode string) error {
-	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
-		utils.Warn.Printf("Data path not found for %s: %s — skipping", lodLevel, dataPath)
-		return nil
-	}
-
+// importCityDBFiles imports a dataset folder's CityGML and CityJSON files into
+// its schema, tagging every feature with the dataset_id as its lineage.
+func importCityDBFiles(cityDBExecPath string, d Dataset, config *config.Config, bbox, bboxMode string) error {
 	formats := []struct {
 		cmdFlag string // passed to the citydb CLI
 		label   string // used in log messages
@@ -72,13 +75,13 @@ func importCityDBFiles(cityDBExecPath, dataPath, dbSchema, lodLevel string, conf
 	}
 
 	for _, f := range formats {
-		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, f.cmdFlag, config, bbox, bboxMode)
-		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", lodLevel, f.label)); err != nil {
+		cmd := getCityDBImportCommand(cityDBExecPath, d.Inputs, d.Schema, f.cmdFlag, d.Attribution.DatasetID, config, bbox, bboxMode)
+		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", d.Attribution.DatasetID, f.label)); err != nil {
 			return err
 		}
 	}
 
-	utils.Info.Printf("%s data imported successfully", lodLevel)
+	utils.Info.Printf("%s imported from %s into %s", d.Attribution.DatasetID, d.Dir, d.Schema)
 	return nil
 }
 
@@ -96,9 +99,11 @@ func executeCityDBCommand(cmd *exec.Cmd, description string) error {
 
 // getCityDBImportCommand creates a CityDB import command for the specified format.
 // bbox/bboxMode add citydb-tool's own spatial filter (-b/--bbox-mode) when bbox
-// is non-empty; pass "" to import the whole directory as before.
-// Callers must verify that dataPath exists before calling this function.
-func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, config *config.Config, bbox, bboxMode string) *exec.Cmd {
+// is non-empty; pass "" to import the whole directory as before. lineage is
+// stored on every imported feature (3DCityDB feature.lineage), which script 04
+// reads as the building's dataset_id.
+// inputs are the files and folders citydb-tool reads.
+func getCityDBImportCommand(cityDBExecPath string, inputs []string, dbSchema, format, lineage string, config *config.Config, bbox, bboxMode string) *exec.Cmd {
 	args := []string{
 		"import",
 		"--log-level=debug",
@@ -111,6 +116,7 @@ func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, c
 		fmt.Sprintf("--db-host=%s", config.DB.Host),
 		fmt.Sprintf("--db-port=%s", config.DB.Port),
 		fmt.Sprintf("--db-schema=%s", dbSchema),
+		fmt.Sprintf("--lineage=%s", lineage),
 	}
 
 	if config.CityDB.ImportLimit > 0 {
@@ -121,6 +127,6 @@ func getCityDBImportCommand(cityDBExecPath, dataPath, dbSchema, format string, c
 		args = append(args, fmt.Sprintf("--bbox=%s", bbox), fmt.Sprintf("--bbox-mode=%s", bboxMode))
 	}
 
-	args = append(args, dataPath)
+	args = append(args, inputs...)
 	return exec.Command(cityDBExecPath, args...)
 }

@@ -22,6 +22,10 @@
 --
 -- area_total_floor is the exposed GroundSurface area sum here; script 06 overwrites
 -- it with the total heated floor area estimate.
+--
+-- dataset_id is the Building feature's lineage, which the importer sets to the
+-- dataset folder's dataset_id. RunFeatureExtraction checks every Building has one
+-- with a dataset_attribution row before this script runs.
 
 INSERT INTO {city2tabula_schema}.{lod_schema}_building_part (
     owner_feature_id,
@@ -118,6 +122,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     id,
     object_id,
     country_code,
+    dataset_id,
     building_feature_id,
     construction_year,
     footprint_area,
@@ -149,6 +154,7 @@ SELECT
     gen_random_uuid() AS id,
     a.object_id,
     '{country_code}'  AS country_code,
+    f.lineage         AS dataset_id,
     a.building_feature_id,
     a.construction_year,
     a.footprint_area,
@@ -176,4 +182,5 @@ SELECT
     a.building_centroid_geom,
     a.building_footprint_geom
 FROM aggregated_surfaces a
+JOIN {lod_schema}.feature f ON f.id = a.building_feature_id
 LEFT JOIN heights t ON t.building_feature_id = a.building_feature_id;

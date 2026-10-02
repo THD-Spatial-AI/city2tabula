@@ -115,7 +115,9 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
 
+	// The second file gives the seeded features the dataset an import would.
 	seedViaPsql(t, host, port, cfg.DB.Name, seedPath)
+	seedViaPsql(t, host, port, cfg.DB.Name, "testdata/assign_test_dataset.sql")
 
 	if err := process.RunFeatureExtraction(&cfg, pool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)

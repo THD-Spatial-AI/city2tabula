@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/flags"
+	"github.com/thd-spatial-ai/city2tabula/internal/importer"
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 	"github.com/thd-spatial-ai/city2tabula/internal/version"
@@ -89,6 +91,15 @@ func main() {
 			utils.Error.Fatalf(flagMessages.ResetC2T.Error+": %v", err)
 		}
 		utils.Info.Println(flagMessages.ResetC2T.Success)
+	}
+
+	if f.SyncAttribution {
+		utils.Info.Println(flagMessages.SyncAttribution.Progress)
+		n, err := importer.SyncAttribution(context.Background(), pool, &config)
+		if err != nil {
+			utils.Error.Fatalf(flagMessages.SyncAttribution.Error+": %v", err)
+		}
+		utils.Info.Printf("%s: %d rows inserted or changed", flagMessages.SyncAttribution.Success, n)
 	}
 
 	if f.ExtractFeatures {
