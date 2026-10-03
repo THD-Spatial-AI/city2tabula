@@ -25,6 +25,10 @@ const FileName = "attribution.json"
 // SchemaVersion is the attribution file format this package reads.
 const SchemaVersion = 1
 
+// TabulaDatasetID is the dataset_id data/tabula/attribution.json must carry.
+// The API attaches this dataset's credit wherever it returns a TABULA type.
+const TabulaDatasetID = "tabula-episcope"
+
 // Attribution is the content of one attribution.json file.
 type Attribution struct {
 	SchemaVersion int    `json:"schema_version"`

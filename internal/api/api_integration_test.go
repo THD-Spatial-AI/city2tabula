@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/handler"
@@ -18,6 +19,7 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
+	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
 	"github.com/thd-spatial-ai/city2tabula/internal/testutil"
 )
@@ -38,6 +40,26 @@ type surfaceGeom struct {
 
 // baseServerConfig builds the process-wide config a server.Server needs, by
 // hand (bypasses config.LoadEnv/.env — see onrequest's e2eConfig for why).
+// credit is the part of an attribution entry the tests check.
+type credit struct {
+	DatasetID string `json:"dataset_id"`
+	Credit    string `json:"credit"`
+}
+
+// assertCredits checks that got credits exactly the datasets wantIDs, in
+// order, each with a non-empty credit line.
+func assertCredits(t *testing.T, endpoint string, got []credit, wantIDs ...string) {
+	t.Helper()
+	if len(got) != len(wantIDs) {
+		t.Fatalf("%s attributions = %+v, want %v", endpoint, got, wantIDs)
+	}
+	for i, id := range wantIDs {
+		if got[i].DatasetID != id || got[i].Credit == "" {
+			t.Errorf("%s attributions[%d] = %+v, want dataset %s with a credit", endpoint, i, got[i], id)
+		}
+	}
+}
+
 func baseServerConfig(host, port, dbNamePrefix string) config.Config {
 	return config.Config{
 		DB: &config.DBConfig{
@@ -191,16 +213,22 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("GET /buildings: status = %d, want 200", resp2.StatusCode)
 	}
-	var buildings []struct {
-		ObjectID string `json:"object_id"`
-		OSMID    string `json:"osm_id"`
-		Surfaces []struct {
-			Type string `json:"type"`
-		} `json:"surfaces"`
+	var byOSM struct {
+		Buildings []struct {
+			ObjectID          string  `json:"object_id"`
+			DatasetID         string  `json:"dataset_id"`
+			OSMID             string  `json:"osm_id"`
+			TabulaVariantCode *string `json:"tabula_variant_code"`
+			Surfaces          []struct {
+				Type string `json:"type"`
+			} `json:"surfaces"`
+		} `json:"buildings"`
+		Attributions []credit `json:"attributions"`
 	}
-	if err := json.NewDecoder(resp2.Body).Decode(&buildings); err != nil {
+	if err := json.NewDecoder(resp2.Body).Decode(&byOSM); err != nil {
 		t.Fatalf("decode /buildings response: %v", err)
 	}
+	buildings := byOSM.Buildings
 	if len(buildings) != 1 {
 		t.Fatalf("expected exactly 1 building, got %d", len(buildings))
 	}
@@ -210,6 +238,13 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if len(buildings[0].Surfaces) == 0 {
 		t.Error("expected at least one surface for the seeded building, got none")
 	}
+	// The building's dataset is credited, and TABULA too when it carries a
+	// TABULA type. This fixture loads no TABULA variants, so it carries none.
+	if buildings[0].DatasetID != "test-dataset" || buildings[0].TabulaVariantCode != nil {
+		t.Fatalf("buildings[0]: dataset_id %q, tabula_variant_code %v; want test-dataset and no TABULA type",
+			buildings[0].DatasetID, buildings[0].TabulaVariantCode)
+	}
+	assertCredits(t, "/buildings", byOSM.Attributions, "test-dataset")
 
 	// Buildings by bbox: same seeded building, found without any osm_id/PyLovo
 	// link — a fresh region with no building_link rows yet must still be able
@@ -226,13 +261,16 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if resp4.StatusCode != http.StatusOK {
 		t.Fatalf("GET /buildings?bbox: status = %d, want 200", resp4.StatusCode)
 	}
-	var buildingsByBBox []struct {
-		ObjectID string `json:"object_id"`
-		OSMID    string `json:"osm_id"`
+	var byBBox struct {
+		Buildings []struct {
+			ObjectID string `json:"object_id"`
+			OSMID    string `json:"osm_id"`
+		} `json:"buildings"`
 	}
-	if err := json.NewDecoder(resp4.Body).Decode(&buildingsByBBox); err != nil {
+	if err := json.NewDecoder(resp4.Body).Decode(&byBBox); err != nil {
 		t.Fatalf("decode /buildings?bbox response: %v", err)
 	}
+	buildingsByBBox := byBBox.Buildings
 	if len(buildingsByBBox) == 0 {
 		t.Fatal("expected at least the seeded building, got none")
 	}
@@ -263,13 +301,26 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if resp5.StatusCode != http.StatusOK {
 		t.Fatalf("GET /geometry: status = %d, want 200", resp5.StatusCode)
 	}
-	var geometry []struct {
-		ObjectID         string          `json:"object_id"`
-		FootprintGeoJSON json.RawMessage `json:"footprint_geojson"`
-		Surfaces         []surfaceGeom   `json:"surfaces"`
+	var geometryBody struct {
+		Buildings []struct {
+			ObjectID         string          `json:"object_id"`
+			DatasetID        string          `json:"dataset_id"`
+			FootprintGeoJSON json.RawMessage `json:"footprint_geojson"`
+			Surfaces         []surfaceGeom   `json:"surfaces"`
+		} `json:"buildings"`
+		Attributions []credit `json:"attributions"`
 	}
-	if err := json.NewDecoder(resp5.Body).Decode(&geometry); err != nil {
+	if err := json.NewDecoder(resp5.Body).Decode(&geometryBody); err != nil {
 		t.Fatalf("decode /geometry response: %v", err)
+	}
+	geometry := geometryBody.Buildings
+	// Geometry carries no TABULA type, so only the building's dataset is credited.
+	assertCredits(t, "/geometry", geometryBody.Attributions, "test-dataset")
+
+	// Data is never served without its credit: a dataset with no row is an error.
+	if _, err := onrequest.CreditsFor(context.Background(), pool, &cfg, []string{"test-dataset", "no-such-dataset"}); err == nil ||
+		!strings.Contains(err.Error(), "-sync-attribution") {
+		t.Errorf("CreditsFor with a dataset lacking a row: %v, want an error pointing at -sync-attribution", err)
 	}
 	if len(geometry) != 1 {
 		t.Fatalf("expected exactly 1 geometry row, got %d", len(geometry))
@@ -298,13 +349,16 @@ func TestServer_Coverage_And_Buildings(t *testing.T) {
 	if resp6.StatusCode != http.StatusOK {
 		t.Fatalf("GET /geometry?include=surfaces: status = %d, want 200", resp6.StatusCode)
 	}
-	var withSurfaces []struct {
-		ObjectID string        `json:"object_id"`
-		Surfaces []surfaceGeom `json:"surfaces"`
+	var withSurfacesBody struct {
+		Buildings []struct {
+			ObjectID string        `json:"object_id"`
+			Surfaces []surfaceGeom `json:"surfaces"`
+		} `json:"buildings"`
 	}
-	if err := json.NewDecoder(resp6.Body).Decode(&withSurfaces); err != nil {
+	if err := json.NewDecoder(resp6.Body).Decode(&withSurfacesBody); err != nil {
 		t.Fatalf("decode /geometry?include=surfaces response: %v", err)
 	}
+	withSurfaces := withSurfacesBody.Buildings
 	if len(withSurfaces) != 1 {
 		t.Fatalf("expected exactly 1 geometry row, got %d", len(withSurfaces))
 	}
