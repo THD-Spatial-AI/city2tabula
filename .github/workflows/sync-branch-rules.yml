@@ -12,6 +12,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   sync-thd:
     name: Sync rules — THD-Spatial-AI
