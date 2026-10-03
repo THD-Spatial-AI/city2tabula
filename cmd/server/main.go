@@ -4,9 +4,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/handler"
 	"github.com/thd-spatial-ai/city2tabula/internal/api/router"
@@ -29,12 +31,29 @@ func main() {
 		utils.Error.Fatalf("Invalid configuration: %v", err)
 	}
 
+	interval, err := attributionCheckInterval()
+	if err != nil {
+		utils.Error.Fatalf("Invalid configuration: %v", err)
+	}
+
 	srv := server.New(base)
+	srv.StartAttributionChecks(context.Background(), interval)
 	h := handler.New(srv)
 
 	addr := ":" + config.GetEnv("SERVER_PORT", "5000")
 	utils.Info.Printf("City2TABULA on-request server listening on %s", addr)
 	utils.Error.Fatal(http.ListenAndServe(addr, router.New(h)))
+}
+
+// attributionCheckInterval reads ATTRIBUTION_CHECK_INTERVAL, a Go duration such
+// as 168h, defaulting to weekly. 0 disables the scheduled check.
+func attributionCheckInterval() (time.Duration, error) {
+	raw := config.GetEnv("ATTRIBUTION_CHECK_INTERVAL", "168h")
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("ATTRIBUTION_CHECK_INTERVAL %q is not a duration of 0 or more, such as 168h", raw)
+	}
+	return d, nil
 }
 
 // validateBaseConfig checks process-wide settings only — country-specific

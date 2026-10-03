@@ -20,19 +20,32 @@ import (
 // carrying credit, and the gml subfolder a dataset folder keeps its files in.
 func writeAttributionFolder(t *testing.T, dir, datasetID, credit string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(dir, "gml"), 0o755); err != nil {
-		t.Fatalf("create dataset folder: %v", err)
-	}
-	data, err := json.Marshal(attribution.Attribution{
+	writeAttributionFile(t, dir, testAttribution(datasetID, credit, "https://creativecommons.org/licenses/by/4.0/"))
+}
+
+// testAttribution is a valid attribution for datasetID with the given credit
+// and licence URL.
+func testAttribution(datasetID, credit, licenceURL string) attribution.Attribution {
+	return attribution.Attribution{
 		SchemaVersion: attribution.SchemaVersion,
 		DatasetID:     datasetID,
 		Provider:      "Example Provider",
 		Dataset:       "Example buildings",
 		Licence:       "CC-BY-4.0",
-		LicenceURL:    "https://creativecommons.org/licenses/by/4.0/",
+		LicenceURL:    licenceURL,
 		Credit:        credit,
 		Changes:       "City2TABULA derives building attributes from the geometry.",
-	})
+	}
+}
+
+// writeAttributionFile writes a as dir/attribution.json, creating dir and the
+// gml subfolder a dataset folder keeps its files in.
+func writeAttributionFile(t *testing.T, dir string, a attribution.Attribution) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "gml"), 0o755); err != nil {
+		t.Fatalf("create dataset folder: %v", err)
+	}
+	data, err := json.Marshal(a)
 	if err != nil {
 		t.Fatalf("marshal attribution: %v", err)
 	}

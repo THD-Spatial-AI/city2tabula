@@ -176,6 +176,7 @@ func SyncAttribution(ctx context.Context, conn *pgxpool.Pool, cfg *config.Config
 
 // upsertAttribution writes d's row. An unchanged row is left alone, so
 // updated_at records when the credit last changed, not when it was last read.
+// A changed URL clears the row's URL check result, which described the old URL.
 func upsertAttribution(ctx context.Context, tx pgx.Tx, schema string, d Dataset) (int64, error) {
 	a := d.Attribution
 	q := fmt.Sprintf(`
@@ -186,7 +187,13 @@ func upsertAttribution(ctx context.Context, tx pgx.Tx, schema string, d Dataset)
 			provider = EXCLUDED.provider, dataset = EXCLUDED.dataset, licence = EXCLUDED.licence,
 			licence_url = EXCLUDED.licence_url, credit = EXCLUDED.credit, credit_url = EXCLUDED.credit_url,
 			terms_url = EXCLUDED.terms_url, changes = EXCLUDED.changes, source_path = EXCLUDED.source_path,
-			updated_at = NOW()
+			updated_at = NOW(),
+			url_checked_at = CASE WHEN (t.licence_url, t.credit_url, t.terms_url) IS DISTINCT FROM (EXCLUDED.licence_url, EXCLUDED.credit_url, EXCLUDED.terms_url)
+				THEN NULL ELSE t.url_checked_at END,
+			url_check_ok = CASE WHEN (t.licence_url, t.credit_url, t.terms_url) IS DISTINCT FROM (EXCLUDED.licence_url, EXCLUDED.credit_url, EXCLUDED.terms_url)
+				THEN NULL ELSE t.url_check_ok END,
+			url_check_failures = CASE WHEN (t.licence_url, t.credit_url, t.terms_url) IS DISTINCT FROM (EXCLUDED.licence_url, EXCLUDED.credit_url, EXCLUDED.terms_url)
+				THEN NULL ELSE t.url_check_failures END
 		WHERE (t.provider, t.dataset, t.licence, t.licence_url, t.credit, t.credit_url, t.terms_url, t.changes, t.source_path)
 			IS DISTINCT FROM
 			(EXCLUDED.provider, EXCLUDED.dataset, EXCLUDED.licence, EXCLUDED.licence_url, EXCLUDED.credit,

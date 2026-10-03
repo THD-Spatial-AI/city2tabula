@@ -28,6 +28,7 @@ func TestParseFlags_EachFlagSetsItsOwnField(t *testing.T) {
 		{"reset-city2tabula", func(f *Flags) bool { return f.ResetC2T }},
 		{"extract-features", func(f *Flags) bool { return f.ExtractFeatures }},
 		{"sync-attribution", func(f *Flags) bool { return f.SyncAttribution }},
+		{"check-attribution", func(f *Flags) bool { return f.CheckAttribution }},
 		{"link-pylovo", func(f *Flags) bool { return f.LinkPylovo }},
 		{"version", func(f *Flags) bool { return f.ShowVersion }},
 		{"v", func(f *Flags) bool { return f.ShowV }},
@@ -65,7 +66,7 @@ func TestParseFlags_NoFlagsAllDefaultFalse(t *testing.T) {
 	f := ParseFlags()
 
 	if f.CreateDB || f.ResetDB || f.ResetC2T || f.ImportData ||
-		f.ExtractFeatures || f.SyncAttribution || f.LinkPylovo || f.ShowVersion || f.ShowV {
+		f.ExtractFeatures || f.SyncAttribution || f.CheckAttribution || f.LinkPylovo || f.ShowVersion || f.ShowV {
 		t.Errorf("expected every flag to default to false with no args, got %+v", f)
 	}
 }

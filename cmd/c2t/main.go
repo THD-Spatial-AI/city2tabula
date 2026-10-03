@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thd-spatial-ai/city2tabula/internal/attribution"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/flags"
@@ -100,6 +101,21 @@ func main() {
 			utils.Error.Fatalf(flagMessages.SyncAttribution.Error+": %v", err)
 		}
 		utils.Info.Printf("%s: %d rows inserted or changed", flagMessages.SyncAttribution.Success, n)
+	}
+
+	if f.CheckAttribution {
+		utils.Info.Println(flagMessages.CheckAttribution.Progress)
+		failures, err := importer.CheckAttributionURLs(context.Background(), pool, config.DB.Schemas.City2Tabula, attribution.NewURLCheckClient())
+		if err != nil {
+			utils.Error.Fatalf(flagMessages.CheckAttribution.Error+": %v", err)
+		}
+		for _, fail := range failures {
+			utils.Error.Printf("%s %s: %v", fail.DatasetID, fail.Field, fail.Err)
+		}
+		if len(failures) > 0 {
+			utils.Error.Fatalf("%d attribution URLs failed", len(failures))
+		}
+		utils.Info.Println(flagMessages.CheckAttribution.Success)
 	}
 
 	if f.ExtractFeatures {

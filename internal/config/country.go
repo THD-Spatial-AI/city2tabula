@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
 
 // isoByCountry maps the normalized TABULA country name (value of COUNTRY env var)
 // to its ISO 3166-1 alpha-2 code. Only countries with TABULA data are supported.
@@ -25,6 +29,12 @@ var isoByCountry = map[string]string{
 	"spain":          "ES",
 	"sweden":         "SE",
 	"united_kingdom": "GB",
+}
+
+// SupportedCountries returns the normalized name of every country with TABULA
+// data, sorted.
+func SupportedCountries() []string {
+	return slices.Sorted(maps.Keys(isoByCountry))
 }
 
 // CountryCode returns the ISO 3166-1 alpha-2 code for the given normalized

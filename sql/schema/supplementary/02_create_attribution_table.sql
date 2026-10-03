@@ -19,5 +19,11 @@ CREATE TABLE {city2tabula_schema}.dataset_attribution (
     -- Folder the row was last read from, relative to the working directory.
     source_path TEXT        NOT NULL,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Last URL check (-check-attribution or the server's schedule). NULL until a
+    -- check has run, and reset when a URL changes. url_check_failures maps each
+    -- failing URL to its error; a failure never stops the dataset being served.
+    url_checked_at     TIMESTAMPTZ,
+    url_check_ok       BOOLEAN,
+    url_check_failures JSONB
 );

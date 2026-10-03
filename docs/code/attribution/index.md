@@ -54,6 +54,18 @@ To correct a credit, edit the file and run `c2t -sync-attribution`. It re-reads 
 | `source_path` | Folder the row was last read from |
 | `inserted_at` | When the row was first written |
 | `updated_at` | When the row's content last changed |
+| `url_checked_at` | When its URLs were last checked; `NULL` until a check has run |
+| `url_check_ok` | Whether every URL answered at that check |
+| `url_check_failures` | Each failing URL mapped to its error, as JSON; `NULL` when every URL answered |
+
+## Checking the URLs
+
+A credit pointing at a dead page fails its purpose, so the stored URLs (`licence_url`, `credit_url`, `terms_url`) are checked and the result is recorded on each row. A URL passes when it answers with a status below 400 after redirects, asked with `HEAD` and, if that fails, with `GET`. Each check has a 15 second timeout, and a URL shared by several datasets is requested once. The check reads only the status, so a site that answers every path with 200, as some single-page portals do, passes even for a page that no longer exists.
+
+- `c2t -check-attribution` checks the database of the configured `COUNTRY`, prints each failing URL and exits with status 1 if any failed.
+- The server checks every country database it serves when it starts and then every `ATTRIBUTION_CHECK_INTERVAL`, a duration such as `168h` (the default, weekly); `0` disables the scheduled check. Each failure is logged as a warning.
+
+A failed URL never stops a dataset being imported or served. Editing a URL in `attribution.json` and running `-sync-attribution` clears that row's check result, since it described the old URL.
 
 ## Validation errors
 

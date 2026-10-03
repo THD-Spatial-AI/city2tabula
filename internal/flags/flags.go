@@ -3,18 +3,19 @@ package flags
 import "flag"
 
 type Flags struct {
-	CreateDB        bool
-	ResetDB         bool
-	ImportData      bool
-	ResetC2T        bool
-	ExtractFeatures bool
-	SyncAttribution bool
-	LinkPylovo      bool
-	Relink          bool
-	ShowVersion     bool
-	ShowV           bool
-	Bbox            string
-	BboxMode        string
+	CreateDB         bool
+	ResetDB          bool
+	ImportData       bool
+	ResetC2T         bool
+	ExtractFeatures  bool
+	SyncAttribution  bool
+	CheckAttribution bool
+	LinkPylovo       bool
+	Relink           bool
+	ShowVersion      bool
+	ShowV            bool
+	Bbox             string
+	BboxMode         string
 }
 
 func ParseFlags() *Flags {
@@ -25,6 +26,7 @@ func ParseFlags() *Flags {
 	flag.BoolVar(&f.ResetC2T, "reset-city2tabula", false, "Reset only City2TABULA schemas (preserve CityDB)")
 	flag.BoolVar(&f.ExtractFeatures, "extract-features", false, "Run the feature extraction pipeline over buildings not yet processed. Safe to re-run; already-processed buildings are skipped")
 	flag.BoolVar(&f.SyncAttribution, "sync-attribution", false, "Re-read every dataset folder's attribution.json and the TABULA one, and update the dataset_attribution rows without re-importing. Runs before -extract-features when both are given")
+	flag.BoolVar(&f.CheckAttribution, "check-attribution", false, "Check that every stored attribution URL answers, record the result on each dataset_attribution row, print the failures and exit 1 if any failed")
 	flag.BoolVar(&f.LinkPylovo, "link-pylovo", false, "Link 3D buildings to PyLovo res/oth via IoU spatial join (requires -extract-features to have run first)")
 	flag.BoolVar(&f.Relink, "relink", false, "With -link-pylovo, also re-link buildings that already have a building_link row, e.g. after the PyLovo data changed")
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
@@ -48,6 +50,7 @@ type ResetC2TMsg Msg
 type ExtractFeaturesMsg Msg
 type LinkPylovoMsg Msg
 type SyncAttributionMsg Msg
+type CheckAttributionMsg Msg
 type ImportDataMsg Msg
 
 // Define messages for each flag
@@ -117,6 +120,11 @@ var (
 		Success:  "Dataset attribution synced",
 		Error:    "Failed to sync dataset attribution",
 	}
+	CheckAttributionMessages = CheckAttributionMsg{
+		Progress: "Checking attribution URLs...",
+		Success:  "Every attribution URL answered",
+		Error:    "Failed to check attribution URLs",
+	}
 	ImportDataMessages = ImportDataMsg{
 		Progress: "Importing data into existing CityDB schemas...",
 		Success:  "Data imported successfully",
@@ -126,21 +134,23 @@ var (
 
 // Define a struct to hold all messages for easy access
 type Messages struct {
-	CreateDB        CreateDBMsg
-	ResetDB         ResetDBMsg
-	ResetC2T        ResetC2TMsg
-	ExtractFeatures ExtractFeaturesMsg
-	LinkPylovo      LinkPylovoMsg
-	SyncAttribution SyncAttributionMsg
-	ImportData      ImportDataMsg
+	CreateDB         CreateDBMsg
+	ResetDB          ResetDBMsg
+	ResetC2T         ResetC2TMsg
+	ExtractFeatures  ExtractFeaturesMsg
+	LinkPylovo       LinkPylovoMsg
+	SyncAttribution  SyncAttributionMsg
+	CheckAttribution CheckAttributionMsg
+	ImportData       ImportDataMsg
 }
 
 var AllMessages = Messages{
-	CreateDB:        CreateDBMessages,
-	ResetDB:         ResetDBMessages,
-	ResetC2T:        ResetC2TMessages,
-	ExtractFeatures: ExtractFeaturesMessages,
-	LinkPylovo:      LinkPylovoMessages,
-	SyncAttribution: SyncAttributionMessages,
-	ImportData:      ImportDataMessages,
+	CreateDB:         CreateDBMessages,
+	ResetDB:          ResetDBMessages,
+	ResetC2T:         ResetC2TMessages,
+	ExtractFeatures:  ExtractFeaturesMessages,
+	LinkPylovo:       LinkPylovoMessages,
+	SyncAttribution:  SyncAttributionMessages,
+	CheckAttribution: CheckAttributionMessages,
+	ImportData:       ImportDataMessages,
 }
