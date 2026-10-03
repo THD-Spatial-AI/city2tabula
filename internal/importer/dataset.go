@@ -152,6 +152,10 @@ func SyncAttribution(ctx context.Context, conn *pgxpool.Pool, cfg *config.Config
 	if err != nil {
 		return 0, err
 	}
+	if tabula.DatasetID != attribution.TabulaDatasetID {
+		return 0, fmt.Errorf("%s: dataset_id is %q, want %q",
+			filepath.Join(cfg.Data.Tabula, attribution.FileName), tabula.DatasetID, attribution.TabulaDatasetID)
+	}
 	datasets = append(datasets, Dataset{Dir: cfg.Data.Tabula, Attribution: tabula})
 
 	tx, err := conn.Begin(ctx)

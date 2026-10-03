@@ -17,6 +17,7 @@ import (
 // actually wants to render it.
 type Building struct {
 	ObjectID          string    `json:"object_id"`
+	DatasetID         string    `json:"dataset_id"`
 	OSMID             string    `json:"osm_id"`
 	MatchType         int16     `json:"match_type"`
 	MinHeight         *float64  `json:"min_height,omitempty"`
@@ -78,7 +79,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 
 	q := fmt.Sprintf(`
 		SELECT
-			b.object_id, bl.osm_id, bl.match_type,
+			b.object_id, b.dataset_id, bl.osm_id, bl.match_type,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
 			b.tabula_variant_code
@@ -111,7 +112,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, bbox Bbox) ([]Building, error) {
 	q := fmt.Sprintf(`
 		SELECT
-			b.object_id, '', 0,
+			b.object_id, b.dataset_id, '', 0,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
 			b.tabula_variant_code
@@ -141,7 +142,7 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 // named because a database built by an earlier release has columns added to
 // its lod2_ tables that its lod3_ tables lack, so SELECT * cannot be unioned.
 const (
-	buildingColumns = "object_id, country_code, min_height, max_height, room_height, number_of_storeys, " +
+	buildingColumns = "object_id, country_code, dataset_id, min_height, max_height, room_height, number_of_storeys, " +
 		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, building_footprint_geom"
 	surfaceColumns = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, geom"
 )
@@ -159,7 +160,7 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 	for rows.Next() {
 		var b Building
 		if err := rows.Scan(
-			&b.ObjectID, &b.OSMID, &b.MatchType,
+			&b.ObjectID, &b.DatasetID, &b.OSMID, &b.MatchType,
 			&b.MinHeight, &b.MaxHeight, &b.RoomHeight, &b.NumberOfStoreys,
 			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.FloorAreaSqm,
 			&b.TabulaVariantCode,
@@ -233,6 +234,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 // visualization consumer, so it's not bundled into every buildings query.
 type BuildingGeometry struct {
 	ObjectID         string          `json:"object_id"`
+	DatasetID        string          `json:"dataset_id"`
 	FootprintGeoJSON json.RawMessage `json:"footprint_geojson,omitempty"`
 	// Surfaces is populated only when the caller asks for it, since a single
 	// building can carry a few hundred faces and most callers want the
@@ -262,7 +264,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 	}
 
 	q := fmt.Sprintf(`
-		SELECT object_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
+		SELECT object_id, dataset_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
 		FROM %s b
 		WHERE country_code = $1 AND object_id = ANY($2)`,
 		allLODs(cfg, "building", buildingColumns),
@@ -278,7 +280,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 	for rows.Next() {
 		var g BuildingGeometry
 		var footprintGeoJSON string
-		if err := rows.Scan(&g.ObjectID, &footprintGeoJSON); err != nil {
+		if err := rows.Scan(&g.ObjectID, &g.DatasetID, &footprintGeoJSON); err != nil {
 			return nil, fmt.Errorf("failed to scan building geometry row: %w", err)
 		}
 		// Empty string (no geometry) stays nil, not an empty-but-non-nil
