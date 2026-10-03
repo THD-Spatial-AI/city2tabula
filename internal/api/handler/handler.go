@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 )
@@ -155,7 +156,7 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 
 	cfg, pool, err := h.srv.PoolFor(country)
 	if errors.Is(err, db.ErrCountryNotConfigured) {
-		writeJSON(w, http.StatusOK, []onrequest.Building{})
+		writeJSON(w, http.StatusOK, buildingsResponse{Buildings: []onrequest.Building{}, Attributions: []onrequest.DatasetCredit{}})
 		return
 	}
 	if err != nil {
@@ -176,8 +177,31 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	credits, err := onrequest.CreditsFor(r.Context(), pool, cfg, onrequest.BuildingDatasetIDs(buildings))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if buildings == nil {
+		buildings = []onrequest.Building{}
+	}
 
-	writeJSON(w, http.StatusOK, buildings)
+	writeJSON(w, http.StatusOK, buildingsResponse{Buildings: buildings, Attributions: credits})
+}
+
+// buildingsResponse is the body of GET /api/v1/buildings: the buildings and the
+// credit of every dataset they come from, TABULA included when a TABULA type is
+// returned.
+type buildingsResponse struct {
+	Buildings    []onrequest.Building      `json:"buildings"`
+	Attributions []onrequest.DatasetCredit `json:"attributions"`
+}
+
+// geometryResponse is the body of GET /api/v1/geometry: the geometries and the
+// credit of every dataset they come from.
+type geometryResponse struct {
+	Buildings    []onrequest.BuildingGeometry `json:"buildings"`
+	Attributions []onrequest.DatasetCredit    `json:"attributions"`
 }
 
 // Geometry handles GET /api/v1/geometry?country=..&object_ids=a,b,c — footprint
@@ -216,7 +240,7 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 
 	cfg, pool, err := h.srv.PoolFor(country)
 	if errors.Is(err, db.ErrCountryNotConfigured) {
-		writeJSON(w, http.StatusOK, []onrequest.BuildingGeometry{})
+		writeJSON(w, http.StatusOK, geometryResponse{Buildings: []onrequest.BuildingGeometry{}, Attributions: []onrequest.DatasetCredit{}})
 		return
 	}
 	if err != nil {
@@ -231,8 +255,50 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	credits, err := onrequest.CreditsFor(r.Context(), pool, cfg, onrequest.GeometryDatasetIDs(geometry))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if geometry == nil {
+		geometry = []onrequest.BuildingGeometry{}
+	}
 
-	writeJSON(w, http.StatusOK, geometry)
+	writeJSON(w, http.StatusOK, geometryResponse{Buildings: geometry, Attributions: credits})
+}
+
+// attributionsResponse is the body of GET /api/v1/attributions.
+type attributionsResponse struct {
+	Attributions []onrequest.AttributionStatus `json:"attributions"`
+}
+
+// Attributions handles GET /api/v1/attributions[?country=..]: every dataset's
+// credit with its last URL check, for one country or, without country, for
+// every country this server serves. A country without a database lists nothing.
+func (h *Handler) Attributions(w http.ResponseWriter, r *http.Request) {
+	countries := config.SupportedCountries()
+	if country := r.URL.Query().Get("country"); country != "" {
+		countries = []string{country}
+	}
+
+	out := []onrequest.AttributionStatus{}
+	for _, country := range countries {
+		cfg, pool, err := h.srv.PoolFor(country)
+		if errors.Is(err, db.ErrCountryNotConfigured) {
+			continue
+		}
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		statuses, err := onrequest.AttributionStatuses(r.Context(), pool, cfg)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		out = append(out, statuses...)
+	}
+	writeJSON(w, http.StatusOK, attributionsResponse{Attributions: out})
 }
 
 // maxSurfaceBuildings caps how many buildings one include=surfaces request may

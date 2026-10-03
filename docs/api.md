@@ -22,6 +22,8 @@ The interactive reference lives in its own standalone page, [`openapi/index.html
 | 4 | `GET /api/v1/buildings` | Building + surface attributes, once data exists. |
 | 5 | `GET /api/v1/geometry` | Footprint geometry, only if something needs to render it. |
 
+`GET /api/v1/attributions` lists every dataset's credit with its URL check status, outside this workflow.
+
 `buildings` and `geometry` are separate endpoints because a calculation consumer needs no geometry. Splitting them keeps geometry out of responses that will not use it.
 
 ## Health check
@@ -120,7 +122,10 @@ By PyLovo OSM id, once a link exists:
 curl "http://localhost:5000/api/v1/buildings?country=germany&osm_ids=123456,789012"
 ```
 
-Each building's `surfaces` array carries per-element area/azimuth/tilt.
+The response is `{"buildings": [...], "attributions": [...]}`. Each building's `surfaces` array carries per-element area/azimuth/tilt, and its `dataset_id` names the source dataset. `attributions` holds the credit of every dataset in `buildings`, plus TABULA's when any building has a `tabula_variant_code`.
+
+!!! warning "Show the credits"
+    The source datasets' licences require their credit wherever data derived from them is shown or passed on. Display each entry's `credit` (linked to `credit_url` when present) with the data, and state `changes`.
 
 !!! warning "Tilt convention"
     `tilt` here is 0=vertical wall, 90=flat roof, the opposite of the common building-energy convention (0=horizontal roof, 90=vertical wall). Invert before feeding it to a consumer that expects that convention.
@@ -141,7 +146,9 @@ sequenceDiagram
     DB-->>S: building rows
     S->>DB: batch-fetch surfaces for the returned object_ids
     DB-->>S: surface rows
-    S-->>C: 200 [{object_id, osm_id, match_type, ..., surfaces: [...]}]
+    S->>DB: credits for the datasets returned
+    DB-->>S: dataset_attribution rows
+    S-->>C: 200 {buildings: [{object_id, dataset_id, osm_id, ..., surfaces}], attributions: [...]}
 ```
 
 `osm_ids` takes precedence if both are present in the query string.
@@ -161,5 +168,15 @@ sequenceDiagram
     C->>S: GET /api/v1/geometry?country&object_ids=a,b,c
     S->>DB: select footprint geometry for object_ids
     DB-->>S: geometry rows (GeoJSON)
-    S-->>C: 200 [{object_id, footprint_geojson}]
+    S->>DB: credits for the datasets returned
+    DB-->>S: dataset_attribution rows
+    S-->>C: 200 {buildings: [{object_id, dataset_id, footprint_geojson}], attributions: [...]}
 ```
+
+## Reading attribution
+
+```bash
+curl "http://localhost:5000/api/v1/attributions?country=germany"
+```
+
+Without `country`, every country with a database is listed. Each entry is a dataset's credit with `country`, `url_checked_at`, `url_check_ok` and `url_check_failures` (each failing URL mapped to its error). The check fields are `null` until a URL check has run; [Dataset attribution file](code/attribution/index.md#checking-the-urls) describes when it runs. A failed check never withholds data.

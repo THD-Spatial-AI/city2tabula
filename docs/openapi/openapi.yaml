@@ -182,15 +182,19 @@ paths:
         - $ref: "#/components/parameters/Ymax"
       responses:
         "200":
-          description: Matching buildings (empty array if none)
+          description: Matching buildings and the credit of every dataset they come from (both empty if none matched)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Building"
+                $ref: "#/components/schemas/BuildingsResponse"
         "400":
           description: Missing country, or neither osm_ids nor a full bbox given
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database query failed, or a returned dataset has no stored credit. Not retryable until the database is fixed (run `c2t -sync-attribution` for a missing credit).
           content:
             application/json:
               schema:
@@ -215,15 +219,60 @@ paths:
           example: "DEHB01AL3AU0004T,DEHB01ALf0000SC4"
       responses:
         "200":
-          description: Footprint geometry per building (empty array if none matched)
+          description: Footprint geometry per building and the credit of every dataset it comes from (both empty if none matched)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BuildingGeometry"
+                $ref: "#/components/schemas/GeometryResponse"
         "400":
           description: Missing country or object_ids
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database query failed, or a returned dataset has no stored credit. Not retryable until the database is fixed (run `c2t -sync-attribution` for a missing credit).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/attributions:
+    get:
+      summary: Dataset credits and their URL check status
+      operationId: getAttributions
+      description: |
+        Every source dataset's credit with the result of its last URL check, for
+        one country or, without `country`, for every country with a database.
+      parameters:
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Normalized country name; omit to list every country
+          example: germany
+      responses:
+        "200":
+          description: Datasets ordered by country, then dataset_id (empty if the country has no database)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [attributions]
+                properties:
+                  attributions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AttributionStatus"
+        "400":
+          description: Unknown country
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database query failed. Not retryable until the database is fixed.
           content:
             application/json:
               schema:
@@ -319,6 +368,90 @@ components:
           type: string
           description: Present only when status is `failed`
 
+    BuildingsResponse:
+      type: object
+      required: [buildings, attributions]
+      properties:
+        buildings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Building"
+        attributions:
+          type: array
+          description: One entry per dataset in `buildings`, plus TABULA when any building has a `tabula_variant_code`
+          items:
+            $ref: "#/components/schemas/DatasetCredit"
+
+    GeometryResponse:
+      type: object
+      required: [buildings, attributions]
+      properties:
+        buildings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildingGeometry"
+        attributions:
+          type: array
+          description: One entry per dataset in `buildings`
+          items:
+            $ref: "#/components/schemas/DatasetCredit"
+
+    DatasetCredit:
+      type: object
+      description: A source dataset's attribution. Show `credit` with any output derived from the dataset.
+      required: [dataset_id, provider, dataset, licence, licence_url, credit, changes]
+      properties:
+        dataset_id:
+          type: string
+          example: de-bavaria-lod2
+        provider:
+          type: string
+        dataset:
+          type: string
+        licence:
+          type: string
+          description: SPDX licence id, or LicenseRef-<id> for a licence not on the SPDX list
+          example: CC-BY-4.0
+        licence_url:
+          type: string
+        credit:
+          type: string
+          description: Credit line exactly as the provider requires it
+        credit_url:
+          type: string
+          description: Link the credit carries; absent when the provider names none
+        terms_url:
+          type: string
+          description: Provider's terms of use; absent when not separate from the licence
+        changes:
+          type: string
+          description: What City2TABULA does to the data
+
+    AttributionStatus:
+      allOf:
+        - $ref: "#/components/schemas/DatasetCredit"
+        - type: object
+          required: [country, url_checked_at, url_check_ok, url_check_failures]
+          properties:
+            country:
+              type: string
+              example: germany
+            url_checked_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Last URL check; null until a check has run
+            url_check_ok:
+              type: boolean
+              nullable: true
+              description: Whether every URL answered at that check
+            url_check_failures:
+              type: object
+              nullable: true
+              additionalProperties:
+                type: string
+              description: Each failing URL mapped to its error; null when every URL answered
+
     Building:
       type: object
       description: One LOD2 building's thematic 3D attributes, no geometry.
@@ -326,6 +459,9 @@ components:
         object_id:
           type: string
           description: Object id of the CityGML Building, never of one of its BuildingParts.
+        dataset_id:
+          type: string
+          description: Source dataset; its credit is in the response's `attributions`
         osm_id:
           type: string
           description: Empty when this result came from the bbox query mode
@@ -408,6 +544,9 @@ components:
         object_id:
           type: string
           description: Object id of the CityGML Building, never of one of its BuildingParts.
+        dataset_id:
+          type: string
+          description: Source dataset; its credit is in the response's `attributions`
         footprint_geojson:
           type: object
           nullable: true

@@ -4,21 +4,45 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/thd-spatial-ai/city2tabula/internal/api/handler"
+	"github.com/thd-spatial-ai/city2tabula/internal/api/router"
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
+	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 	"github.com/thd-spatial-ai/city2tabula/internal/testutil"
 )
 
+// getJSON requests url, requires status, and decodes the body into out unless
+// out is nil.
+func getJSON(t *testing.T, url string, status int, out any) {
+	t.Helper()
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != status {
+		t.Fatalf("GET %s: status %d, want %d", url, resp.StatusCode, status)
+	}
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			t.Fatalf("decode %s: %v", url, err)
+		}
+	}
+}
+
 // The server checks the attribution URLs of every country database it can
-// serve, records each row's result there, and skips countries without a
-// database rather than creating one.
+// serve, records each row's result there, skips countries without a database
+// rather than creating one, and lists the results at GET /api/v1/attributions.
 func TestServer_CheckAttributionURLs_RecordsPerCountryDatabase(t *testing.T) {
 	ctx := context.Background()
 	wd, err := os.Getwd()
@@ -56,7 +80,8 @@ func TestServer_CheckAttributionURLs_RecordsPerCountryDatabase(t *testing.T) {
 		t.Fatalf("seed dataset_attribution: %v", err)
 	}
 
-	server.New(base).CheckAttributionURLs(ctx, urls.Client())
+	srv := server.New(base)
+	srv.CheckAttributionURLs(ctx, urls.Client())
 
 	for id, want := range map[string]bool{"de-good-lod2": true, "de-bad-lod2": false} {
 		var ok *bool
@@ -68,6 +93,50 @@ func TestServer_CheckAttributionURLs_RecordsPerCountryDatabase(t *testing.T) {
 		if ok == nil || *ok != want {
 			t.Errorf("%s: url_check_ok = %v, want %v", id, ok, want)
 		}
+	}
+
+	// GET /api/v1/attributions lists both rows with their check result, for
+	// every country and for germany alone; a country without a database lists
+	// nothing and an unknown one is refused.
+	api := httptest.NewServer(router.New(handler.New(srv)))
+	defer api.Close()
+	for _, query := range []string{"", "?country=germany"} {
+		var body struct {
+			Attributions []struct {
+				Country          string            `json:"country"`
+				DatasetID        string            `json:"dataset_id"`
+				Credit           string            `json:"credit"`
+				URLCheckOK       *bool             `json:"url_check_ok"`
+				URLCheckedAt     *string           `json:"url_checked_at"`
+				URLCheckFailures map[string]string `json:"url_check_failures"`
+			} `json:"attributions"`
+		}
+		getJSON(t, api.URL+"/api/v1/attributions"+query, http.StatusOK, &body)
+		got := body.Attributions
+		if len(got) != 2 || got[0].DatasetID != "de-bad-lod2" || got[1].DatasetID != "de-good-lod2" {
+			t.Fatalf("attributions%s = %+v, want de-bad-lod2 and de-good-lod2", query, got)
+		}
+		bad, good := got[0], got[1]
+		if bad.Country != "germany" || bad.URLCheckOK == nil || *bad.URLCheckOK || bad.URLCheckFailures[urls.URL+"/missing"] == "" || bad.URLCheckedAt == nil {
+			t.Errorf("attributions%s de-bad-lod2 = %+v, want germany, failed, with the missing URL and a check time", query, bad)
+		}
+		if good.URLCheckOK == nil || !*good.URLCheckOK || good.URLCheckFailures != nil || good.Credit == "" {
+			t.Errorf("attributions%s de-good-lod2 = %+v, want passed, no failures, a credit", query, good)
+		}
+	}
+	var empty struct {
+		Attributions []any `json:"attributions"`
+	}
+	getJSON(t, api.URL+"/api/v1/attributions?country=netherlands", http.StatusOK, &empty)
+	if empty.Attributions == nil || len(empty.Attributions) != 0 {
+		t.Errorf("attributions for a country without a database = %v, want []", empty.Attributions)
+	}
+	getJSON(t, api.URL+"/api/v1/attributions?country=atlantis", http.StatusBadRequest, nil)
+
+	// Data is never served without its credit: a dataset with no row is an error.
+	if _, err := onrequest.CreditsFor(ctx, pool, &cfg, []string{"de-good-lod2", "tabula-episcope"}); err == nil ||
+		!strings.Contains(err.Error(), "-sync-attribution") {
+		t.Errorf("CreditsFor with a dataset lacking a row: %v, want an error pointing at -sync-attribution", err)
 	}
 
 	nl, err := config.RegionConfig(base, "netherlands")
