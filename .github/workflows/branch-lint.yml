@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Validate branch name
