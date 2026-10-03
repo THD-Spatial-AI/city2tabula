@@ -5,7 +5,7 @@
 --   2. owner_interior_pts -> one interior point per solid (from GroundSurface)
 --   3. raw_surfaces -> one row per polygon face
 --   4. surface_points -> explode polygon to 3D vertices (ST_DumpPoints)
---   5. surface_edges -> pair each vertex with its LEAD successor
+--   5. surface_edges -> pair each vertex with its LEAD successor in its ring
 --   6. surface_normals -> Newell's method: accumulate edge-pair cross-products
 --   7. oriented_normals -> dot-product flip to enforce outward-facing normal
 --   8. normalized_normals -> per-class flip rules + unit normalisation
@@ -70,20 +70,22 @@ surface_points AS (
   SELECT
     *,
     (ST_DumpPoints(valid_geom)).geom AS point_geom,
+    (ST_DumpPoints(valid_geom)).path[1] AS ring_idx,
     (ST_DumpPoints(valid_geom)).path[2] AS pt_idx
   FROM raw_surfaces
 ),
 
 surface_edges AS (
-  -- LEAD pairs each vertex with its successor; the NULL for the last row is
-  -- filtered in surface_normals. The closing vertex (duplicate of the first)
-  -- provides the final edge back to the ring start automatically.
+  -- LEAD pairs each vertex with its successor in the same ring; the NULL for a
+  -- ring's last row is filtered in surface_normals. The closing vertex (duplicate
+  -- of the first) provides the final edge back to the ring start automatically.
+  -- pt_idx restarts in every ring, so a face with holes needs the ring partition.
   SELECT
     id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
     building_object_id, surface_object_id,
     objectclass_id, classname, valid_geom, is_planar,
     point_geom,
-    LEAD(point_geom) OVER (PARTITION BY id ORDER BY pt_idx) AS next_pt
+    LEAD(point_geom) OVER (PARTITION BY id, ring_idx ORDER BY pt_idx) AS next_pt
   FROM surface_points
 ),
 
