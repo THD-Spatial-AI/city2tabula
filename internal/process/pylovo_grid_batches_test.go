@@ -196,3 +196,23 @@ func TestGetGridBatches_SmallerGridProducesMoreCells(t *testing.T) {
 		t.Errorf("expected the small-grid union to cover all %d eligible buildings, got %d", len(want), len(got))
 	}
 }
+
+// A building whose footprint crosses a cell edge must still land in exactly one
+// batch: in two, it is linked twice by parallel workers writing the same
+// building_link row.
+func TestGetGridBatches_EachBuildingInOneBatch(t *testing.T) {
+	cfg, _ := setupCorrectionAuditFixture(t)
+	ctx := context.Background()
+
+	// 50 m cells over a dense tile, so many footprints cross a cell edge.
+	batches, err := process.GetGridBatches(testPool, cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, 50, 0, false)
+	if err != nil {
+		t.Fatalf("GetGridBatches: %v", err)
+	}
+
+	want := eligibleBuildingFeatureIDs(t, ctx)
+	if total := batchTotal(batches); total != len(want) || len(batchUnion(batches)) != len(want) {
+		t.Errorf("%d batch entries covering %d buildings, want %d entries covering %d",
+			total, len(batchUnion(batches)), len(want), len(want))
+	}
+}
