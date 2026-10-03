@@ -7,7 +7,7 @@
 --   4. surface_points -> explode polygon to 3D vertices (ST_DumpPoints)
 --   5. surface_edges -> pair each vertex with its LEAD successor
 --   6. surface_normals -> Newell's method: accumulate edge-pair cross-products
---   7. oriented_normals -> dot-product flip to enforce outward-facing normal
+--   7. oriented_normals -> flip walls whose normal points into their own footprint
 --   8. normalized_normals -> per-class flip rules + unit normalisation
 --   9. convergence_corrected -> placeholder for UTM meridian convergence (see Discussion)
 --   10. INSERT -> _surface_raw (length/width via surface_dimensions)
@@ -45,6 +45,14 @@ owner_interior_pts AS (
   WHERE building_feature_id IN (SELECT building_feature_id FROM new_buildings)
     AND classname = 'GroundSurface'
   GROUP BY owner_feature_id
+),
+
+owner_grounds AS (
+  -- Each solid's ground polygons, against which its walls are oriented.
+  SELECT owner_feature_id, ST_Force2D(geom) AS geom
+  FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump
+  WHERE building_feature_id IN (SELECT building_feature_id FROM new_buildings)
+    AND classname = 'GroundSurface'
 ),
 
 raw_surfaces AS (
@@ -116,27 +124,52 @@ surface_normals AS (
 ),
 
 oriented_normals AS (
-  -- Dot product of (centroid − interior_pt) with (nx, ny) determines whether
-  -- the horizontal normal points outward (≥ 0) or inward (< 0).
-  -- This corrects CW/CCW vertex winding differences across CityGML datasets:
-  -- opposite winding flips the cross-product 180°, swapping north↔south walls.
-  -- COALESCE to +1 when no GroundSurface interior point exists.
+  -- A wall's normal faces outward when a point 0.1 m from the wall's centre
+  -- along it lies outside its own solid's footprint and the point 0.1 m the
+  -- other way lies inside. This holds for concave footprints (L, U, notched),
+  -- where one interior point of the solid can sit beyond a wall and flip it
+  -- inward. It corrects CW/CCW vertex winding differences across datasets.
+  -- When neither or both points fall inside (a wall off its footprint's edge,
+  -- or a solid without a GroundSurface), the dot product of
+  -- (centroid - interior_pt) with (nx, ny) decides, and +1 without an
+  -- interior point.
   SELECT
     n.*,
-    COALESCE(
-      CASE
-        WHEN (
-            (ST_X(ST_Centroid(ST_Force2D(n.valid_geom))) - ST_X(bp.interior_pt))
-              * (n.n_x / NULLIF(n.cross_magnitude, 0))
-          + (ST_Y(ST_Centroid(ST_Force2D(n.valid_geom))) - ST_Y(bp.interior_pt))
-              * (n.n_y / NULLIF(n.cross_magnitude, 0))
-        ) >= 0 THEN 1.0
-        ELSE -1.0
-      END,
-      1.0
-    ) AS surface_flip
+    CASE
+      WHEN side.ahead AND NOT side.behind THEN -1.0
+      WHEN side.behind AND NOT side.ahead THEN 1.0
+      ELSE COALESCE(
+        CASE
+          WHEN (
+              (ST_X(ST_Centroid(ST_Force2D(n.valid_geom))) - ST_X(bp.interior_pt))
+                * (n.n_x / NULLIF(n.cross_magnitude, 0))
+            + (ST_Y(ST_Centroid(ST_Force2D(n.valid_geom))) - ST_Y(bp.interior_pt))
+                * (n.n_y / NULLIF(n.cross_magnitude, 0))
+          ) >= 0 THEN 1.0
+          ELSE -1.0
+        END,
+        1.0
+      )
+    END AS surface_flip
   FROM surface_normals n
   LEFT JOIN owner_interior_pts bp ON bp.owner_feature_id = n.owner_feature_id
+  LEFT JOIN LATERAL (
+    SELECT
+      EXISTS (SELECT 1 FROM owner_grounds g
+              WHERE g.owner_feature_id = n.owner_feature_id
+                AND ST_Intersects(g.geom, ST_Translate(o.c, 0.1 * o.ux, 0.1 * o.uy))) AS ahead,
+      EXISTS (SELECT 1 FROM owner_grounds g
+              WHERE g.owner_feature_id = n.owner_feature_id
+                AND ST_Intersects(g.geom, ST_Translate(o.c, -0.1 * o.ux, -0.1 * o.uy))) AS behind
+    FROM (
+      -- Unit horizontal normal; NULL for a horizontal face, which then falls
+      -- through to the dot product. Only walls use surface_flip.
+      SELECT ST_Centroid(ST_Force2D(n.valid_geom)) AS c,
+             n.n_x / NULLIF(sqrt(n.n_x * n.n_x + n.n_y * n.n_y), 0) AS ux,
+             n.n_y / NULLIF(sqrt(n.n_x * n.n_x + n.n_y * n.n_y), 0) AS uy
+      WHERE n.classname = 'WallSurface'
+    ) o
+  ) side ON TRUE
 ),
 
 normalized_normals AS (
