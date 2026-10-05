@@ -8,7 +8,7 @@
 --        -> footprint_area, footprint_complexity, building_centroid_geom,
 --           min_volume, max_volume, area_total_floor recompute (mirrors scripts 04-06)
 --   2. any of those recomputed columns changes
---        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors script 07)
+--        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors sql/scripts/post/02_label_buildings.sql)
 -- Step 2 fires automatically after step 1's UPDATE, because Postgres re-evaluates
 -- "AFTER UPDATE OF <cols>" triggers on every UPDATE statement that touches those
 -- columns, including ones issued from inside another trigger's function body.
@@ -45,20 +45,21 @@
 -- Deliberately out of scope here:
 --   - min_height / max_height: derived from wall/roof surface heights, not
 --     something correctable from a footprint, storeys, or room-height edit.
---   - has_attached_neighbour / attached_neighbour_*: neighbour detection isn't
---     implemented yet (still placeholder values from script 04), so there is nothing
---     real to invalidate. Add a trigger once that pipeline exists.
+--   - has_attached_neighbour / attached_neighbour_*: a footprint edit does not
+--     re-run neighbour detection (sql/scripts/post/01_detect_neighbours.sql) for the
+--     building or its neighbours. Editing attached_neighbour_class directly does
+--     re-match the variant (trigger 2).
 --   - Deleting a building row: no other row currently depends on it, so a plain
 --     DELETE needs no trigger.
 --
 -- Operational note: these triggers only matter once corrections start, which is
 -- always after -extract-features has already populated the tables. Bulk extraction
--- (scripts 04-07) writes the exact same watched columns these triggers watch, so
+-- (scripts 04-06 and sql/scripts/post/) writes the exact same watched columns these triggers watch, so
 -- if the triggers were enabled during that run, every row would get redundantly
 -- recomputed a second time, correctly but wastefully at 100k+ building scale, plus
 -- the extra lock activity across concurrent workers risks deadlock retries. The
 -- fifth (updated_at) trigger has its own reason to stay off during bulk extraction:
--- scripts 05-07 each UPDATE every row, so if it were enabled then, updated_at would
+-- scripts 05-06 and the post scripts each UPDATE every row, so if it were enabled then, updated_at would
 -- already differ from created_at before any real correction ever happened, and the
 -- "has this row been hand-corrected" signal would be worthless.
 -- All five triggers are therefore created DISABLED below and stay that way through
@@ -129,7 +130,7 @@ ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
 
 -- Re-matches the closest TABULA variant using the same normalised-Euclidean-distance
--- method as script 07, scoped to one building instead of the whole table. Stats
+-- method as post/02_label_buildings.sql, scoped to one building instead of the whole table. Stats
 -- (min/max per dimension) are still computed over the full buildings+variants table,
 -- so a single-row edit is judged against the same scale as the original bulk match.
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match()
@@ -150,19 +151,22 @@ BEGIN
             MIN(number_of_storeys) AS min_storeys, MAX(number_of_storeys) AS max_storeys,
             MIN(footprint_complexity) AS min_fc, MAX(footprint_complexity) AS max_fc,
             MIN(roof_complexity) AS min_rc, MAX(roof_complexity) AS max_rc,
+            MIN(attached_class) AS min_ac, MAX(attached_class) AS max_ac,
             MIN(area_total_roof) AS min_roof, MAX(area_total_roof) AS max_roof,
             MIN(area_total_wall) AS min_wall, MAX(area_total_wall) AS max_wall,
             MIN(area_total_floor) AS min_floor, MAX(area_total_floor) AS max_floor
         FROM (
             SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-                   roof_complexity, area_total_roof, area_total_wall, area_total_floor
+                   roof_complexity, attached_neighbour_class AS attached_class,
+                   area_total_roof, area_total_wall, area_total_floor
             FROM {city2tabula_schema}.{lod_schema}_building
             WHERE footprint_area IS NOT NULL AND number_of_storeys IS NOT NULL
               AND area_total_roof IS NOT NULL AND area_total_wall IS NOT NULL
               AND area_total_floor IS NOT NULL
             UNION ALL
             SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-                   roof_complexity, area_total_roof, area_total_wall, area_total_floor
+                   roof_complexity, NULLIF(attached_neighbour_class, -1),
+                   area_total_roof, area_total_wall, area_total_floor
             FROM {city2tabula_schema}.tabula_variant
             WHERE max_volume IS NOT NULL AND footprint_area IS NOT NULL
               AND number_of_storeys IS NOT NULL AND area_total_roof IS NOT NULL
@@ -187,6 +191,8 @@ BEGIN
               COALESCE(((v.footprint_complexity - s.min_fc) / NULLIF(s.max_fc - s.min_fc, 0)), 0), 2) +
         power(COALESCE(((NEW.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0) -
               COALESCE(((v.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0), 2) +
+        COALESCE(power(((NEW.attached_neighbour_class - s.min_ac)::numeric / NULLIF(s.max_ac - s.min_ac, 0)) -
+                       ((NULLIF(v.attached_neighbour_class, -1) - s.min_ac)::numeric / NULLIF(s.max_ac - s.min_ac, 0)), 2), 0) +
         power(COALESCE(((NEW.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0) -
               COALESCE(((v.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0), 2) +
         power(COALESCE(((NEW.area_total_wall - s.min_wall) / NULLIF(s.max_wall - s.min_wall, 0)), 0) -
@@ -211,7 +217,7 @@ DROP TRIGGER IF EXISTS {lod_schema}_trg_variant_dims_change
     ON {city2tabula_schema}.{lod_schema}_building;
 CREATE TRIGGER {lod_schema}_trg_variant_dims_change
     AFTER UPDATE OF max_volume, footprint_area, number_of_storeys, footprint_complexity,
-        roof_complexity, area_total_roof, area_total_wall, area_total_floor
+        roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
     ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match();

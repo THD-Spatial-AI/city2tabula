@@ -100,14 +100,9 @@ COUNTRY=germany
 
 ## Running
 
-### Step 1: (Optional) Flag Attached Buildings
+### Step 1: Extract Features
 
-```bash
-python flag_attached_buildings.py --lod lod2 --tolerance 0.5
-```
-
-!!! tip
-    Run this before the notebook to enable the height accuracy split by `has_attached_neighbour` in Stage 3.5.
+Run `-extract-features` on the database first. It fills `has_attached_neighbour`, which Stage 3.5 uses to split height accuracy into standalone and attached buildings.
 
 ### Step 2: Execute the Notebook
 
@@ -373,7 +368,6 @@ Azimuth tail fractions (fraction of comparisons where |difference| > 1 RMSE) are
 | Building-level tilt (BW/Freiburg) not inherited to surfaces | By design: direct match only. Extending it requires a child/parent relation resolver to extend |
 | Netherlands 3D BAG validation | Blocked: LoD1 and LoD2 are combined and property feature IDs do not match extraction IDs |
 | Wall area inaccurate for PostGIS-invalid geometry | Known: the last-resort h×w approximation overestimates for degenerate polygons |
-| Neighbour detection not wired to main pipeline | Use `flag_attached_buildings.py` as standalone script |
 | No attached buildings in current datasets | Height RMSE split by attachment status cannot be evaluated until datasets with shared walls are tested |
 
 ---

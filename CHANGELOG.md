@@ -3,6 +3,20 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Breaking changes:
+- TABULA matching uses attached_neighbour_class as a ninth dimension,
+  so re-extracting an existing database changes the TABULA type of
+  some buildings (#13).
+
+Features:
+- -extract-features marks buildings that share a wall with another
+  building: has_attached_neighbour, attached_neighbour_id,
+  total_attached_neighbour and attached_neighbour_class are filled
+  instead of the fixed values used until now. TABULA matching runs once
+  after every batch instead of once per batch (#13).
+
 ## v0.8.0 (2026-10-03)
 
 Breaking changes:
