@@ -35,6 +35,17 @@ type buildingDims struct {
 	areaTotalWall       float64
 	areaTotalFloor      float64
 	numberOfStoreys     int
+	fullStoreys         int
+	atticStorey         bool
+	atticFloorArea      float64
+}
+
+// atticArea is the attic floor area that counts towards area_total_floor (script 06).
+func (d buildingDims) atticArea() float64 {
+	if d.atticStorey {
+		return d.atticFloorArea
+	}
+	return 0
 }
 
 func readBuildingDims(t *testing.T, ctx context.Context, buildingID string) buildingDims {
@@ -43,11 +54,11 @@ func readBuildingDims(t *testing.T, ctx context.Context, buildingID string) buil
 	if err := testPool.QueryRow(ctx, `
 		SELECT min_height, max_height, max_volume, footprint_area, footprint_complexity,
 		       roof_complexity, area_total_roof, area_total_wall, area_total_floor,
-		       number_of_storeys
+		       number_of_storeys, full_storeys, attic_storey, COALESCE(attic_floor_area, 0)
 		FROM city2tabula.lod2_building WHERE id = $1`, buildingID,
 	).Scan(&d.minHeight, &d.maxHeight, &d.maxVolume, &d.footprintArea, &d.footprintComplexity,
 		&d.roofComplexity, &d.areaTotalRoof, &d.areaTotalWall, &d.areaTotalFloor,
-		&d.numberOfStoreys); err != nil {
+		&d.numberOfStoreys, &d.fullStoreys, &d.atticStorey, &d.atticFloorArea); err != nil {
 		t.Fatalf("failed to read building dims for %s: %v", buildingID, err)
 	}
 	return d
@@ -101,10 +112,10 @@ func TestFootprintGeomTrigger_RecomputesDerivedAttributes(t *testing.T) {
 	if !almostEqual(maxVolume, wantMaxVolume) {
 		t.Errorf("expected max_volume = max_height(%v) * 100 = %v, got %v", before.maxHeight, wantMaxVolume, maxVolume)
 	}
-	wantAreaTotalFloor := round2(100.0 * float64(before.numberOfStoreys))
+	wantAreaTotalFloor := round2(100.0*float64(before.fullStoreys) + before.atticArea())
 	if !almostEqual(areaTotalFloor, wantAreaTotalFloor) {
-		t.Errorf("expected area_total_floor = 100 * number_of_storeys(%d) = %v, got %v",
-			before.numberOfStoreys, wantAreaTotalFloor, areaTotalFloor)
+		t.Errorf("expected area_total_floor = 100 * full_storeys(%d) + attic area = %v, got %v",
+			before.fullStoreys, wantAreaTotalFloor, areaTotalFloor)
 	}
 }
 
@@ -112,7 +123,7 @@ func TestFootprintGeomTrigger_RecomputesDerivedAttributes(t *testing.T) {
 // inserting a synthetic tabula_variant that exactly matches the building on every
 // dimension the matching formula uses (copying the building's own current values for
 // max_volume/footprint_complexity/roof_complexity/area_total_roof/area_total_wall,
-// then setting the building's footprint_area/number_of_storeys/area_total_floor to the
+// then setting the building's footprint_area/full_storeys/area_total_floor to the
 // same distinctive numbers used on the synthetic row). Distance to that variant is then
 // exactly 0 — the unambiguous nearest match — so the rematch can be checked against a
 // known tabula_variant_code_id instead of just "did it change".
@@ -144,7 +155,7 @@ func TestVariantDimsTrigger_RematchesToNearestVariant(t *testing.T) {
 
 	if _, err := testPool.Exec(ctx, `
 		UPDATE city2tabula.lod2_building
-		SET footprint_area = $1, number_of_storeys = $2, area_total_floor = $3
+		SET footprint_area = $1, full_storeys = $2, area_total_floor = $3
 		WHERE id = $4`,
 		syntheticFootprintArea, syntheticStoreys, syntheticFloorArea, buildingID,
 	); err != nil {
@@ -162,13 +173,12 @@ func TestVariantDimsTrigger_RematchesToNearestVariant(t *testing.T) {
 	}
 }
 
-// TestRoomHeightTrigger_CascadesToStoreysAndFloorArea drives trg_room_height_change by
-// setting room_height = min_height / 3, so the recomputed number_of_storeys lands
-// exactly on 3 (mod float noise) — checkable against a known value. It also verifies
-// the cascade into trg_storeys_change: area_total_floor recomputes from the new storey
-// count, and room_height settles back close to the value just set (the trigger chain's
-// self-check, not an infinite loop — see 03_create_correction_triggers.sql).
-func TestRoomHeightTrigger_CascadesToStoreysAndFloorArea(t *testing.T) {
+// TestStoreyHeightTrigger_CascadesToStoreysAndFloorArea drives trg_storey_height_change
+// by setting storey_height = min_height / 3, so full_storeys lands on 3. It also checks
+// the cascade into trg_storeys_change: area_total_floor recomputes from the new count,
+// and storey_height settles back on min_height / 3 (the trigger chain's self-check, not
+// an infinite loop; see 03_create_correction_triggers.sql).
+func TestStoreyHeightTrigger_CascadesToStoreysAndFloorArea(t *testing.T) {
 	_, buildingID := setupCorrectionAuditFixture(t)
 	ctx := context.Background()
 
@@ -177,44 +187,43 @@ func TestRoomHeightTrigger_CascadesToStoreysAndFloorArea(t *testing.T) {
 		t.Fatalf("fixture building has non-positive min_height (%v); can't drive this trigger", before.minHeight)
 	}
 
-	const wantStoreys = 3
-	newRoomHeight := before.minHeight / wantStoreys
-
+	const wantFull = 3
 	if _, err := testPool.Exec(ctx,
-		`UPDATE city2tabula.lod2_building SET room_height = $1 WHERE id = $2`,
-		newRoomHeight, buildingID,
+		`UPDATE city2tabula.lod2_building SET storey_height = $1 WHERE id = $2`,
+		before.minHeight/wantFull, buildingID,
 	); err != nil {
-		t.Fatalf("failed to apply room_height correction: %v", err)
+		t.Fatalf("failed to apply storey_height correction: %v", err)
 	}
 
-	var gotStoreys int
-	var gotRoomHeight, gotAreaTotalFloor float64
+	after := readBuildingDims(t, ctx, buildingID)
+	var gotStoreyHeight float64
 	if err := testPool.QueryRow(ctx,
-		`SELECT number_of_storeys, room_height, area_total_floor FROM city2tabula.lod2_building WHERE id = $1`,
-		buildingID,
-	).Scan(&gotStoreys, &gotRoomHeight, &gotAreaTotalFloor); err != nil {
-		t.Fatalf("failed to read cascaded building: %v", err)
+		`SELECT storey_height FROM city2tabula.lod2_building WHERE id = $1`, buildingID,
+	).Scan(&gotStoreyHeight); err != nil {
+		t.Fatalf("failed to read storey_height: %v", err)
 	}
 
-	if gotStoreys != wantStoreys {
-		t.Errorf("expected number_of_storeys = round(min_height/room_height) = %d, got %d", wantStoreys, gotStoreys)
+	wantStoreys := wantFull
+	if before.atticStorey {
+		wantStoreys++
 	}
-	wantRoomHeight := round2(before.minHeight / float64(wantStoreys))
-	if !almostEqual(gotRoomHeight, wantRoomHeight) {
-		t.Errorf("expected room_height settled back to min_height/number_of_storeys = %v, got %v", wantRoomHeight, gotRoomHeight)
+	if after.fullStoreys != wantFull || after.numberOfStoreys != wantStoreys {
+		t.Errorf("expected full_storeys %d and number_of_storeys %d, got %d and %d",
+			wantFull, wantStoreys, after.fullStoreys, after.numberOfStoreys)
 	}
-	wantAreaTotalFloor := round2(before.footprintArea * float64(wantStoreys))
-	if !almostEqual(gotAreaTotalFloor, wantAreaTotalFloor) {
-		t.Errorf("expected area_total_floor = footprint_area * number_of_storeys = %v, got %v", wantAreaTotalFloor, gotAreaTotalFloor)
+	if want := round2(before.minHeight / wantFull); !almostEqual(gotStoreyHeight, want) {
+		t.Errorf("expected storey_height settled at min_height/full_storeys = %v, got %v", want, gotStoreyHeight)
+	}
+	if want := round2(before.footprintArea*wantFull + before.atticArea()); !almostEqual(after.areaTotalFloor, want) {
+		t.Errorf("expected area_total_floor = footprint_area * full_storeys + attic area = %v, got %v", want, after.areaTotalFloor)
 	}
 }
 
-// TestStoreysTrigger_CascadesToRoomHeightAndFloorArea drives trg_storeys_change by
-// editing number_of_storeys directly (the mirror image of the room_height-edit case
-// above), and verifies min_height = room_height * number_of_storeys holds from this
-// side too: room_height and area_total_floor both recompute, and number_of_storeys
-// itself survives the room_height-trigger's own round-trip unchanged.
-func TestStoreysTrigger_CascadesToRoomHeightAndFloorArea(t *testing.T) {
+// TestStoreysTrigger_CascadesToStoreyHeightAndFloorArea drives trg_storeys_change by
+// editing number_of_storeys directly (the mirror image of the storey_height edit
+// above). The attic storey is geometric, so the edit lands on full_storeys, and
+// min_height = storey_height * full_storeys holds from this side too.
+func TestStoreysTrigger_CascadesToStoreyHeightAndFloorArea(t *testing.T) {
 	_, buildingID := setupCorrectionAuditFixture(t)
 	ctx := context.Background()
 
@@ -224,7 +233,6 @@ func TestStoreysTrigger_CascadesToRoomHeightAndFloorArea(t *testing.T) {
 	}
 
 	wantStoreys := before.numberOfStoreys + 1 // guaranteed different from baseline
-
 	if _, err := testPool.Exec(ctx,
 		`UPDATE city2tabula.lod2_building SET number_of_storeys = $1 WHERE id = $2`,
 		wantStoreys, buildingID,
@@ -232,25 +240,26 @@ func TestStoreysTrigger_CascadesToRoomHeightAndFloorArea(t *testing.T) {
 		t.Fatalf("failed to apply number_of_storeys correction: %v", err)
 	}
 
-	var gotStoreys int
-	var gotRoomHeight, gotAreaTotalFloor float64
+	after := readBuildingDims(t, ctx, buildingID)
+	var gotStoreyHeight float64
 	if err := testPool.QueryRow(ctx,
-		`SELECT number_of_storeys, room_height, area_total_floor FROM city2tabula.lod2_building WHERE id = $1`,
-		buildingID,
-	).Scan(&gotStoreys, &gotRoomHeight, &gotAreaTotalFloor); err != nil {
-		t.Fatalf("failed to read cascaded building: %v", err)
+		`SELECT storey_height FROM city2tabula.lod2_building WHERE id = $1`, buildingID,
+	).Scan(&gotStoreyHeight); err != nil {
+		t.Fatalf("failed to read storey_height: %v", err)
 	}
 
-	if gotStoreys != wantStoreys {
-		t.Errorf("expected number_of_storeys to settle at the directly-set value %d, got %d (room_height mirror may have overwritten it)",
-			wantStoreys, gotStoreys)
+	wantFull := wantStoreys
+	if before.atticStorey {
+		wantFull--
 	}
-	wantRoomHeight := round2(before.minHeight / float64(wantStoreys))
-	if !almostEqual(gotRoomHeight, wantRoomHeight) {
-		t.Errorf("expected room_height = min_height/number_of_storeys = %v, got %v", wantRoomHeight, gotRoomHeight)
+	if after.numberOfStoreys != wantStoreys || after.fullStoreys != wantFull {
+		t.Errorf("expected number_of_storeys %d and full_storeys %d to settle, got %d and %d",
+			wantStoreys, wantFull, after.numberOfStoreys, after.fullStoreys)
 	}
-	wantAreaTotalFloor := round2(before.footprintArea * float64(wantStoreys))
-	if !almostEqual(gotAreaTotalFloor, wantAreaTotalFloor) {
-		t.Errorf("expected area_total_floor = footprint_area * number_of_storeys = %v, got %v", wantAreaTotalFloor, gotAreaTotalFloor)
+	if want := round2(before.minHeight / float64(wantFull)); !almostEqual(gotStoreyHeight, want) {
+		t.Errorf("expected storey_height = min_height/full_storeys = %v, got %v", want, gotStoreyHeight)
+	}
+	if want := round2(before.footprintArea*float64(wantFull) + before.atticArea()); !almostEqual(after.areaTotalFloor, want) {
+		t.Errorf("expected area_total_floor = footprint_area * full_storeys + attic area = %v, got %v", want, after.areaTotalFloor)
 	}
 }

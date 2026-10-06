@@ -23,7 +23,9 @@
 -- piece of a partly internal face, none for a fully internal one.
 --
 -- area_total_floor is the exposed GroundSurface area sum here; script 06 overwrites
--- it with the total heated floor area estimate.
+-- it with the total heated floor area estimate and sets the storey counts from
+-- storey_height (STOREY_HEIGHT). room_height stays at TABULA's 2.5 m reference room
+-- height (h_room), which TABULA uses only for ventilation volume.
 --
 -- The attached-neighbour columns are left NULL; sql/scripts/post/01_detect_neighbours.sql
 -- fills them once every batch has its footprints.
@@ -32,36 +34,70 @@
 -- dataset folder's dataset_id. RunFeatureExtraction checks every Building has one
 -- with a dataset_attribution row before this script runs.
 
+WITH faces AS (
+    SELECT s.owner_feature_id, s.building_feature_id, s.classname, s.geom,
+           ST_ZMin(s.geom) AS zmin, ST_ZMax(s.geom) AS zmax,
+           s.surface_area - COALESCE(s.area_internal, 0) AS exposed,
+           (s.surface_area - COALESCE(s.area_internal, 0)) / NULLIF(s.surface_area, 0) AS exposed_share
+    FROM {city2tabula_schema}.{lod_schema}_surface_raw s
+    WHERE s.geom IS NOT NULL
+      AND s.building_feature_id IN {building_ids}
+),
+solids AS (
+    SELECT
+        owner_feature_id,
+        MIN(building_feature_id) AS building_feature_id,
+        ROUND(SUM(exposed) FILTER (WHERE classname = 'GroundSurface')::numeric, 2) AS footprint_area,
+        MIN(zmin) AS base_z,
+        COALESCE(SUM(zmin * exposed) FILTER (WHERE classname = 'RoofSurface')
+                     / NULLIF(SUM(exposed) FILTER (WHERE classname = 'RoofSurface'), 0),
+                 MIN(zmin) FILTER (WHERE classname = 'RoofSurface'),
+                 MAX(zmax) FILTER (WHERE classname = 'WallSurface')) AS eave_z,
+        COALESCE(MAX(zmax) FILTER (WHERE classname = 'RoofSurface'),
+                 MAX(zmax) FILTER (WHERE classname = 'WallSurface')) AS ridge_z
+    FROM faces
+    GROUP BY owner_feature_id
+),
+-- Usable attic floor area, WoFlV § 4: plan area under the roof with at least 2 m clear
+-- height counts in full, 1 to 2 m half, below 1 m not at all. A roof face is taken to
+-- rise linearly from its lowest to its highest point above the eave, so the share of
+-- its plan area at height h or more is (top - h) / (top - bottom), clamped to [0, 1].
+attic AS (
+    SELECT f.owner_feature_id,
+           SUM(ST_Area(ST_Force2D(f.geom)) * COALESCE(f.exposed_share, 0)
+               * (above.h2 + 0.5 * (above.h1 - above.h2))) AS area
+    FROM faces f
+    JOIN solids s USING (owner_feature_id)
+    CROSS JOIN LATERAL (SELECT f.zmin - s.eave_z AS bottom, f.zmax - s.eave_z AS top) r
+    CROSS JOIN LATERAL (
+        SELECT CASE WHEN r.top > r.bottom THEN GREATEST(0, LEAST(1, (r.top - 2) / (r.top - r.bottom)))
+                    ELSE (r.bottom >= 2)::int END AS h2,
+               CASE WHEN r.top > r.bottom THEN GREATEST(0, LEAST(1, (r.top - 1) / (r.top - r.bottom)))
+                    ELSE (r.bottom >= 1)::int END AS h1
+    ) above
+    WHERE f.classname = 'RoofSurface'
+    GROUP BY f.owner_feature_id
+)
 INSERT INTO {city2tabula_schema}.{lod_schema}_building_part (
     owner_feature_id,
     owner_object_id,
     building_feature_id,
     footprint_area,
     min_height,
-    max_height
+    max_height,
+    attic_floor_area
 )
 SELECT
     s.owner_feature_id,
     f.objectid,
-    MIN(s.building_feature_id),
-    ROUND(SUM(s.surface_area - COALESCE(s.area_internal, 0))
-          FILTER (WHERE s.classname = 'GroundSurface')::numeric, 2),
-    ROUND((COALESCE(
-               SUM(ST_ZMin(s.geom) * (s.surface_area - COALESCE(s.area_internal, 0)))
-                   FILTER (WHERE s.classname = 'RoofSurface')
-               / NULLIF(SUM(s.surface_area - COALESCE(s.area_internal, 0))
-                   FILTER (WHERE s.classname = 'RoofSurface'), 0),
-               MIN(ST_ZMin(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
-               MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
-           - MIN(ST_ZMin(s.geom)))::numeric, 2),
-    ROUND((COALESCE(MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
-                    MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
-           - MIN(ST_ZMin(s.geom)))::numeric, 2)
-FROM {city2tabula_schema}.{lod_schema}_surface_raw s
+    s.building_feature_id,
+    s.footprint_area,
+    ROUND((s.eave_z - s.base_z)::numeric, 2),
+    ROUND((s.ridge_z - s.base_z)::numeric, 2),
+    ROUND(COALESCE(a.area, 0)::numeric, 2)
+FROM solids s
 JOIN {lod_schema}.feature f ON f.id = s.owner_feature_id
-WHERE s.geom IS NOT NULL
-  AND s.building_feature_id IN {building_ids}
-GROUP BY s.owner_feature_id, f.objectid
+LEFT JOIN attic a USING (owner_feature_id)
 ON CONFLICT (owner_feature_id) DO NOTHING;
 
 WITH heights AS (
@@ -72,7 +108,8 @@ WITH heights AS (
             MAX(min_height)) AS min_height,
         COALESCE(ROUND((SUM(max_height * footprint_area) /
             NULLIF(SUM(footprint_area) FILTER (WHERE max_height IS NOT NULL), 0))::numeric, 2),
-            MAX(max_height)) AS max_height
+            MAX(max_height)) AS max_height,
+        ROUND(SUM(attic_floor_area)::numeric, 2) AS attic_floor_area
     FROM {city2tabula_schema}.{lod_schema}_building_part
     WHERE building_feature_id IN {building_ids}
     GROUP BY building_feature_id
@@ -156,7 +193,10 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     max_height_unit,
     room_height,
     room_height_unit,
-    number_of_storeys,
+    storey_height,
+    storey_height_unit,
+    attic_floor_area,
+    attic_floor_area_unit,
     building_centroid_geom,
     building_footprint_geom
     )
@@ -185,7 +225,10 @@ SELECT
     'm' AS max_height_unit,
     2.5 AS room_height,
     'm' AS room_height_unit,
-    CASE WHEN t.min_height > 0 THEN t.min_height / 2.5 ELSE 1 END AS number_of_storeys,
+    {storey_height} AS storey_height,
+    'm' AS storey_height_unit,
+    t.attic_floor_area,
+    'sqm' AS attic_floor_area_unit,
     a.building_centroid_geom,
     a.building_footprint_geom
 FROM aggregated_surfaces a

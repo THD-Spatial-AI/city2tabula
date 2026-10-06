@@ -141,7 +141,7 @@ func e2eConfig(t *testing.T, host, port, dbName, toolPath string) *config.Config
 			LODLevels:   []int{2, 3},
 			ImportLimit: 0,
 		},
-		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", LinkGridSize: 1000},
+		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8", LinkGridSize: 1000},
 		Batch:       &config.BatchConfig{Size: 1000, Threads: 2},
 		RetryConfig: config.DefaultRetryConfig(),
 	}

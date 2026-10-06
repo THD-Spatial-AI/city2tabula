@@ -110,7 +110,7 @@ func TestEnableCorrectionTriggers_PartialFailureRollsBackAll(t *testing.T) {
 	triggers := []string{
 		"lod2_trg_footprint_geom_change",
 		"lod2_trg_variant_dims_change",
-		"lod2_trg_room_height_change",
+		"lod2_trg_storey_height_change",
 		"lod2_trg_storeys_change",
 		"lod2_trg_touch_updated_at",
 	}
@@ -125,9 +125,9 @@ func TestEnableCorrectionTriggers_PartialFailureRollsBackAll(t *testing.T) {
 	// through: the first two ENABLE statements succeed inside the transaction
 	// before the failure, proving the rollback reverts already-applied work too.
 	if _, err := testPool.Exec(ctx,
-		`DROP TRIGGER lod2_trg_room_height_change ON `+table,
+		`DROP TRIGGER lod2_trg_storey_height_change ON `+table,
 	); err != nil {
-		t.Fatalf("failed to drop lod2_trg_room_height_change: %v", err)
+		t.Fatalf("failed to drop lod2_trg_storey_height_change: %v", err)
 	}
 
 	err := process.EnableCorrectionTriggers(testPool, cfg, "lod2")

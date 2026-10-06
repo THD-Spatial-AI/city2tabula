@@ -14,12 +14,14 @@
 -- properties. Biometrics 27(4), 857-871. https://doi.org/10.2307/2528823
 
 WITH buildings AS (
-  SELECT building_feature_id, max_volume, footprint_area, number_of_storeys,
+  -- full_storeys, not number_of_storeys: TABULA's n_Storey counts complete storeys
+  -- without the attic (script 06).
+  SELECT building_feature_id, max_volume, footprint_area, full_storeys AS number_of_storeys,
          footprint_complexity, roof_complexity, attached_neighbour_class,
          area_total_roof, area_total_wall, area_total_floor
   FROM {city2tabula_schema}.{lod_schema}_building
   WHERE footprint_area IS NOT NULL
-    AND number_of_storeys IS NOT NULL
+    AND full_storeys IS NOT NULL
     AND area_total_roof IS NOT NULL
     AND area_total_wall IS NOT NULL
     AND area_total_floor IS NOT NULL

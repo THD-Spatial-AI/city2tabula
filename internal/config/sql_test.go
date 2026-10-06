@@ -26,7 +26,7 @@ func TestGetSQLParameters(t *testing.T) {
 			Tables: &Tables{Tabula: "tab_table", TabulaVariant: "tab_variant_table"},
 		},
 		CityDB:      &CityDB{SRID: "25832"},
-		City2Tabula: &City2TabulaConfig{RoomHeight: "2.5"},
+		City2Tabula: &City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"},
 	}
 
 	cases := []struct {
