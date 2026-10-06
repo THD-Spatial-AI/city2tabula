@@ -3,6 +3,13 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/buildings serves each surface's length, width and height,
+  and the OpenAPI Surface schema defines how every surface value is
+  measured, with references.
+
 ## v0.8.0 (2026-10-03)
 
 Breaking changes:

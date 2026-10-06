@@ -39,6 +39,25 @@ info:
     proxy it is meant to be reachable only from trusted internal callers on the
     same network. Do not expose it directly to the public internet as-is.
 
+    ## Surface measurement references
+
+    - Freeman, H. and Shapira, R. (1975). Determining the minimum-area encasing
+      rectangle for an arbitrary closed curve. Communications of the ACM 18(7),
+      409-413. https://doi.org/10.1145/360881.360919
+    - Gröger, G., Kolbe, T. H., Nagel, C. and Häfele, K.-H. (2012). OGC City
+      Geography Markup Language (CityGML) Encoding Standard 2.0, OGC 12-019.
+    - Labetski, A., Vitalis, S., Biljecki, F., Arroyo Ohori, K. and Stoter, J.
+      (2023). 3D building metrics for urban morphology. International Journal of
+      Geographical Information Science 37(1), 36-67.
+      https://doi.org/10.1080/13658816.2022.2103818
+    - Ledoux, H. (2018). val3dity: validation of 3D GIS primitives according to
+      the international standards. Open Geospatial Data, Software and Standards
+      3, 1. https://doi.org/10.1186/s40965-018-0043-x
+    - SIG3D. CityGML Energy ADE, feature catalogue, ThermalBoundary.
+      https://www.sig3d.org/citygml/2.0/energy/0.8.0/FeatureCatalogue/html/energy_ThermalBoundary.html
+    - Tampieri, F. (1992). Newell's method for computing the plane equation of a
+      polygon. In D. Kirk (ed.), Graphics Gems III, Academic Press, 231-232.
+
     ## Run tracking
 
     Run state is held in memory only, not persisted. A server restart loses
@@ -437,41 +456,100 @@ components:
 
     Surface:
       type: object
-      description: One envelope surface (wall, roof, or ground) of a building.
+      description: |
+        One envelope face (wall, roof or ground) of a building. Measurements are
+        taken from the LoD2 model geometry; references are listed under
+        "Surface measurement references" at the top of this document. Where part
+        of a face lies against another solid of the same building, `area`,
+        `length`, `width` and `height` describe only its exposed piece.
       properties:
         id:
           type: string
+          description: |
+            Identifier of this face, unique per face. One CityGML surface can
+            consist of several faces, each with its own `id`.
         type:
           type: string
-          description: Raw CityGML classname
+          description: |
+            CityGML 2.0 thematic boundary surface the face belongs to (OGC 12-019).
           enum: [WallSurface, RoofSurface, GroundSurface]
         area:
           type: number
           nullable: true
+          description: |
+            Square metres. Area of the face measured in its own plane, holes
+            excluded: the face is rotated flat along its normal (Newell's method,
+            Tampieri 1992) before measuring, so a sloped roof gives its true area,
+            not the smaller area seen from above. Corresponds to the Energy ADE
+            ThermalBoundary `area`; LoD2 models carry no window openings.
         azimuth:
           type: number
           nullable: true
           description: |
-            Degrees, compass convention (clockwise from grid north). -1 means
-            undefined and is used for near-horizontal surfaces; it sits outside
-            the 0-360 range so it cannot be mistaken for a bearing. The CityGML
-            Energy ADE 1.0 Feature Catalogue uses 0 for the same case, so
-            convert when feeding a consumer that follows it.
+            Degrees. Compass direction the outward face normal points to,
+            clockwise from grid north: 0 north, 90 east, 180 south, 270 west, as
+            in the Energy ADE ThermalBoundary `azimuth`. -1 means undefined and is
+            given for faces within about 10 degrees of horizontal (`tilt` 90),
+            which face no direction; the Energy ADE uses 0 for that case.
         tilt:
           type: number
           nullable: true
           description: |
-            Degrees. 0=vertical wall, 90=flat roof the *opposite* of the
-            common building-energy convention (0=horizontal roof,
-            90=vertical wall). Invert before feeding into a consumer that
-            expects that convention.
+            Degrees. Angle between the face and the vertical: 0 for a vertical
+            wall, 90 for a horizontal face such as a flat roof. Faces within about
+            10 degrees of horizontal are reported as 90. This is the complement
+            of the Energy ADE ThermalBoundary `inclination` (0 for a horizontal
+            plane): inclination = 90 - tilt.
+        length:
+          type: number
+          nullable: true
+          description: |
+            Metres. Long side of the smallest-area rectangle enclosing the face,
+            measured in the face's own plane (Freeman and Shapira 1975; the length
+            of the object-oriented bounding box in Labetski et al. 2023). For a
+            pitched roof face this follows the slope, not its projection on the
+            ground. Null for faces other than walls, roofs and ground.
+        width:
+          type: number
+          nullable: true
+          description: |
+            Metres. Short side of the same rectangle as `length`. 0 for a
+            degenerate face. For a face that is not a rectangle (a gable wall, a
+            hipped roof facet, an L-shaped ground face), length x width is larger
+            than `area`. Null for faces other than walls, roofs and ground.
+        height:
+          type: number
+          nullable: true
+          description: |
+            Metres. Vertical extent of the face, highest minus lowest point (the
+            height range of Labetski et al. 2023, per face). For a wall, its
+            height; for a gable wall, up to the ridge; for a pitched roof face, the
+            rise from eave to ridge, not the length along the slope; about 0 for a
+            flat roof or ground face.
+        area_below_precision:
+          type: boolean
+          nullable: true
+          description: |
+            True when `area` rounds to 0.00 square metres at the 2-decimal
+            precision City2TABULA records, typically a sliver where a wall meets a
+            roof. The face is real and can be drawn, but its area must not be used
+            as a thermal area.
         is_valid:
           type: boolean
           nullable: true
-          description: Whether the source surface geometry passed validation
+          description: |
+            OGC Simple Features validity of the face, tested on its 2D outline seen
+            from above (PostGIS ST_IsValid). A vertical wall seen from above is a
+            line, so walls are usually false; the flag does not report 3D validity
+            in the sense of ISO 19107 (Ledoux 2018).
         is_planar:
           type: boolean
           nullable: true
+          description: |
+            True when all vertices of the face lie exactly in one plane, tested
+            without tolerance (PostGIS ST_IsPlanar). Coordinate rounding in source
+            data makes many real roof faces false. `area`, `tilt` and `azimuth`
+            use a best-fit plane either way.
 
     BuildingGeometry:
       type: object

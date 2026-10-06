@@ -65,6 +65,11 @@ type Surface struct {
 	AreaBelowPrecision *bool `json:"area_below_precision,omitempty"`
 	IsValid            *bool `json:"is_valid,omitempty"`
 	IsPlanar           *bool `json:"is_planar,omitempty"`
+	// Length and Width are the sides of the minimum-area rectangle around the
+	// face in its own plane; Height is its vertical extent. All in metres.
+	Length *float64 `json:"length,omitempty"`
+	Width  *float64 `json:"width,omitempty"`
+	Height *float64 `json:"height,omitempty"`
 }
 
 // BuildingsByOSMIDs returns 3D attributes for every building in cfg's
@@ -144,7 +149,8 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 const (
 	buildingColumns = "object_id, country_code, dataset_id, min_height, max_height, room_height, number_of_storeys, " +
 		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, building_footprint_geom"
-	surfaceColumns = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, geom"
+	surfaceColumns = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, " +
+		"length, width, height, geom"
 )
 
 // allLODs reads columns of one City2TABULA table across the LOD2 and LOD3
@@ -198,7 +204,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		SELECT building_object_id, id::text, surface_type,
 		       surface_area, azimuth, tilt,
 		       (surface_area IS NOT NULL AND surface_area <= 0),
-		       is_valid, is_planar
+		       is_valid, is_planar, length, width, height
 		FROM %s s
 		WHERE building_object_id = ANY($1)`,
 		allLODs(cfg, "surface", surfaceColumns),
@@ -216,6 +222,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		if err := rows.Scan(
 			&buildingObjectID, &s.ID, &s.Type,
 			&s.AreaSqm, &s.Azimuth, &s.Tilt, &s.AreaBelowPrecision, &s.IsValid, &s.IsPlanar,
+			&s.Length, &s.Width, &s.Height,
 		); err != nil {
 			return fmt.Errorf("failed to scan surface row: %w", err)
 		}
