@@ -5,7 +5,8 @@
 -- (script 03) are not counted as envelope.
 --
 -- Height semantics, per solid, above the solid's lowest point:
---   min_height — eave height: lowest point of its roof faces.
+--   min_height — eave height: mean of its roof faces' lowest points, weighted by
+--                exposed roof area, so a small porch or courtyard roof barely moves it.
 --   max_height — ridge height: highest point of its roof faces.
 -- Taken from the roof, not the walls: a gable wall reaches the ridge. A solid without
 -- roof faces uses the top of its walls for both.
@@ -42,8 +43,13 @@ SELECT
     MIN(s.building_feature_id),
     ROUND(SUM(s.surface_area - COALESCE(s.area_internal, 0))
           FILTER (WHERE s.classname = 'GroundSurface')::numeric, 2),
-    ROUND((COALESCE(MIN(ST_ZMin(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
-                    MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
+    ROUND((COALESCE(
+               SUM(ST_ZMin(s.geom) * (s.surface_area - COALESCE(s.area_internal, 0)))
+                   FILTER (WHERE s.classname = 'RoofSurface')
+               / NULLIF(SUM(s.surface_area - COALESCE(s.area_internal, 0))
+                   FILTER (WHERE s.classname = 'RoofSurface'), 0),
+               MIN(ST_ZMin(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
+               MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
            - MIN(ST_ZMin(s.geom)))::numeric, 2),
     ROUND((COALESCE(MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
                     MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
