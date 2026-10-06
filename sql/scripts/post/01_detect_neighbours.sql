@@ -7,6 +7,8 @@
 -- 0.1 m separates touching from detached footprints in the NL, DE, AT and CZ
 -- datasets alike; wider gaps are mostly detached houses and sheds.
 --
+-- attached_neighbour_id lists the neighbours' object_ids, which stay stable across
+-- re-imports, unlike building_feature_id.
 -- attached_neighbour_class follows TABULA's Code_AttachedNeighbours: 0 alone,
 -- 1 one neighbour, 2 two or more. A building without a footprint stays NULL.
 -- Only changed rows are written, so the correction triggers fire only for them.
@@ -14,7 +16,8 @@
 -- pairs joins the table, not a CTE: a CTE referenced twice is materialised and the
 -- join then cannot use the footprint GIST index.
 WITH pairs AS (
-    SELECT a.building_feature_id AS a_id, c.building_feature_id AS c_id
+    SELECT a.building_feature_id AS a_id, c.building_feature_id AS c_id,
+           a.object_id AS a_obj, c.object_id AS c_obj
     FROM {city2tabula_schema}.{lod_schema}_building a
     JOIN {city2tabula_schema}.{lod_schema}_building c
       ON a.building_feature_id < c.building_feature_id
@@ -23,16 +26,16 @@ WITH pairs AS (
                                     ST_Buffer(ST_Force2D(c.building_footprint_geom), 0.1))) >= 1
 ),
 neighbours AS (
-    SELECT id, ARRAY_AGG(other ORDER BY other) AS ids
+    SELECT id, ARRAY_AGG(other ORDER BY other)::TEXT[] AS ids
     FROM (
-        SELECT a_id AS id, c_id AS other FROM pairs
+        SELECT a_id AS id, c_obj AS other FROM pairs
         UNION ALL
-        SELECT c_id, a_id FROM pairs
+        SELECT c_id, a_obj FROM pairs
     ) p
     GROUP BY id
 ),
 detected AS (
-    SELECT b.building_feature_id AS id, COALESCE(n.ids, ARRAY[]::INTEGER[]) AS ids
+    SELECT b.building_feature_id AS id, COALESCE(n.ids, ARRAY[]::TEXT[]) AS ids
     FROM {city2tabula_schema}.{lod_schema}_building b
     LEFT JOIN neighbours n ON n.id = b.building_feature_id
     WHERE b.building_footprint_geom IS NOT NULL

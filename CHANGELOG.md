@@ -14,8 +14,10 @@ Features:
 - -extract-features marks buildings that share a wall with another
   building: has_attached_neighbour, attached_neighbour_id,
   total_attached_neighbour and attached_neighbour_class are filled
-  instead of the fixed values used until now. TABULA matching runs once
-  after every batch instead of once per batch (#13).
+  instead of the fixed values used until now. Neighbours are listed by
+  object_id, and GET /api/v1/buildings serves has_attached_neighbour,
+  attached_neighbour_class and attached_neighbour_id. TABULA matching
+  runs once after every batch instead of once per batch (#13).
 
 ## v0.8.0 (2026-10-03)
 

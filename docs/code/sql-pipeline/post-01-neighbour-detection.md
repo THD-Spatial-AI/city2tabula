@@ -39,10 +39,10 @@ The footprint is `building_footprint_geom` from [script 04](04-building-features
 | Column | Description |
 |--------|------------|
 | `has_attached_neighbour` | `TRUE` when the building has at least one attached neighbour |
-| `attached_neighbour_id` | `building_feature_id` of each attached neighbour, ascending |
+| `attached_neighbour_id` | `object_id` of each attached neighbour, ascending |
 | `total_attached_neighbour` | Number of attached neighbours |
 | `attached_neighbour_class` | TABULA `Code_AttachedNeighbours`: 0 alone, 1 one neighbour, 2 two or more |
 
-`building_feature_id` changes on every re-import, so `attached_neighbour_id` is valid only within one database.
+`GET /api/v1/buildings` serves `has_attached_neighbour`, `attached_neighbour_class` and `attached_neighbour_id`; pass the ids to `GET /api/v1/geometry` to draw the neighbours.
 
 Only rows whose values change are written. A footprint corrected by hand does not re-run this script; run `-extract-features` again after importing new buildings.
