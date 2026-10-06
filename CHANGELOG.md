@@ -23,6 +23,14 @@ Features:
   attached_neighbour_class and attached_neighbour_id. TABULA matching
   runs once after every batch instead of once per batch (#13).
 
+Fixes:
+- Eave height (min_height) and ridge height (max_height) come from the
+  roof faces: the eave is the roof-area-weighted mean of the faces'
+  lowest points, the ridge their highest point. min_height was the
+  tallest wall, which is the ridge on buildings with gable walls, and
+  max_height lay a roof rise above the roof, so storeys, volumes, floor
+  area and TABULA types were inflated for pitched-roof buildings (#173).
+
 ## v0.8.0 (2026-10-03)
 
 Breaking changes:
