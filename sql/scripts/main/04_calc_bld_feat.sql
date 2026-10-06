@@ -4,10 +4,11 @@
 -- surface_area minus area_internal, so faces between two solids of the building
 -- (script 03) are not counted as envelope.
 --
--- Height semantics, per solid (both derived from child surface heights):
---   min_height — maximum vertical span of any WallSurface face (eave height).
---                Named "min" because it excludes the roof ridge contribution.
---   max_height — eave height + maximum vertical span of any RoofSurface face (ridge height).
+-- Height semantics, per solid, above the solid's lowest point:
+--   min_height — eave height: lowest point of its roof faces.
+--   max_height — ridge height: highest point of its roof faces.
+-- Taken from the roof, not the walls: a gable wall reaches the ridge. A solid without
+-- roof faces uses the top of its walls for both.
 -- A building takes the footprint-weighted mean of its solids' heights, so scripts 05
 -- and 06 (height × footprint_area, footprint_area × storeys) equal the sums over its
 -- solids, and a tower does not lend its height to the podium beside it. A building
@@ -41,9 +42,12 @@ SELECT
     MIN(s.building_feature_id),
     ROUND(SUM(s.surface_area - COALESCE(s.area_internal, 0))
           FILTER (WHERE s.classname = 'GroundSurface')::numeric, 2),
-    MAX(s.height) FILTER (WHERE s.classname = 'WallSurface'),
-    ROUND((MAX(s.height) FILTER (WHERE s.classname = 'WallSurface') +
-           COALESCE(MAX(s.height) FILTER (WHERE s.classname = 'RoofSurface'), 0))::numeric, 2)
+    ROUND((COALESCE(MIN(ST_ZMin(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
+                    MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
+           - MIN(ST_ZMin(s.geom)))::numeric, 2),
+    ROUND((COALESCE(MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'RoofSurface'),
+                    MAX(ST_ZMax(s.geom)) FILTER (WHERE s.classname = 'WallSurface'))
+           - MIN(ST_ZMin(s.geom)))::numeric, 2)
 FROM {city2tabula_schema}.{lod_schema}_surface_raw s
 JOIN {lod_schema}.feature f ON f.id = s.owner_feature_id
 WHERE s.geom IS NOT NULL

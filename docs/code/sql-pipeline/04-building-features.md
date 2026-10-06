@@ -27,10 +27,10 @@ One row per `owner_feature_id`:
 | `owner_feature_id` / `owner_object_id` | The solid owner's feature id and object id |
 | `building_feature_id` | The Building it belongs to |
 | `footprint_area` | Sum of exposed GroundSurface area (sqm) |
-| `min_height` | Eave height: the maximum vertical span of any WallSurface face (m) |
-| `max_height` | Ridge height: eave height plus the maximum vertical span of any RoofSurface face (m) |
+| `min_height` | Eave height: lowest point of the solid's RoofSurface faces above the solid's lowest point (m) |
+| `max_height` | Ridge height: highest point of the solid's RoofSurface faces above the solid's lowest point (m) |
 
-The column names `min_height` / `max_height` refer to minimum and maximum height estimates of the solid, not the smallest and largest face heights. The insert uses `ON CONFLICT DO NOTHING`, so a retried task does not duplicate rows.
+Both heights come from the roof, not the walls, because a gable wall reaches the ridge. A flat roof gives equal heights. A solid without roof faces uses the top of its walls for both. A lower roof in the same solid, such as a porch, lowers the eave height. The insert uses `ON CONFLICT DO NOTHING`, so a retried task does not duplicate rows.
 
 ---
 

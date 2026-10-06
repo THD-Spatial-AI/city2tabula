@@ -3,6 +3,15 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- Eave height (min_height) and ridge height (max_height) come from the
+  roof faces. min_height was the tallest wall, which is the ridge on
+  buildings with gable walls, and max_height lay a roof rise above the
+  roof, so storeys, volumes, floor area and TABULA types were inflated
+  for pitched-roof buildings (#173).
+
 ## v0.8.0 (2026-10-03)
 
 Breaking changes:

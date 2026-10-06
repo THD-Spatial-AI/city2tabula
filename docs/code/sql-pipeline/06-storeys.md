@@ -38,7 +38,7 @@ Two values are updated:
 number_of_storeys = min_height / room_height
 ```
 
-`min_height` is the eave height from script 04: the maximum wall face span of each solid, weighted by the solids' footprints. `room_height` is the assumed ceiling-to-floor height, defaulting to 2.5 m. Dividing gives the number of storeys in the habitable wall portion of the building.
+`min_height` is the eave height from script 04: the lowest point of each solid's roof, weighted by the solids' footprints. `room_height` is the assumed ceiling-to-floor height, defaulting to 2.5 m. Dividing gives the number of storeys in the habitable wall portion of the building.
 
 Guards: if either value is NULL or zero, the existing `number_of_storeys` is left unchanged.
 
