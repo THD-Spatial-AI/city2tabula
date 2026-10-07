@@ -124,7 +124,7 @@ Surface area RMSE split into two groups: surfaces that passed both `is_valid` an
 Height RMSE split by `has_attached_neighbour`. Buildings that share a wall with a neighbour can have their roof surfaces mis-attributed during geometry-based surface assignment, inflating height errors.
 
 !!! note
-    This section only appears when `has_attached_neighbour` is present in `building_validation.csv`. Run `flag_attached_buildings.py` before the validation notebook to populate this column.
+    This section only appears when `has_attached_neighbour` is present in `building_validation.csv`. `-extract-features` populates this column.
 
 ---
 

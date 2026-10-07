@@ -8,7 +8,7 @@
 --        -> footprint_area, footprint_complexity, building_centroid_geom,
 --           min_volume, max_volume, area_total_floor recompute (mirrors scripts 04-06)
 --   2. any of those recomputed columns changes
---        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors script 07)
+--        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors sql/scripts/post/02_label_buildings.sql)
 -- Step 2 fires automatically after step 1's UPDATE, because Postgres re-evaluates
 -- "AFTER UPDATE OF <cols>" triggers on every UPDATE statement that touches those
 -- columns, including ones issued from inside another trigger's function body.
@@ -45,20 +45,21 @@
 -- Deliberately out of scope here:
 --   - min_height / max_height: derived from wall/roof surface heights, not
 --     something correctable from a footprint, storeys, or room-height edit.
---   - has_attached_neighbour / attached_neighbour_*: neighbour detection isn't
---     implemented yet (still placeholder values from script 04), so there is nothing
---     real to invalidate. Add a trigger once that pipeline exists.
+--   - has_attached_neighbour / attached_neighbour_*: a footprint edit does not
+--     re-run neighbour detection (sql/scripts/post/01_detect_neighbours.sql) for the
+--     building or its neighbours. Editing attached_neighbour_class directly does
+--     re-match the variant (trigger 2).
 --   - Deleting a building row: no other row currently depends on it, so a plain
 --     DELETE needs no trigger.
 --
 -- Operational note: these triggers only matter once corrections start, which is
 -- always after -extract-features has already populated the tables. Bulk extraction
--- (scripts 04-07) writes the exact same watched columns these triggers watch, so
+-- (scripts 04-06 and sql/scripts/post/) writes the exact same watched columns these triggers watch, so
 -- if the triggers were enabled during that run, every row would get redundantly
 -- recomputed a second time, correctly but wastefully at 100k+ building scale, plus
 -- the extra lock activity across concurrent workers risks deadlock retries. The
 -- fifth (updated_at) trigger has its own reason to stay off during bulk extraction:
--- scripts 05-07 each UPDATE every row, so if it were enabled then, updated_at would
+-- scripts 05-06 and the post scripts each UPDATE every row, so if it were enabled then, updated_at would
 -- already differ from created_at before any real correction ever happened, and the
 -- "has this row been hand-corrected" signal would be worthless.
 -- All five triggers are therefore created DISABLED below and stay that way through
@@ -128,10 +129,10 @@ CREATE TRIGGER {lod_schema}_trg_footprint_geom_change
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
 
--- Re-matches the closest TABULA variant using the same normalised-Euclidean-distance
--- method as script 07, scoped to one building instead of the whole table. Stats
--- (min/max per dimension) are still computed over the full buildings+variants table,
--- so a single-row edit is judged against the same scale as the original bulk match.
+-- Re-matches the closest TABULA variant with the same distance as
+-- post/02_label_buildings.sql, scoped to one building. The min/max per dimension is
+-- still taken over all buildings and variants, so an edit is judged on the same scale
+-- as the bulk match.
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -145,55 +146,55 @@ BEGIN
 
     WITH stats AS (
         SELECT
-            MIN(max_volume) AS min_vol,     MAX(max_volume) AS max_vol,
-            MIN(footprint_area) AS min_area, MAX(footprint_area) AS max_area,
-            MIN(number_of_storeys) AS min_storeys, MAX(number_of_storeys) AS max_storeys,
-            MIN(footprint_complexity) AS min_fc, MAX(footprint_complexity) AS max_fc,
-            MIN(roof_complexity) AS min_rc, MAX(roof_complexity) AS max_rc,
-            MIN(area_total_roof) AS min_roof, MAX(area_total_roof) AS max_roof,
-            MIN(area_total_wall) AS min_wall, MAX(area_total_wall) AS max_wall,
-            MIN(area_total_floor) AS min_floor, MAX(area_total_floor) AS max_floor
+            MIN(max_volume) AS lo_vol, MAX(max_volume) AS hi_vol,
+            MIN(footprint_area) AS lo_area, MAX(footprint_area) AS hi_area,
+            MIN(number_of_storeys) AS lo_storeys, MAX(number_of_storeys) AS hi_storeys,
+            MIN(footprint_complexity) AS lo_fc, MAX(footprint_complexity) AS hi_fc,
+            MIN(roof_complexity) AS lo_rc, MAX(roof_complexity) AS hi_rc,
+            MIN(attached_neighbour_class) AS lo_ac, MAX(attached_neighbour_class) AS hi_ac,
+            MIN(area_total_roof) AS lo_roof, MAX(area_total_roof) AS hi_roof,
+            MIN(area_total_wall) AS lo_wall, MAX(area_total_wall) AS hi_wall,
+            MIN(area_total_floor) AS lo_floor, MAX(area_total_floor) AS hi_floor
         FROM (
-            SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-                   roof_complexity, area_total_roof, area_total_wall, area_total_floor
+            SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
             FROM {city2tabula_schema}.{lod_schema}_building
             WHERE footprint_area IS NOT NULL AND number_of_storeys IS NOT NULL
               AND area_total_roof IS NOT NULL AND area_total_wall IS NOT NULL
               AND area_total_floor IS NOT NULL
             UNION ALL
-            SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-                   roof_complexity, area_total_roof, area_total_wall, area_total_floor
+            SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
             FROM {city2tabula_schema}.tabula_variant
-            WHERE max_volume IS NOT NULL AND footprint_area IS NOT NULL
-              AND number_of_storeys IS NOT NULL AND area_total_roof IS NOT NULL
-              AND area_total_wall IS NOT NULL AND area_total_floor IS NOT NULL
         ) all_data
     )
     SELECT v.tabula_variant_code_id, v.tabula_variant_code
     INTO match
     FROM {city2tabula_schema}.tabula_variant v
     CROSS JOIN stats s
-    WHERE v.max_volume IS NOT NULL AND v.footprint_area IS NOT NULL
-      AND v.number_of_storeys IS NOT NULL AND v.area_total_roof IS NOT NULL
-      AND v.area_total_wall IS NOT NULL AND v.area_total_floor IS NOT NULL
-    ORDER BY sqrt(
-        power(COALESCE(((NEW.max_volume - s.min_vol) / NULLIF(s.max_vol - s.min_vol, 0)), 0) -
-              COALESCE(((v.max_volume - s.min_vol) / NULLIF(s.max_vol - s.min_vol, 0)), 0), 2) +
-        power(COALESCE(((NEW.footprint_area - s.min_area) / NULLIF(s.max_area - s.min_area, 0)), 0) -
-              COALESCE(((v.footprint_area - s.min_area) / NULLIF(s.max_area - s.min_area, 0)), 0), 2) +
-        power(COALESCE(((NEW.number_of_storeys - s.min_storeys) / NULLIF(s.max_storeys - s.min_storeys, 0)), 0) -
-              COALESCE(((v.number_of_storeys - s.min_storeys) / NULLIF(s.max_storeys - s.min_storeys, 0)), 0), 2) +
-        power(COALESCE(((NEW.footprint_complexity - s.min_fc) / NULLIF(s.max_fc - s.min_fc, 0)), 0) -
-              COALESCE(((v.footprint_complexity - s.min_fc) / NULLIF(s.max_fc - s.min_fc, 0)), 0), 2) +
-        power(COALESCE(((NEW.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0) -
-              COALESCE(((v.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0), 2) +
-        power(COALESCE(((NEW.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0) -
-              COALESCE(((v.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0), 2) +
-        power(COALESCE(((NEW.area_total_wall - s.min_wall) / NULLIF(s.max_wall - s.min_wall, 0)), 0) -
-              COALESCE(((v.area_total_wall - s.min_wall) / NULLIF(s.max_wall - s.min_wall, 0)), 0), 2) +
-        power(COALESCE(((NEW.area_total_floor - s.min_floor) / NULLIF(s.max_floor - s.min_floor, 0)), 0) -
-              COALESCE(((v.area_total_floor - s.min_floor) / NULLIF(s.max_floor - s.min_floor, 0)), 0), 2)
-    ) ASC
+    CROSS JOIN LATERAL (
+        SELECT sqrt(avg(term)) AS distance
+        FROM (VALUES
+            (power({city2tabula_schema}.minmax_norm(NEW.max_volume, s.lo_vol, s.hi_vol)
+                 - {city2tabula_schema}.minmax_norm(v.max_volume, s.lo_vol, s.hi_vol), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.footprint_area, s.lo_area, s.hi_area)
+                 - {city2tabula_schema}.minmax_norm(v.footprint_area, s.lo_area, s.hi_area), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.number_of_storeys, s.lo_storeys, s.hi_storeys)
+                 - {city2tabula_schema}.minmax_norm(v.number_of_storeys, s.lo_storeys, s.hi_storeys), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.footprint_complexity, s.lo_fc, s.hi_fc)
+                 - {city2tabula_schema}.minmax_norm(v.footprint_complexity, s.lo_fc, s.hi_fc), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.roof_complexity, s.lo_rc, s.hi_rc)
+                 - {city2tabula_schema}.minmax_norm(v.roof_complexity, s.lo_rc, s.hi_rc), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.attached_neighbour_class, s.lo_ac, s.hi_ac)
+                 - {city2tabula_schema}.minmax_norm(v.attached_neighbour_class, s.lo_ac, s.hi_ac), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.area_total_roof, s.lo_roof, s.hi_roof)
+                 - {city2tabula_schema}.minmax_norm(v.area_total_roof, s.lo_roof, s.hi_roof), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.area_total_wall, s.lo_wall, s.hi_wall)
+                 - {city2tabula_schema}.minmax_norm(v.area_total_wall, s.lo_wall, s.hi_wall), 2)),
+            (power({city2tabula_schema}.minmax_norm(NEW.area_total_floor, s.lo_floor, s.hi_floor)
+                 - {city2tabula_schema}.minmax_norm(v.area_total_floor, s.lo_floor, s.hi_floor), 2))
+        ) terms(term)
+    ) d
+    WHERE d.distance IS NOT NULL
+    ORDER BY d.distance, v.tabula_variant_code_id
     LIMIT 1;
 
     IF match.tabula_variant_code_id IS NOT NULL THEN
@@ -211,7 +212,7 @@ DROP TRIGGER IF EXISTS {lod_schema}_trg_variant_dims_change
     ON {city2tabula_schema}.{lod_schema}_building;
 CREATE TRIGGER {lod_schema}_trg_variant_dims_change
     AFTER UPDATE OF max_volume, footprint_area, number_of_storeys, footprint_complexity,
-        roof_complexity, area_total_roof, area_total_wall, area_total_floor
+        roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
     ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW
     EXECUTE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match();

@@ -115,7 +115,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   footprint_complexity INTEGER CHECK (footprint_complexity IN (0, 1, 2)),
   roof_complexity INTEGER CHECK (roof_complexity IN (0, 1, 2)),
   has_attached_neighbour BOOLEAN,
-  attached_neighbour_id INTEGER[],
+  -- object_id of each attached neighbour (sql/scripts/post/01_detect_neighbours.sql).
+  attached_neighbour_id TEXT[],
   total_attached_neighbour INTEGER,
   attached_neighbour_class INTEGER CHECK (attached_neighbour_class IN (0, 1, 2, -1)),
   min_height DOUBLE PRECISION,

@@ -15,36 +15,37 @@ INSERT INTO {city2tabula_schema}.{tabula_variant_table} (
     area_total_floor,
     building_size_class
 )
+-- TABULA marks a missing value with 0 or leaves it empty, and every matching input here
+-- becomes NULL in that case so matching skips it (post/02_label_buildings.sql). The
+-- footprint is A_C_ExtDim per storey, the external-dimension area comparable with a
+-- LoD2 footprint; A_C_National is each country's own reference area.
 SELECT
     id AS tabula_variant_code_id,
     "Code_BuildingVariant" AS tabula_variant_code,
     "Year1_Building" AS construction_year_1,
     "Year2_Building" AS construction_year_2,
-    "V_C" AS max_volume,
-    "A_C_National" AS total_area,
-    "A_C_National" / NULLIF("n_Storey", 0) AS footprint_area,  -- Use the actual column name instead of alias
-    "n_Storey" AS number_of_storeys,
+    NULLIF("V_C", 0) AS max_volume,
+    NULLIF("A_C_National", 0) AS total_area,
+    NULLIF("A_C_ExtDim", 0) / NULLIF("n_Storey", 0) AS footprint_area,
+    NULLIF("n_Storey", 0) AS number_of_storeys,
     CASE "Code_ComplexFootprint"
         WHEN 'Simple' THEN 0
         WHEN 'Regular' THEN 1
         WHEN 'Complex' THEN 2
-        ELSE -1
     END AS footprint_complexity,
     CASE "Code_AttachedNeighbours"
         WHEN 'B_Alone' THEN 0
         WHEN 'B_N1' THEN 1
         WHEN 'B_N2' THEN 2
-        ELSE -1
     END AS attached_neighbour_class,
     CASE "Code_ComplexRoof"
         WHEN 'Simple' THEN 0
         WHEN 'Regular' THEN 1
         WHEN 'Complex' THEN 2
-        ELSE -1
     END AS roof_complexity,
-    COALESCE("A_Roof_1", 0) + COALESCE("A_Roof_2", 0) AS area_total_roof,
-    COALESCE("A_Wall_1", 0) + COALESCE("A_Wall_2", 0) + COALESCE("A_Wall_3", 0) AS area_total_wall,
-    COALESCE("A_C_ExtDim", 0) AS area_total_floor,
+    NULLIF(COALESCE("A_Roof_1", 0) + COALESCE("A_Roof_2", 0), 0) AS area_total_roof,
+    NULLIF(COALESCE("A_Wall_1", 0) + COALESCE("A_Wall_2", 0) + COALESCE("A_Wall_3", 0), 0) AS area_total_wall,
+    NULLIF("A_C_ExtDim", 0) AS area_total_floor,
     CASE "Code_BuildingSizeClass"
         WHEN 'SFH' THEN 0 -- Single Family House
         WHEN 'MFH' THEN 1 -- Multi Family House

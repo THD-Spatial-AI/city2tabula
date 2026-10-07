@@ -25,6 +25,9 @@
 -- area_total_floor is the exposed GroundSurface area sum here; script 06 overwrites
 -- it with the total heated floor area estimate.
 --
+-- The attached-neighbour columns are left NULL; sql/scripts/post/01_detect_neighbours.sql
+-- fills them once every batch has its footprints.
+--
 -- dataset_id is the Building feature's lineage, which the importer sets to the
 -- dataset folder's dataset_id. RunFeatureExtraction checks every Building has one
 -- with a dataset_attribution row before this script runs.
@@ -109,9 +112,6 @@ aggregated_surfaces AS (
             WHEN SUM(pieces) FILTER (WHERE classname = 'RoofSurface') BETWEEN 2 AND 4 THEN 1
             ELSE 2
         END AS roof_complexity,
-        FALSE AS has_attached_neighbour,
-        ARRAY[]::INTEGER[] AS attached_neighbour_id,
-        0 AS total_attached_neighbour,
         ROUND(SUM(CASE WHEN classname = 'RoofSurface' THEN exposed_area ELSE 0 END)::numeric, 2) AS area_total_roof,
         'sqm' AS area_total_roof_unit,
         ROUND(SUM(CASE WHEN classname = 'WallSurface' THEN exposed_area ELSE 0 END)::numeric, 2) AS area_total_wall,
@@ -141,9 +141,6 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_building (
     footprint_area,
     footprint_complexity,
     roof_complexity,
-    has_attached_neighbour,
-    attached_neighbour_id,
-    total_attached_neighbour,
     area_total_roof,
     area_total_roof_unit,
     area_total_wall,
@@ -173,9 +170,6 @@ SELECT
     a.footprint_area,
     a.footprint_complexity,
     a.roof_complexity,
-    a.has_attached_neighbour,
-    a.attached_neighbour_id,
-    a.total_attached_neighbour,
     a.area_total_roof,
     a.area_total_roof_unit,
     a.area_total_wall,
