@@ -10,6 +10,11 @@ Features:
   and the OpenAPI Surface schema defines how every surface value is
   measured, with references.
 
+Fixes:
+- is_valid tests each face in its own plane instead of its plan view,
+  where every vertical wall failed, and is_planar allows 0.01 m off the
+  face's mid-plane instead of none (#172).
+
 ## v0.8.0 (2026-10-03)
 
 Breaking changes:

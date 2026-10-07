@@ -56,8 +56,6 @@ owner_grounds AS (
 ),
 
 raw_surfaces AS (
-  -- is_planar is carried to the output column only; Newell's method handles
-  -- planar and non-planar surfaces uniformly so no routing is needed here.
   SELECT
     gd.id,
     gd.child_row_id,
@@ -68,8 +66,7 @@ raw_surfaces AS (
     gd.surface_object_id,
     gd.objectclass_id,
     gd.classname,
-    gd.geom AS valid_geom,
-    ST_IsPlanar(gd.geom) AS is_planar
+    gd.geom AS valid_geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature_geom_dump gd
   INNER JOIN new_buildings nb ON gd.building_feature_id = nb.building_feature_id
 ),
@@ -91,7 +88,7 @@ surface_edges AS (
   SELECT
     id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
     building_object_id, surface_object_id,
-    objectclass_id, classname, valid_geom, is_planar,
+    objectclass_id, classname, valid_geom,
     point_geom,
     LEAD(point_geom) OVER (PARTITION BY id, ring_idx ORDER BY pt_idx) AS next_pt
   FROM surface_points
@@ -104,14 +101,14 @@ surface_normals AS (
   SELECT
     id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
     building_object_id, surface_object_id,
-    objectclass_id, classname, valid_geom, is_planar,
+    objectclass_id, classname, valid_geom,
     n_x, n_y, n_z,
     sqrt(n_x * n_x + n_y * n_y + n_z * n_z) AS cross_magnitude
   FROM (
     SELECT
       id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
       building_object_id, surface_object_id,
-      objectclass_id, classname, valid_geom, is_planar,
+      objectclass_id, classname, valid_geom,
       SUM((ST_Y(point_geom) - ST_Y(next_pt)) * (ST_Z(point_geom) + ST_Z(next_pt))) AS n_x,
       SUM((ST_Z(point_geom) - ST_Z(next_pt)) * (ST_X(point_geom) + ST_X(next_pt))) AS n_y,
       SUM((ST_X(point_geom) - ST_X(next_pt)) * (ST_Y(point_geom) + ST_Y(next_pt))) AS n_z
@@ -119,7 +116,7 @@ surface_normals AS (
     WHERE next_pt IS NOT NULL
     GROUP BY id, child_row_id, building_feature_id, owner_feature_id, surface_feature_id,
              building_object_id, surface_object_id,
-             objectclass_id, classname, valid_geom, is_planar
+             objectclass_id, classname, valid_geom
     HAVING COUNT(*) >= 2
   ) sums
   WHERE sqrt(n_x * n_x + n_y * n_y + n_z * n_z) > 1e-10
@@ -191,7 +188,6 @@ normalized_normals AS (
     objectclass_id,
     classname,
     valid_geom,
-    is_planar,
     CASE
       WHEN classname = 'RoofSurface' AND (n_z / NULLIF(cross_magnitude, 0)) < 0
         THEN -(n_x / NULLIF(cross_magnitude, 0))
@@ -264,8 +260,7 @@ SELECT
     nz,
     -- Self-intersecting geometries give net signed area via the shoelace formula
     -- (crossing sub-regions cancel). ST_MakeValid decomposes them into valid
-    -- sub-polygons so ST_Area sums correctly. Called only for invalid surfaces;
-    -- ST_IsValid is CSE'd with the is_valid column below (one evaluation per row).
+    -- sub-polygons so ST_Area sums correctly. Called only for invalid surfaces.
     -- Rounded to 2 decimals (cm-level for lengths, cm² for areas) at the point of
     -- computation — matches the ±0.04 m/° accuracy already validated against
     -- reference data, so further digits are float noise, not real precision.
@@ -303,8 +298,11 @@ SELECT
       )
     END AS azimuth,
     'degrees' AS azimuth_unit,
-    ST_IsValid(valid_geom) AS is_valid,
-    is_planar,
+    -- Both flags test the face rotated flat into its own plane: ST_IsValid on the raw face
+    -- checks only its plan view. is_planar allows 0.01 m off the mid-plane, val3dity's
+    -- default planarity_d2p_tol (Ledoux 2018).
+    ST_IsValid(fp.g) AS is_valid,
+    (ST_ZMax(fp.g) - ST_ZMin(fp.g)) / 2 <= 0.01 AS is_planar,
     child_row_id,
     ROUND((ST_ZMax(valid_geom) - ST_ZMin(valid_geom))::numeric, 2) AS height,
     'm',
@@ -314,6 +312,7 @@ SELECT
     'm',
     valid_geom AS geom
 FROM convergence_corrected
+CROSS JOIN LATERAL (SELECT {city2tabula_schema}.face_to_plane(valid_geom, nx, ny, nz) AS g) fp
 -- LATERAL evaluates the function once per row; same classes as surface_area.
 LEFT JOIN LATERAL {city2tabula_schema}.surface_dimensions(valid_geom, nx, ny, nz) d
   ON objectclass_id IN (709, 710, 712);
