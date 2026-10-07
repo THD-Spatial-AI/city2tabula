@@ -175,7 +175,10 @@ func writeMinimalTabulaCSV(t *testing.T, dir, country string) {
 	t.Helper()
 	header := `id,Code_BuildingVariant,Number_BuildingVariant,Year1_Building,Year2_Building,V_C,A_C_National,n_Storey,Code_ComplexFootprint,Code_AttachedNeighbours,Code_ComplexRoof,A_Roof_1,A_Roof_2,A_Wall_1,A_Wall_2,A_Wall_3,A_C_ExtDim,Code_BuildingSizeClass`
 	row := `1,TEST.VARIANT.001,1,1990,2000,500.0,150.0,3,Regular,B_Alone,Simple,60.0,,40.0,40.0,,145.0,SFH`
-	csv := header + "\n" + row + "\n"
+	// TABULA marks missing values with 0, as many countries do for V_C, A_C_ExtDim and
+	// the complexity codes.
+	missing := `2,TEST.VARIANT.002,1,1990,2000,0,0,2,0,B_N2,0,0,0,0,0,0,0,MFH`
+	csv := header + "\n" + row + "\n" + missing + "\n"
 	path := filepath.Join(dir, country+".csv")
 	if err := os.WriteFile(path, []byte(csv), 0644); err != nil {
 		t.Fatalf("failed to write CSV fixture: %v", err)
@@ -273,7 +276,7 @@ func TestImportSupplementaryData_Success(t *testing.T) {
 		{"construction_year_2", year2, 2000},
 		{"max_volume", maxVolume, 500.0},
 		{"total_area", totalArea, 150.0},
-		{"footprint_area", footprintArea, 50.0}, // 150.0 / n_Storey(3)
+		{"footprint_area", footprintArea, 145.0 / 3}, // A_C_ExtDim / n_Storey
 		{"number_of_storeys", storeys, 3},
 		{"footprint_complexity", footprintComplexity, 1},   // Regular
 		{"attached_neighbour_class", attachedNeighbour, 0}, // B_Alone
@@ -287,6 +290,49 @@ func TestImportSupplementaryData_Success(t *testing.T) {
 		if c.got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, c.got, c.want)
 		}
+	}
+}
+
+// TestImportSupplementaryData_MissingValuesAreNull pins that TABULA's 0 for a missing
+// value reaches tabula_variant as NULL, so matching skips the dimension instead of
+// measuring a distance to zero.
+func TestImportSupplementaryData_MissingValuesAreNull(t *testing.T) {
+	ctx := context.Background()
+	cfg := testConfig()
+	setupMinimalTabulaFixture(t, ctx, cfg)
+
+	dataDir := t.TempDir()
+	writeMinimalTabulaCSV(t, dataDir, "germany")
+	cfg.Data = &config.DataPaths{Tabula: dataDir + string(filepath.Separator)}
+	cfg.Country = "germany"
+
+	if err := importer.ImportSupplementaryData(testPool, cfg); err != nil {
+		t.Fatalf("ImportSupplementaryData: %v", err)
+	}
+
+	var nulls []string
+	var storeys, attached int
+	err := testPool.QueryRow(ctx, `
+		SELECT ARRAY_REMOVE(ARRAY[
+		         CASE WHEN max_volume IS NULL THEN 'max_volume' END,
+		         CASE WHEN total_area IS NULL THEN 'total_area' END,
+		         CASE WHEN footprint_area IS NULL THEN 'footprint_area' END,
+		         CASE WHEN footprint_complexity IS NULL THEN 'footprint_complexity' END,
+		         CASE WHEN roof_complexity IS NULL THEN 'roof_complexity' END,
+		         CASE WHEN area_total_roof IS NULL THEN 'area_total_roof' END,
+		         CASE WHEN area_total_wall IS NULL THEN 'area_total_wall' END,
+		         CASE WHEN area_total_floor IS NULL THEN 'area_total_floor' END], NULL),
+		       number_of_storeys, attached_neighbour_class
+		FROM city2tabula.tabula_variant WHERE tabula_variant_code_id = 2`,
+	).Scan(&nulls, &storeys, &attached)
+	if err != nil {
+		t.Fatalf("failed to read the variant with missing values: %v", err)
+	}
+	if len(nulls) != 8 {
+		t.Errorf("NULL columns = %v, want all 8 missing values NULL", nulls)
+	}
+	if storeys != 2 || attached != 2 {
+		t.Errorf("known values: storeys %d, attached class %d; want 2 and 2", storeys, attached)
 	}
 }
 

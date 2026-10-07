@@ -22,17 +22,13 @@ TABULA (Typology Approach for Building Stock Energy Assessment) defines a set of
 
 Think of each building and each TABULA variant as a point in 9-dimensional space, where each axis represents one building attribute (volume, footprint area, storeys, etc.). The matching question is: *which TABULA variant point is closest to this building point?*
 
-The distance between two points is the standard Euclidean formula, extended to 9 dimensions:
+The distance is the root mean square of the per-dimension differences, taken over the dimensions both points know:
 
 ```
-distance = sqrt(
-  (building.volume - variant.volume)² +
-  (building.area   - variant.area  )² +
-  ... (7 more dimensions)
-)
+distance = sqrt( mean over known dimensions of (building.x - variant.x)² )
 ```
 
-The variant with the smallest distance is the best match.
+The variant with the smallest distance is the best match. TABULA leaves many variant values empty, for example the volume of every Dutch variant. Averaging over the known dimensions, as in Gower's (1971) similarity coefficient, keeps a variant with fewer known values from winning only because its sum has fewer terms.
 
 ---
 
@@ -95,30 +91,33 @@ ranked AS (
   SELECT b.building_feature_id,
          v.tabula_variant_code_id,
          v.tabula_variant_code,
-         ROW_NUMBER() OVER (
-           PARTITION BY b.building_feature_id
-           ORDER BY sqrt(
-             power(normalised_building_volume - normalised_variant_volume, 2) +
-             power(normalised_building_area   - normalised_variant_area,   2) +
-             ... (7 more terms)
-           ) ASC
-         ) AS rnk
-  FROM {lod_schema}_building b
+         ROW_NUMBER() OVER (PARTITION BY b.building_feature_id
+                            ORDER BY d.distance, v.tabula_variant_code_id) AS rnk
+  FROM buildings b
   CROSS JOIN tabula_variant v
   CROSS JOIN stats s
-  WHERE ...
+  CROSS JOIN LATERAL (
+    SELECT sqrt(avg(term)) AS distance
+    FROM (VALUES
+      (power(minmax_norm(b.max_volume, s.lo_vol, s.hi_vol)
+           - minmax_norm(v.max_volume, s.lo_vol, s.hi_vol), 2)),
+      ... (8 more dimensions)
+    ) terms(term)
+  ) d
+  WHERE d.distance IS NOT NULL
 )
 ```
 
-This CTE compares **every building against every TABULA variant** using a `CROSS JOIN`. For each (building, variant) pair, the normalised Euclidean distance is computed across all 9 dimensions.
+This CTE compares **every building against every TABULA variant** using a `CROSS JOIN`. For each (building, variant) pair, the distance is computed over the dimensions both sides know.
 
 `ROW_NUMBER()` ranks all variants for each building by distance (closest first). The building is partitioned (`PARTITION BY b.building_feature_id`) so ranks restart at 1 for each building independently.
 
 **Handling NULLs and zero ranges:**
 
-- `COALESCE(..., 0)` handles a missing value: if a building or variant has a NULL value for a feature (e.g. missing roof data), that dimension is treated as sitting at the normalised minimum (0). This keeps the distance computation valid without discarding rows.
-- `NULLIF(range, 0)` handles a zero range: if the global max equals the global min for a feature (all values are identical, so range = 0), division would produce an error. `NULLIF` converts 0 to NULL, making the division produce NULL, which `COALESCE` then converts to 0. The practical effect: a feature with zero discriminating power contributes nothing to the distance.
-- `attached_neighbour_class` is the exception to the first rule: an unknown class (NULL on a building, `-1` on a variant) adds nothing to the distance instead of counting as alone.
+- `minmax_norm(x, lo, hi)` (`sql/functions/03_minmax_norm.sql`) returns NULL when `x` is unknown or the range is empty (all values equal). That dimension's term is NULL, and `avg` skips it.
+- The TABULA extraction stores TABULA's missing values (0 or empty) as NULL, so a missing variant value is never compared as zero.
+- `minmax_norm` divides in double precision, so the integer codes (storeys, complexity, attached neighbours) normalise to fractions instead of flooring to 0.
+- A pair with no known dimension in common has no distance and is not ranked. Ties go to the lower `tabula_variant_code_id`.
 
 ---
 
@@ -155,3 +154,9 @@ These codes are the primary output of the City2TABULA pipeline and are used down
 This is the last script that writes building attributes. `_building` now holds a fully populated row for every building: geometry-derived attributes, height, area, volume, storey count, shape complexity and a TABULA archetype assignment.
 
 Script 08, which runs per batch before the post scripts, writes the resolved surface table: one row per polygon face, party walls excluded.
+
+---
+
+## Reference
+
+Gower, J. C. (1971). A general coefficient of similarity and some of its properties. *Biometrics* 27(4), 857-871. <https://doi.org/10.2307/2528823>

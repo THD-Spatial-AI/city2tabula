@@ -9,6 +9,10 @@ Breaking changes:
 - TABULA matching uses attached_neighbour_class as a ninth dimension,
   so re-extracting an existing database changes the TABULA type of
   some buildings (#13).
+- TABULA matching ignores variant values TABULA leaves empty, measures
+  distance over the dimensions both sides know, and normalises the
+  integer codes without integer division. Re-extracting changes the
+  TABULA type of many buildings (#174, #169).
 
 Features:
 - -extract-features marks buildings that share a wall with another
