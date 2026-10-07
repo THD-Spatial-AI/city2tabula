@@ -5,6 +5,7 @@ package process_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
@@ -20,6 +21,9 @@ import (
 //   - TALL (16.8 m high, 6 storeys of 2.8 m): V_ONE and V_SEVEN differ only in storeys. Storeys
 //     are integers and must be normalised without integer division, so 6 lies
 //     nearer 7 than 1.
+//   - GABLE (10 m by 8 m, 6 m eave, 30 degree roof): V_EAVE and V_RIDGE differ only in
+//     volume, eave × footprint against ridge × footprint. TABULA's V_C leaves out an
+//     unheated attic, so the eave-based volume decides and V_EAVE wins.
 func TestPipeline_TabulaMatching_UnknownValuesAndIntegerCodes(t *testing.T) {
 	ctx := context.Background()
 	resetSchemas(t)
@@ -32,6 +36,7 @@ func TestPipeline_TabulaMatching_UnknownValuesAndIntegerCodes(t *testing.T) {
 	f := &partsFixture{nextID: 600000}
 	f.solid(f.feature(901, "BOX"), box{x, y, x + 10, y + 10, 200, 210, "SENW", 200})
 	f.solid(f.feature(901, "TALL"), box{x + 50, y, x + 60, y + 10, 200, 216.8, "SENW", 200})
+	gableHouse(f, "GABLE", x+100, y, 200, 6, 4*math.Tan(math.Pi/6))
 	mustExec(t, ctx, buildPartsFixture()+f.sql.String())
 	seedDB(t)
 	mustExec(t, ctx, `
@@ -40,13 +45,15 @@ func TestPipeline_TabulaMatching_UnknownValuesAndIntegerCodes(t *testing.T) {
 		VALUES (1, 'V_FULL',  5000, 100, 4, 100, 400, 400),
 		       (2, 'V_PART',  NULL, 100, 4, 100, 400, 400),
 		       (3, 'V_ONE',   1680, 100, 1, 100, 672, 600),
-		       (4, 'V_SEVEN', 1680, 100, 7, 100, 672, 600)`)
+		       (4, 'V_SEVEN', 1680, 100, 7, 100, 672, 600),
+		       (5, 'V_EAVE',  480,   80, 2,  92.38, 234.48, 188.04),
+		       (6, 'V_RIDGE', 664.75, 80, 2, 92.38, 234.48, 188.04)`)
 
 	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
 		t.Fatalf("RunFeatureExtraction: %v", err)
 	}
 
-	for id, want := range map[string]string{"BOX": "V_PART", "TALL": "V_SEVEN"} {
+	for id, want := range map[string]string{"BOX": "V_PART", "TALL": "V_SEVEN", "GABLE": "V_EAVE"} {
 		var storeys int
 		var got string
 		if err := testPool.QueryRow(ctx, `
