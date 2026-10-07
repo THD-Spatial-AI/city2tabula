@@ -26,7 +26,7 @@ func TestGetSQLParameters(t *testing.T) {
 			Tables: &Tables{Tabula: "tab_table", TabulaVariant: "tab_variant_table"},
 		},
 		CityDB:      &CityDB{SRID: "25832"},
-		City2Tabula: &City2TabulaConfig{RoomHeight: "2.5"},
+		City2Tabula: &City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"},
 	}
 
 	cases := []struct {
@@ -157,7 +157,7 @@ func TestLoadSQLFilesFromDir(t *testing.T) {
 
 // chdirWithSQLTree creates a fresh temp dir, chdirs the test into it, and
 // creates only the given relative directories (each with one stub .sql
-// file) - letting a test control exactly which of LoadSQLScripts' six
+// file) - letting a test control exactly which of LoadSQLScripts' seven
 // sequential loads succeeds and which one is first to fail.
 func chdirWithSQLTree(t *testing.T, dirs []string) {
 	t.Helper()
@@ -181,6 +181,7 @@ func TestConfig_LoadSQLScripts_Failures(t *testing.T) {
 	// specific early-return branch.
 	allDirs := []string{
 		strings.TrimSuffix(SQLMainScriptDir, string(os.PathSeparator)),
+		strings.TrimSuffix(SQLPostScriptDir, string(os.PathSeparator)),
 		strings.TrimSuffix(SQLSupplementaryScriptDir, string(os.PathSeparator)),
 		strings.TrimSuffix(SQLPylvoLinkScriptDir, string(os.PathSeparator)),
 		strings.TrimSuffix(SQLMainSchemaPath, string(os.PathSeparator)),
@@ -193,11 +194,12 @@ func TestConfig_LoadSQLScripts_Failures(t *testing.T) {
 		createUpTo int
 	}{
 		{"main scripts missing", 0},
-		{"supplementary scripts missing", 1},
-		{"pylovo link scripts missing", 2},
-		{"main schema missing", 3},
-		{"supplementary schema missing", 4},
-		{"function scripts missing", 5},
+		{"post scripts missing", 1},
+		{"supplementary scripts missing", 2},
+		{"pylovo link scripts missing", 3},
+		{"main schema missing", 4},
+		{"supplementary schema missing", 5},
+		{"function scripts missing", 6},
 	}
 
 	for _, tc := range cases {
@@ -224,6 +226,7 @@ func TestConfig_LoadSQLScripts_Success(t *testing.T) {
 
 	for name, got := range map[string][]string{
 		"MainScripts":               scripts.MainScripts,
+		"PostScripts":               scripts.PostScripts,
 		"SupplementaryScripts":      scripts.SupplementaryScripts,
 		"PyLovoLinkScripts":         scripts.PyLovoLinkScripts,
 		"MainTableScripts":          scripts.MainTableScripts,

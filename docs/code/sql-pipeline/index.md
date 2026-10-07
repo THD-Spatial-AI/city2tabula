@@ -4,9 +4,9 @@ audience: developer
 
 # SQL Extraction Pipeline
 
-This section documents the eight SQL scripts that transform raw 3D building geometry from the CityDB database into a structured set of building features ready for TABULA classification.
+This section documents the SQL scripts that transform raw 3D building geometry from the CityDB database into a structured set of building features ready for TABULA classification.
 
-The scripts run in order, numbered `01_` through `08_`. Each script reads from the output of the previous one, so the pipeline is strictly sequential within a batch of buildings.
+The per-batch scripts in `sql/scripts/main/` run in order within a batch of buildings, each reading the output of the previous one. Once every batch has finished, the post scripts in `sql/scripts/post/` run once over the whole table, because they compare buildings across batches.
 
 ---
 
@@ -20,8 +20,12 @@ Given a batch of building IDs, the pipeline:
 4. Aggregates those per-surface values into one row per solid, then one summary row per building.
 5. Approximates building volume from height × footprint area.
 6. Refines the storey count and total floor area.
-7. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
-8. Writes the resolved surface table: one row per exposed polygon face or face piece, party-wall surfaces excluded.
+7. Writes the resolved surface table: one row per exposed polygon face or face piece, party-wall surfaces excluded (script 08).
+
+After all batches, over the whole table:
+
+1. Marks buildings that share a wall with a neighbour.
+2. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
 
 ---
 
@@ -37,8 +41,9 @@ flowchart TD
     P -->|script 04| E
     E -->|script 05| F["_building<br>Volume added"]
     F -->|script 06| G["_building<br>Storeys + floor area refined"]
-    G -->|script 07| H["_building<br>TABULA variant code assigned"]
-    I[("tabula.tabula_variant<br>(reference archetypes)")] -->|script 07| H
+    G -->|post 01| N["_building<br>Attached neighbours marked"]
+    N -->|post 02| H["_building<br>TABULA variant code assigned"]
+    I[("tabula.tabula_variant<br>(reference archetypes)")] -->|post 02| H
     D -->|script 08| J["_surface<br>One row per exposed face<br>party walls excluded"]
 ```
 
@@ -54,8 +59,9 @@ flowchart TD
 | [04 Building features](04-building-features.md) | Aggregate surface attributes into one row per solid, then one row per building | `_building_part`, `_building` |
 | [05 Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
 | [06 Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
-| [07 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype | `_building` (UPDATE) |
 | 08 Build surface | Copy each exposed surface face or face piece into the resolved table, excluding party walls | `_surface` |
+| [Post 01 Neighbour detection](post-01-neighbour-detection.md) | Mark buildings that share a wall with another building, once over the whole table | `_building` (UPDATE) |
+| [Post 02 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype, once over the whole table | `_building` (UPDATE) |
 
 ---
 

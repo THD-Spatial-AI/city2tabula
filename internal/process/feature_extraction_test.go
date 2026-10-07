@@ -35,7 +35,7 @@ func TestPyLovoLinkJobQueue_EmptyBatches(t *testing.T) {
 			},
 		},
 		CityDB:      &config.CityDB{SRID: "25832"},
-		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", LinkGridSize: 1000},
+		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8", LinkGridSize: 1000},
 	}
 
 	// When: no batches are passed
@@ -68,7 +68,7 @@ func TestPyLovoLinkJobQueue_WithBatches(t *testing.T) {
 			},
 		},
 		CityDB:      &config.CityDB{SRID: "25832"},
-		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", LinkGridSize: 1000},
+		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8", LinkGridSize: 1000},
 	}
 	batches := [][]int64{{1, 2, 3}, {4, 5}}
 

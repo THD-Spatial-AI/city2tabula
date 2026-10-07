@@ -78,7 +78,7 @@ func TestRunCity2TabulaDBSetup_Success(t *testing.T) {
 	cfg.DB.Schemas.City2Tabula = "city2tabula_setup_test"
 	cfg.DB.Schemas.Tabula = "tabula_setup_test"
 	cfg.DB.Tables = &config.Tables{Tabula: "tabula", TabulaVariant: "tabula_variant"}
-	cfg.City2Tabula = &config.City2TabulaConfig{RoomHeight: "2.5"}
+	cfg.City2Tabula = &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"}
 	cfg.RetryConfig = config.DefaultRetryConfig()
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DROP SCHEMA IF EXISTS `+cfg.DB.Schemas.City2Tabula+` CASCADE`)

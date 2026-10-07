@@ -14,7 +14,7 @@ audience: developer
 
 Estimates building volume using a simple bounding-box approximation: **height × footprint area**. Two estimates are computed, one from the eave height and one from the ridge height, giving a lower and an upper bound on the true volume.
 
-This is a deliberate simplification. Computing the exact volume of a 3D building solid from CityGML would require expensive geometric operations. For the purposes of TABULA archetype matching (script 07), a height × footprint approximation is sufficiently discriminating and much faster to compute.
+This is a deliberate simplification. Computing the exact volume of a 3D building solid from CityGML would require expensive geometric operations. For the purposes of TABULA archetype matching ([post script 02](07-tabula-labelling.md)), a height × footprint approximation is sufficiently discriminating and much faster to compute.
 
 ---
 

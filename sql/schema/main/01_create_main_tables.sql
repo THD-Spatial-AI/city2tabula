@@ -90,7 +90,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building_part (
   building_feature_id INTEGER NOT NULL,
   footprint_area DOUBLE PRECISION,
   min_height DOUBLE PRECISION,
-  max_height DOUBLE PRECISION
+  max_height DOUBLE PRECISION,
+  -- Usable floor area under the roof, WoFlV § 4 weighted (script 04).
+  attic_floor_area DOUBLE PRECISION
 );
 
 -- Building-level attributes aggregated from surface data, one row per CityGML
@@ -115,7 +117,8 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   footprint_complexity INTEGER CHECK (footprint_complexity IN (0, 1, 2)),
   roof_complexity INTEGER CHECK (roof_complexity IN (0, 1, 2)),
   has_attached_neighbour BOOLEAN,
-  attached_neighbour_id INTEGER[],
+  -- object_id of each attached neighbour (sql/scripts/post/01_detect_neighbours.sql).
+  attached_neighbour_id TEXT[],
   total_attached_neighbour INTEGER,
   attached_neighbour_class INTEGER CHECK (attached_neighbour_class IN (0, 1, 2, -1)),
   min_height DOUBLE PRECISION,
@@ -124,7 +127,16 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   max_height_unit VARCHAR(20) CHECK (max_height_unit IN ('m')),
   room_height DOUBLE PRECISION,
   room_height_unit VARCHAR(20) CHECK (room_height_unit IN ('m')),
+  -- number_of_storeys = full_storeys + attic_storey (script 06). full_storeys counts
+  -- storeys below the eave, as TABULA's n_Storey does; attic_storey adds the roof
+  -- space when it reaches 2 m clear height.
   number_of_storeys INTEGER,
+  full_storeys INTEGER,
+  attic_storey BOOLEAN,
+  attic_floor_area DOUBLE PRECISION,
+  attic_floor_area_unit VARCHAR(20) CHECK (attic_floor_area_unit IN ('sqm')),
+  storey_height DOUBLE PRECISION,
+  storey_height_unit VARCHAR(20) CHECK (storey_height_unit IN ('m')),
   min_volume DOUBLE PRECISION,
   min_volume_unit VARCHAR(20) CHECK (min_volume_unit IN ('cbm')),
   max_volume DOUBLE PRECISION,
