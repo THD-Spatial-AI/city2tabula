@@ -9,7 +9,7 @@ import (
 
 // getProcessedBuildingFeatureIDs returns the building_feature_id values already present
 // in {city2tabulaSchema}.{lodSchema}_building, so a repeat -extract-features run can skip
-// them instead of letting scripts 04-07 re-write rows a user may have since hand-corrected.
+// them instead of letting scripts 04-06 re-write rows a user may have since hand-corrected.
 func getProcessedBuildingFeatureIDs(dbConn *pgxpool.Pool, city2tabulaSchema, lodSchema string) (map[int64]bool, error) {
 	query := fmt.Sprintf(`
         SELECT building_feature_id

@@ -30,6 +30,12 @@ type Building struct {
 	FloorAreaSqm      *float64  `json:"area_total_floor,omitempty"`
 	TabulaVariantCode *string   `json:"tabula_variant_code,omitempty"`
 	Surfaces          []Surface `json:"surfaces,omitempty"`
+
+	// Attached neighbours share a wall with this building; the ids are their
+	// object_ids, for fetching their geometry.
+	HasAttachedNeighbour   *bool    `json:"has_attached_neighbour,omitempty"`
+	AttachedNeighbourClass *int32   `json:"attached_neighbour_class,omitempty"`
+	AttachedNeighbourIDs   []string `json:"attached_neighbour_id,omitempty"`
 }
 
 // Surface is one envelope surface (wall, roof, or ground) belonging to a
@@ -87,11 +93,11 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 			b.object_id, b.dataset_id, bl.osm_id, bl.match_type,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
-			b.tabula_variant_code
+			b.tabula_variant_code, %s
 		FROM %s.building_link bl
 		JOIN %s b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
 		WHERE bl.country_code = $1 AND bl.osm_id = ANY($2)`,
-		cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns),
+		neighbourColumns, cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, osmIDs)
@@ -120,12 +126,12 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 			b.object_id, b.dataset_id, '', 0,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
-			b.tabula_variant_code
+			b.tabula_variant_code, %s
 		FROM %s b
 		WHERE b.country_code = $1
 		  AND b.building_footprint_geom IS NOT NULL
 		  AND ST_Intersects(b.building_footprint_geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
-		allLODs(cfg, "building", buildingColumns),
+		neighbourColumns, allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, bbox.Xmin, bbox.Ymin, bbox.Xmax, bbox.Ymax, cfg.CityDB.SRID)
@@ -148,8 +154,12 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 // its lod2_ tables that its lod3_ tables lack, so SELECT * cannot be unioned.
 const (
 	buildingColumns = "object_id, country_code, dataset_id, min_height, max_height, room_height, number_of_storeys, " +
-		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, building_footprint_geom"
-	surfaceColumns = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, " +
+		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, " +
+		"has_attached_neighbour, attached_neighbour_class, attached_neighbour_id, building_footprint_geom"
+	// neighbourColumns casts the ids because a database built by an earlier
+	// release stores attached_neighbour_id as INTEGER[].
+	neighbourColumns = "b.has_attached_neighbour, b.attached_neighbour_class, b.attached_neighbour_id::TEXT[]"
+	surfaceColumns   = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, " +
 		"length, width, height, geom"
 )
 
@@ -170,6 +180,7 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 			&b.MinHeight, &b.MaxHeight, &b.RoomHeight, &b.NumberOfStoreys,
 			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.FloorAreaSqm,
 			&b.TabulaVariantCode,
+			&b.HasAttachedNeighbour, &b.AttachedNeighbourClass, &b.AttachedNeighbourIDs,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan building row: %w", err)
 		}

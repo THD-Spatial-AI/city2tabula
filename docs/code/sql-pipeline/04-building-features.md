@@ -94,7 +94,7 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | Column | Initial value | Updated by |
 |--------|--------------|-----------|
 | `construction_year` | 0 | External data (not automated) |
-| `has_attached_neighbour` | `FALSE` | Not yet implemented |
+| `has_attached_neighbour`, `attached_neighbour_*` | NULL | [Neighbour detection](post-01-neighbour-detection.md) |
 | `area_total_floor` | Exposed GroundSurface sum | Script 06 (overwritten) |
 | `number_of_storeys` | `min_height` / 2.5 | Script 06 (refined) |
 

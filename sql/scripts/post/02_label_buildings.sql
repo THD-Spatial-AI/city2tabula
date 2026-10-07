@@ -1,7 +1,9 @@
 -- Assigns each building its best-matching TABULA variant code using nearest-neighbour
--- matching in an 8-dimensional feature space (volume, area, storeys, complexity, surfaces).
+-- matching in a 9-dimensional feature space (volume, area, storeys, complexity,
+-- attached neighbours, surfaces). Runs once after every batch, following neighbour
+-- detection (01_detect_neighbours.sql), because the normalisation spans all buildings.
 --
--- All 8 dimensions are min-max normalised before computing distances so that no single
+-- All 9 dimensions are min-max normalised before computing distances so that no single
 -- feature dominates by scale (e.g. volume in m³ vs a 0-2 complexity code).
 -- Normalisation uses the combined range of buildings + variants (UNION ALL in stats)
 -- so both sides are scaled to the same axis; normalising buildings alone would produce
@@ -19,12 +21,14 @@ WITH stats AS (
     MIN(number_of_storeys)    AS min_storeys, MAX(number_of_storeys)    AS max_storeys,
     MIN(footprint_complexity) AS min_fc,      MAX(footprint_complexity) AS max_fc,
     MIN(roof_complexity)      AS min_rc,      MAX(roof_complexity)      AS max_rc,
+    MIN(attached_class)       AS min_ac,      MAX(attached_class)       AS max_ac,
     MIN(area_total_roof)      AS min_roof,    MAX(area_total_roof)      AS max_roof,
     MIN(area_total_wall)      AS min_wall,    MAX(area_total_wall)      AS max_wall,
     MIN(area_total_floor)     AS min_floor,   MAX(area_total_floor)     AS max_floor
   FROM (
     SELECT max_volume, footprint_area, number_of_storeys,
-           footprint_complexity, roof_complexity, area_total_roof, area_total_wall, area_total_floor
+           footprint_complexity, roof_complexity, attached_neighbour_class AS attached_class,
+           area_total_roof, area_total_wall, area_total_floor
     FROM {city2tabula_schema}.{lod_schema}_building
     WHERE footprint_area IS NOT NULL
       AND number_of_storeys IS NOT NULL
@@ -33,7 +37,8 @@ WITH stats AS (
       AND area_total_floor IS NOT NULL
     UNION ALL
     SELECT max_volume, footprint_area, number_of_storeys,
-           footprint_complexity, roof_complexity, area_total_roof, area_total_wall, area_total_floor
+           footprint_complexity, roof_complexity, NULLIF(attached_neighbour_class, -1),
+           area_total_roof, area_total_wall, area_total_floor
     FROM {city2tabula_schema}.tabula_variant
     WHERE max_volume IS NOT NULL
       AND footprint_area IS NOT NULL
@@ -70,6 +75,11 @@ ranked AS (
              -- roof complexity (0 = simple, 1 = regular, 2 = complex)
              power(COALESCE(((b.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0) -
                    COALESCE(((v.roof_complexity - s.min_rc) / NULLIF(s.max_rc - s.min_rc, 0)), 0), 2) +
+             -- attached neighbours (0 = alone, 1 = one, 2 = two or more). An unknown
+             -- class (-1 variant, NULL building) adds nothing rather than counting as alone.
+             -- numeric: the class is an integer, and integer division would floor 1/2 to 0.
+             COALESCE(power(((b.attached_neighbour_class - s.min_ac)::numeric / NULLIF(s.max_ac - s.min_ac, 0)) -
+                            ((NULLIF(v.attached_neighbour_class, -1) - s.min_ac)::numeric / NULLIF(s.max_ac - s.min_ac, 0)), 2), 0) +
              -- total roof area
              power(COALESCE(((b.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0) -
                    COALESCE(((v.area_total_roof - s.min_roof) / NULLIF(s.max_roof - s.min_roof, 0)), 0), 2) +

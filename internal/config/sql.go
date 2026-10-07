@@ -14,9 +14,10 @@ const (
 	// Script directories
 	SQLScriptDir              = SQLDir + "scripts" + string(os.PathSeparator)
 	SQLMainScriptDir          = SQLScriptDir + "main" + string(os.PathSeparator)          // Core feature extraction pipeline
+	SQLPostScriptDir          = SQLScriptDir + "post" + string(os.PathSeparator)          // Whole-table steps after every batch
 	SQLSupplementaryScriptDir = SQLScriptDir + "supplementary" + string(os.PathSeparator) // Supporting/setup scripts
 	// Link subdirectories — one per supported OSM/building data source
-	SQLPylvoLinkScriptDir     = SQLScriptDir + "link" + string(os.PathSeparator) + "pylovo" + string(os.PathSeparator) // PyLovo res/oth link pipeline
+	SQLPylvoLinkScriptDir = SQLScriptDir + "link" + string(os.PathSeparator) + "pylovo" + string(os.PathSeparator) // PyLovo res/oth link pipeline
 
 	// Schema files
 	SQLSchemaFileDir           = SQLDir + "schema" + string(os.PathSeparator)
@@ -29,7 +30,8 @@ const (
 
 // SQLScripts holds dynamically loaded SQL script paths
 type SQLScripts struct {
-	MainScripts               []string // Core feature extraction pipeline (01-10)
+	MainScripts               []string // Per-batch feature extraction pipeline
+	PostScripts               []string // Whole-table steps run once after MainScripts
 	SupplementaryScripts      []string // Supporting scripts (tabula extraction, etc.)
 	PyLovoLinkScripts         []string // PyLovo res/oth building link pipeline
 	MainTableScripts          []string // Schema creation scripts
@@ -91,6 +93,11 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 		return nil, err
 	}
 
+	postScripts, err := loadSQLFilesFromDir(SQLPostScriptDir)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load supplementary scripts
 	supplementaryScripts, err := loadSQLFilesFromDir(SQLSupplementaryScriptDir)
 	if err != nil {
@@ -121,6 +128,7 @@ func (c *Config) LoadSQLScripts() (*SQLScripts, error) {
 	}
 	return &SQLScripts{
 		MainScripts:               mainScripts,
+		PostScripts:               postScripts,
 		SupplementaryScripts:      supplementaryScripts,
 		PyLovoLinkScripts:         pylovoLinkScripts,
 		MainTableScripts:          MainTableScripts,

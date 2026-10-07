@@ -453,6 +453,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Surface"
+        has_attached_neighbour:
+          type: boolean
+          nullable: true
+          description: |
+            True when the building shares a wall with at least one other building:
+            their footprints lie within 0.1 m of each other along at least 1 m of
+            boundary. Buildings that meet only at a corner are not attached.
+        attached_neighbour_class:
+          type: integer
+          nullable: true
+          enum: [0, 1, 2]
+          description: |
+            Number of attached neighbours as TABULA's attached-neighbours code:
+            0 detached, 1 one neighbour (semi-detached or end of terrace), 2 two
+            or more (mid-terrace or block).
+        attached_neighbour_id:
+          type: array
+          items:
+            type: string
+          description: |
+            `object_id` of each attached neighbour. Pass them to `GET /geometry`
+            to draw the neighbours. Absent when the building has none.
 
     Surface:
       type: object

@@ -3,6 +3,8 @@ package process
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -79,11 +81,17 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	// same bulk run. Turn them on now that extraction has populated the table, so
 	// manual corrections (e.g. in QGIS) work right away without a separate step.
 	if len(lod2BldIDs) > 0 {
+		if err := runPostScripts(pool, cfg, 2); err != nil {
+			return err
+		}
 		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
 			return err
 		}
 	}
 	if len(lod3BldIDs) > 0 {
+		if err := runPostScripts(pool, cfg, 3); err != nil {
+			return err
+		}
 		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
 			return err
 		}
@@ -92,9 +100,29 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// runPostScripts runs sql/scripts/post/ once over one LoD's whole _building table.
+// They read every batch's buildings, so they cannot run as per-batch tasks.
+func runPostScripts(pool *pgxpool.Pool, cfg *config.Config, lod int) error {
+	scripts, err := cfg.LoadSQLScripts()
+	if err != nil {
+		return fmt.Errorf("failed to load SQL scripts: %w", err)
+	}
+	for _, path := range scripts.PostScripts {
+		sql, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read SQL file %s: %w", path, err)
+		}
+		utils.Info.Printf("LOD%d: running %s", lod, filepath.Base(path))
+		if err := executeSQLScript(string(sql), cfg, pool, lod, nil); err != nil {
+			return fmt.Errorf("LOD%d post script %s failed: %w", lod, path, err)
+		}
+	}
+	return nil
+}
+
 // excludeProcessedBuildingIDs drops any building_feature_id already present in
 // {lodSchema}_building from ids, so a repeat -extract-features run doesn't re-run
-// scripts 04-07 against buildings a user may have since hand-corrected — those
+// scripts 04-06 against buildings a user may have since hand-corrected — those
 // scripts have no skip-already-processed filter of their own, and re-writing a
 // corrected row would incorrectly mark it as freshly changed (see
 // sql/schema/main/03_create_correction_triggers.sql's trg_touch_updated_at).
