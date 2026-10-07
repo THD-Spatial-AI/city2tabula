@@ -74,8 +74,13 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   geom_exposed geometry(MULTIPOLYGONZ, {srid}),
   is_valid BOOLEAN,
   is_planar BOOLEAN,
+  -- Set by sql/scripts/post/02_detect_party_walls.sql; geom_party and geom_envelope are NULL
+  -- when the face shares nothing. neighbour_object_id is the neighbour sharing the most area.
   is_party_wall BOOLEAN DEFAULT FALSE,
-  neighbour_building_id INTEGER,
+  area_party_wall DOUBLE PRECISION,
+  geom_party geometry(MULTIPOLYGONZ, {srid}),
+  geom_envelope geometry(MULTIPOLYGONZ, {srid}),
+  neighbour_object_id TEXT,
   child_row_id UUID,
   attribute_calc_status VARCHAR,
   geom geometry(POLYGONZ, {srid})
@@ -144,6 +149,10 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   area_total_roof DOUBLE PRECISION,
   area_total_roof_unit VARCHAR(20) CHECK (area_total_roof_unit IN ('sqm')),
   area_total_wall DOUBLE PRECISION,
+  -- Wall area shared with attached neighbours, left out of area_total_wall
+  -- (sql/scripts/post/04_wall_totals.sql).
+  area_party_wall DOUBLE PRECISION,
+  area_party_wall_unit VARCHAR(20) CHECK (area_party_wall_unit IN ('sqm')),
   area_total_wall_unit VARCHAR(20) CHECK (area_total_wall_unit IN ('sqm')),
   area_total_floor DOUBLE PRECISION,
   area_total_floor_unit VARCHAR(20) CHECK (area_total_floor_unit IN ('sqm')),
@@ -160,9 +169,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Resolved surface output. One row per surface polygon face, party walls excluded.
--- Populated by script 08 from lod2_surface_raw; re-run script 08 after
--- neighbour detection to apply party-wall exclusions.
+-- Resolved surface output. One row per served polygon piece: the exterior pieces of
+-- each face and, flagged is_party_wall, the pieces shared with an attached
+-- neighbour. Rebuilt by sql/scripts/post/03_build_surface.sql after every extraction.
 -- surface_object_id / surface_feature_id are the source surface feature and are
 -- shared across every face of a multi-face feature (e.g. a 3DBAG WallSurface), so
 -- neither is unique in this table; the row id is the only unique key.
@@ -193,8 +202,10 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     width              DOUBLE PRECISION,
     is_valid           BOOLEAN,
     is_planar          BOOLEAN,
+    -- is_party_wall: a piece shared with the attached neighbour neighbour_object_id;
+    -- not part of the building's area_total_wall.
     is_party_wall      BOOLEAN,
-    neighbour_building_id INTEGER,
+    neighbour_object_id TEXT,
     geom               GEOMETRY(POLYGONZ, {srid}),
     created_at         TIMESTAMPTZ DEFAULT NOW()
 );

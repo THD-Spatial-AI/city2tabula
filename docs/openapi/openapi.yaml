@@ -448,6 +448,16 @@ components:
         area_total_wall:
           type: number
           nullable: true
+          description: |
+            Square metres. Envelope wall area: the exterior wall pieces, without the
+            parts shared with attached neighbours (`area_party_wall`).
+        area_party_wall:
+          type: number
+          nullable: true
+          description: |
+            Square metres. Wall area shared with attached neighbours, left out of
+            `area_total_wall` because a heated neighbour means almost no heat flow.
+            Add it back with a reduction factor when a neighbour is unheated.
         area_total_floor:
           type: number
           nullable: true
@@ -488,7 +498,9 @@ components:
         taken from the LoD2 model geometry; references are listed under
         "Surface measurement references" at the top of this document. Where part
         of a face lies against another solid of the same building, `area`,
-        `length`, `width` and `height` describe only its exposed piece.
+        `length`, `width` and `height` describe only its exposed piece. A wall
+        shared with an attached neighbour is served as separate pieces: the
+        exterior part and the shared part, the latter with `is_party_wall`.
       properties:
         id:
           type: string
@@ -577,6 +589,21 @@ components:
             without tolerance (PostGIS ST_IsPlanar). Coordinate rounding in source
             data makes many real roof faces false. `area`, `tilt` and `azimuth`
             use a best-fit plane either way.
+        is_party_wall:
+          type: boolean
+          nullable: true
+          description: |
+            True for a piece of wall that lies against a wall of the attached
+            neighbour `neighbour_object_id`. Not part of the building's
+            `area_total_wall`. A heated neighbour transmits almost no heat through
+            it (BuEM: `b_transmission` 0). Each side of the shared wall has its own
+            piece, so two polygons lie on top of each other.
+        neighbour_object_id:
+          type: string
+          nullable: true
+          description: |
+            `object_id` of the neighbour sharing this party-wall piece; absent on
+            exterior pieces.
 
     BuildingGeometry:
       type: object
@@ -591,3 +618,30 @@ components:
           type: object
           nullable: true
           description: GeoJSON geometry (MultiPolygon), native SRID (see the building's country)
+        surfaces:
+          type: array
+          description: Present when surfaces were requested.
+          items:
+            $ref: "#/components/schemas/SurfaceGeometry"
+
+    SurfaceGeometry:
+      type: object
+      description: |
+        One served surface piece's polygon, keyed by the same `id` as in `Surface`.
+        Party-wall pieces carry `is_party_wall`, so a viewer can highlight them.
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [WallSurface, RoofSurface, GroundSurface]
+        is_party_wall:
+          type: boolean
+          nullable: true
+        neighbour_object_id:
+          type: string
+          nullable: true
+        geojson:
+          type: object
+          nullable: true
+          description: GeoJSON geometry (Polygon with Z), native SRID

@@ -134,7 +134,8 @@ nav:
       - 05 Volume: code/sql-pipeline/05-volume.md
       - 06 Storeys: code/sql-pipeline/06-storeys.md
       - Post 01 Neighbour detection: code/sql-pipeline/post-01-neighbour-detection.md
-      - Post 02 TABULA labelling: code/sql-pipeline/07-tabula-labelling.md
+      - Post 02 Party walls: code/sql-pipeline/post-02-party-walls.md
+      - Post 05 TABULA labelling: code/sql-pipeline/07-tabula-labelling.md
 
 extra:
   version:

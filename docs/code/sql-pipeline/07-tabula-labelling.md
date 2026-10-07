@@ -2,9 +2,9 @@
 audience: developer
 ---
 
-# Post script 02: TABULA Labelling
+# Post script 05: TABULA Labelling
 
-**File:** `sql/scripts/post/02_label_buildings.sql`  
+**File:** `sql/scripts/post/05_label_buildings.sql`  
 **Reads from:** `{city2tabula_schema}.{lod_schema}_building`, `{city2tabula_schema}.tabula_variant`  
 **Writes to:** `{city2tabula_schema}.{lod_schema}_building` (UPDATE)
 
@@ -151,9 +151,7 @@ These codes are the primary output of the City2TABULA pipeline and are used down
 
 ## What comes next
 
-This is the last script that writes building attributes. `_building` now holds a fully populated row for every building: geometry-derived attributes, height, area, volume, storey count, shape complexity and a TABULA archetype assignment.
-
-Script 08, which runs per batch before the post scripts, writes the resolved surface table: one row per polygon face, party walls excluded.
+This is the last script that writes building attributes. `_building` now holds a fully populated row for every building: geometry-derived attributes, height, area, volume, storey count, shape complexity and a TABULA archetype assignment. Its wall area leaves out walls shared with attached neighbours ([party walls](post-02-party-walls.md)), as TABULA's envelope areas do.
 
 ---
 

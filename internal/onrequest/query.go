@@ -27,6 +27,7 @@ type Building struct {
 	FootprintAreaSqm  *float64  `json:"footprint_area,omitempty"`
 	RoofAreaSqm       *float64  `json:"area_total_roof,omitempty"`
 	WallAreaSqm       *float64  `json:"area_total_wall,omitempty"`
+	PartyWallAreaSqm  *float64  `json:"area_party_wall,omitempty"`
 	FloorAreaSqm      *float64  `json:"area_total_floor,omitempty"`
 	TabulaVariantCode *string   `json:"tabula_variant_code,omitempty"`
 	Surfaces          []Surface `json:"surfaces,omitempty"`
@@ -40,9 +41,9 @@ type Building struct {
 
 // Surface is one envelope surface (wall, roof, or ground) belonging to a
 // Building — the per-element area/azimuth/tilt that Building's own
-// aggregate totals (RoofAreaSqm etc.) don't carry. Party walls are already
-// excluded upstream (sql/scripts/main/08_build_surface.sql), so every
-// surface here is exposed building fabric. Type is the raw CityGML
+// aggregate totals (RoofAreaSqm etc.) don't carry. A wall shared with an attached
+// neighbour is served as its own piece with IsPartyWall set; it is not part of
+// the building's area_total_wall. Type is the raw CityGML
 // classname (WallSurface, RoofSurface, GroundSurface) — callers map this
 // onto whatever vocabulary their own schema expects. IsValid/IsPlanar are
 // not filtered here; callers should check them before trusting
@@ -76,6 +77,9 @@ type Surface struct {
 	Length *float64 `json:"length,omitempty"`
 	Width  *float64 `json:"width,omitempty"`
 	Height *float64 `json:"height,omitempty"`
+	// IsPartyWall marks a piece shared with the attached neighbour NeighbourObjectID.
+	IsPartyWall       *bool   `json:"is_party_wall,omitempty"`
+	NeighbourObjectID *string `json:"neighbour_object_id,omitempty"`
 }
 
 // BuildingsByOSMIDs returns 3D attributes for every building in cfg's
@@ -92,7 +96,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 		SELECT
 			b.object_id, b.dataset_id, bl.osm_id, bl.match_type,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
-			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
+			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
 			b.tabula_variant_code, %s
 		FROM %s.building_link bl
 		JOIN %s b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
@@ -125,7 +129,7 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 		SELECT
 			b.object_id, b.dataset_id, '', 0,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
-			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_total_floor,
+			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
 			b.tabula_variant_code, %s
 		FROM %s b
 		WHERE b.country_code = $1
@@ -154,13 +158,13 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 // its lod2_ tables that its lod3_ tables lack, so SELECT * cannot be unioned.
 const (
 	buildingColumns = "object_id, country_code, dataset_id, min_height, max_height, room_height, number_of_storeys, " +
-		"footprint_area, area_total_roof, area_total_wall, area_total_floor, tabula_variant_code, " +
+		"footprint_area, area_total_roof, area_total_wall, area_party_wall, area_total_floor, tabula_variant_code, " +
 		"has_attached_neighbour, attached_neighbour_class, attached_neighbour_id, building_footprint_geom"
 	// neighbourColumns casts the ids because a database built by an earlier
 	// release stores attached_neighbour_id as INTEGER[].
 	neighbourColumns = "b.has_attached_neighbour, b.attached_neighbour_class, b.attached_neighbour_id::TEXT[]"
 	surfaceColumns   = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, " +
-		"length, width, height, geom"
+		"length, width, height, is_party_wall, neighbour_object_id, geom"
 )
 
 // allLODs reads columns of one City2TABULA table across the LOD2 and LOD3
@@ -178,7 +182,7 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 		if err := rows.Scan(
 			&b.ObjectID, &b.DatasetID, &b.OSMID, &b.MatchType,
 			&b.MinHeight, &b.MaxHeight, &b.RoomHeight, &b.NumberOfStoreys,
-			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.FloorAreaSqm,
+			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.PartyWallAreaSqm, &b.FloorAreaSqm,
 			&b.TabulaVariantCode,
 			&b.HasAttachedNeighbour, &b.AttachedNeighbourClass, &b.AttachedNeighbourIDs,
 		); err != nil {
@@ -209,13 +213,13 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 
 	// id (row UUID), not surface_object_id: one source surface feature has many
 	// faces and shares its surface_object_id across all of them.
-	// area_below_precision is derived with script 08's own definition, since a
+	// area_below_precision is derived with the surface builder's own definition, since a
 	// database built by an earlier release lacks the column on lod3_surface.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, surface_type,
 		       surface_area, azimuth, tilt,
 		       (surface_area IS NOT NULL AND surface_area <= 0),
-		       is_valid, is_planar, length, width, height
+		       is_valid, is_planar, length, width, height, is_party_wall, neighbour_object_id
 		FROM %s s
 		WHERE building_object_id = ANY($1)`,
 		allLODs(cfg, "surface", surfaceColumns),
@@ -233,7 +237,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		if err := rows.Scan(
 			&buildingObjectID, &s.ID, &s.Type,
 			&s.AreaSqm, &s.Azimuth, &s.Tilt, &s.AreaBelowPrecision, &s.IsValid, &s.IsPlanar,
-			&s.Length, &s.Width, &s.Height,
+			&s.Length, &s.Width, &s.Height, &s.IsPartyWall, &s.NeighbourObjectID,
 		); err != nil {
 			return fmt.Errorf("failed to scan surface row: %w", err)
 		}
@@ -262,15 +266,17 @@ type BuildingGeometry struct {
 
 // SurfaceGeometry is one envelope surface's polygon, keyed by the same ID
 // Surface carries, so a caller holding surfaces from a buildings query joins
-// geometry onto them without a second identifier. Party walls are excluded
-// upstream, so every surface here is exposed building fabric.
+// geometry onto them without a second identifier. IsPartyWall marks a piece shared
+// with an attached neighbour, which a viewer can highlight.
 //
 // GeoJSON keeps its Z coordinates and the geometry's native CRS, the same as
 // the footprint: no reprojection happens anywhere in the pipeline.
 type SurfaceGeometry struct {
-	ID      string          `json:"id"`
-	Type    string          `json:"type"`
-	GeoJSON json.RawMessage `json:"geojson,omitempty"`
+	ID                string          `json:"id"`
+	Type              string          `json:"type"`
+	IsPartyWall       *bool           `json:"is_party_wall,omitempty"`
+	NeighbourObjectID *string         `json:"neighbour_object_id,omitempty"`
+	GeoJSON           json.RawMessage `json:"geojson,omitempty"`
 }
 
 // BuildingGeometryByObjectIDs returns footprint geometry for the given
@@ -340,7 +346,7 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 	// surface feature shares across all of its faces.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, COALESCE(surface_type, ''),
-		       COALESCE(ST_AsGeoJSON(geom), '')
+		       is_party_wall, neighbour_object_id, COALESCE(ST_AsGeoJSON(geom), '')
 		FROM %s s
 		WHERE building_object_id = ANY($1)
 		ORDER BY building_object_id, id`,
@@ -357,7 +363,7 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 		var buildingObjectID string
 		var s SurfaceGeometry
 		var geoJSON string
-		if err := rows.Scan(&buildingObjectID, &s.ID, &s.Type, &geoJSON); err != nil {
+		if err := rows.Scan(&buildingObjectID, &s.ID, &s.Type, &s.IsPartyWall, &s.NeighbourObjectID, &geoJSON); err != nil {
 			return fmt.Errorf("failed to scan surface geometry row: %w", err)
 		}
 		// Empty string (no geometry) stays nil, not an empty-but-non-nil
