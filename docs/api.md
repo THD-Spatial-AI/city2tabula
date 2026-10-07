@@ -120,7 +120,7 @@ By PyLovo OSM id, once a link exists:
 curl "http://localhost:5000/api/v1/buildings?country=germany&osm_ids=123456,789012"
 ```
 
-The response is `{"buildings": [...], "attributions": [...]}`. Each building's `surfaces` array carries per-element area/azimuth/tilt, and its `dataset_id` names the source dataset. `attributions` holds the credit of every dataset in `buildings`, plus TABULA's when any building has a `tabula_variant_code`.
+The response is `{"buildings": [...], "attributions": [...]}`. Each building's `surfaces` array carries per-face area, azimuth, tilt, length, width and height, and its `dataset_id` names the source dataset. The `Surface` schema in [`openapi.yaml`](openapi/openapi.yaml) defines how each surface value is measured, with references. `attributions` holds the credit of every dataset in `buildings`, plus TABULA's when any building has a `tabula_variant_code`.
 
 !!! warning "Show the credits"
     The source datasets' licences require their credit wherever data derived from them is shown or passed on. Display each entry's `credit` (linked to `credit_url` when present) with the data, and state `changes`.
