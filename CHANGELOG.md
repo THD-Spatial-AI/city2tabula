@@ -18,6 +18,9 @@ Features:
   object_id, and GET /api/v1/buildings serves has_attached_neighbour,
   attached_neighbour_class and attached_neighbour_id. TABULA matching
   runs once after every batch instead of once per batch (#13).
+- GET /api/v1/buildings serves each surface's length, width and height,
+  and the OpenAPI Surface schema defines how every surface value is
+  measured, with references.
 
 ## v0.8.0 (2026-10-03)
 
