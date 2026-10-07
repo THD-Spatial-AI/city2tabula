@@ -165,7 +165,7 @@ func EnableCorrectionTriggers(pool *pgxpool.Pool, cfg *config.Config, lodSchema 
 	triggers := []string{
 		lodSchema + "_trg_footprint_geom_change",
 		lodSchema + "_trg_variant_dims_change",
-		lodSchema + "_trg_room_height_change",
+		lodSchema + "_trg_storey_height_change",
 		lodSchema + "_trg_storeys_change",
 		lodSchema + "_trg_touch_updated_at",
 	}

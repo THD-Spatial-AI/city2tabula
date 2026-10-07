@@ -138,7 +138,8 @@ func pipelineConfig(tc pipelineTestCase) *config.Config {
 			LODLevels: []int{2}, // only LOD2 seed data is available in testdata/
 		},
 		City2Tabula: &config.City2TabulaConfig{
-			RoomHeight: "2.5",
+			RoomHeight:   "2.5",
+			StoreyHeight: "2.8",
 		},
 		Batch: &config.BatchConfig{
 			Size:    100,

@@ -431,9 +431,14 @@ components:
         room_height:
           type: number
           nullable: true
+          description: Metres. TABULA's 2.5 m reference room height, used for ventilation volume; not a measured value.
         number_of_storeys:
           type: integer
           nullable: true
+          description: |
+            Storeys below the eave (eave height / 2.8 m floor-to-floor, rounded) plus one when the roof
+            space reaches 2 m clear height. The method, its sources and its validation are in the
+            City2TABULA documentation, SQL pipeline, script 06.
         footprint_area:
           type: number
           nullable: true

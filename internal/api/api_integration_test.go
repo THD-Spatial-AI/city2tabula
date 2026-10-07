@@ -86,7 +86,7 @@ func baseServerConfig(host, port, dbNamePrefix string) config.Config {
 		},
 		Data:        &config.DataPaths{Base: config.DataDir},
 		CityDB:      &config.CityDB{LODLevels: []int{2}},
-		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", LinkGridSize: 1000},
+		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8", LinkGridSize: 1000},
 		Batch:       &config.BatchConfig{Size: 100, Threads: 2},
 		RetryConfig: config.DefaultRetryConfig(),
 	}

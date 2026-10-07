@@ -46,7 +46,7 @@ SUM(min_height * footprint_area) / SUM(footprint_area)   -- per building, from _
 
 A building's `min_height` and `max_height` are the means of its solids' heights, each weighted by the solid's footprint. Script 05's `height × footprint_area` and script 06's `footprint_area × number_of_storeys` then equal the sums over the solids, so a tower does not lend its height to the podium beside it. The per-solid heights stay in `_building_part`. A building whose solids have no ground area falls back to its tallest solid.
 
-The initial `number_of_storeys` is `min_height` divided by the default room height of 2.5 m (1 when `min_height` is 0 or missing). Script 06 refines it.
+Each solid also gets `attic_floor_area`, the usable floor area under its roof weighted as in WoFlV § 4, and a building sums its solids' attic areas. `storey_height` is set from `STOREY_HEIGHT`; [script 06](06-storeys.md) counts the storeys.
 
 ### Surface areas by type
 
@@ -96,7 +96,7 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | `construction_year` | 0 | External data (not automated) |
 | `has_attached_neighbour`, `attached_neighbour_*` | NULL | [Neighbour detection](post-01-neighbour-detection.md) |
 | `area_total_floor` | Exposed GroundSurface sum | Script 06 (overwritten) |
-| `number_of_storeys` | `min_height` / 2.5 | Script 06 (refined) |
+| `number_of_storeys`, `full_storeys`, `attic_storey` | NULL | [Script 06](06-storeys.md) |
 
 ---
 
@@ -114,7 +114,9 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | `area_total_floor` | Initially the GroundSurface sum; overwritten in script 06 |
 | `min_height` | Footprint-weighted mean eave height of the solids (m) |
 | `max_height` | Footprint-weighted mean ridge height of the solids (m) |
-| `number_of_storeys` | `min_height` / 2.5; refined in script 06 |
+| `number_of_storeys` | Full storeys plus attic storey; set in [script 06](06-storeys.md) |
+| `attic_floor_area` | Usable floor area under the roof, WoFlV § 4 weighted (m²) |
+| `storey_height` | Floor-to-floor height used to count storeys (m) |
 | `building_centroid_geom` | 2D centroid of the merged footprint |
 | `building_footprint_geom` | Merged 2D footprint geometry |
 

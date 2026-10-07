@@ -55,6 +55,7 @@ type SQLParameters struct {
 	TabulaTable        string  `param:"tabula_table"`
 	TabulaVariantTable string  `param:"tabula_variant_table"`
 	RoomHeight         string  `param:"room_height"`
+	StoreyHeight       string  `param:"storey_height"`
 	PylvoSchema        string  `param:"pylovo_schema"`
 }
 
@@ -82,6 +83,7 @@ func (c *Config) GetSQLParameters(lod int, buildingIDs []int64) SQLParameters {
 		TabulaTable:        c.DB.Tables.Tabula,
 		TabulaVariantTable: c.DB.Tables.TabulaVariant,
 		RoomHeight:         c.City2Tabula.RoomHeight,
+		StoreyHeight:       c.City2Tabula.StoreyHeight,
 		PylvoSchema:        c.DB.Schemas.Pylvo,
 	}
 }
