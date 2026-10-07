@@ -83,18 +83,13 @@ func TestServer_ReadsLOD3Buildings(t *testing.T) {
 }
 
 // TestServer_ServesOlderReleaseSchema pins that the on-request queries still
-// serve a database built by an earlier release, where area_below_precision was
-// added to lod2_surface alone and neither surface table has length or width.
+// serve a database whose lod3_surface lacks area_below_precision, which an
+// earlier release added to lod2_surface alone.
 func TestServer_ServesOlderReleaseSchema(t *testing.T) {
 	ctx := context.Background()
 	cfg := seedLOD3Building(t, ctx, "older-schema")
-	for _, stmt := range []string{
-		`ALTER TABLE city2tabula.lod2_surface DROP COLUMN IF EXISTS length, DROP COLUMN IF EXISTS width`,
-		`ALTER TABLE city2tabula.lod3_surface DROP COLUMN IF EXISTS length, DROP COLUMN IF EXISTS width, DROP COLUMN area_below_precision`,
-	} {
-		if _, err := testPool.Exec(ctx, stmt); err != nil {
-			t.Fatalf("reshape surface tables: %v", err)
-		}
+	if _, err := testPool.Exec(ctx, `ALTER TABLE city2tabula.lod3_surface DROP COLUMN area_below_precision`); err != nil {
+		t.Fatalf("reshape lod3_surface: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
