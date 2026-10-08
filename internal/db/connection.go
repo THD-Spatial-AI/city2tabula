@@ -124,8 +124,10 @@ func ConnectPool(config *config.Config) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
+	// jit=off: compiling the PostGIS-heavy extraction queries takes longer than
+	// running them (6.3 of 7.5 s per batch for script 03 on PostgreSQL 17).
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s pool_max_conns=%d",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s pool_max_conns=%d jit=off",
 		config.DB.Host, config.DB.Port, config.DB.User, config.DB.Password,
 		config.DB.Name, config.DB.SSLMode, config.Batch.Threads,
 	)

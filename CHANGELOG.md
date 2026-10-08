@@ -45,6 +45,9 @@ Fixes:
 - is_valid tests each face in its own plane instead of its plan view,
   where every vertical wall failed, and is_planar allows 0.01 m off the
   face's mid-plane instead of none (#172).
+- Connections run with PostgreSQL's JIT compiler off. Compiling the
+  extraction queries took longer than running them: script 03 spent
+  6.3 of 7.5 s per 500-building batch compiling on PostgreSQL 17.
 
 ## v0.8.0 (2026-10-03)
 

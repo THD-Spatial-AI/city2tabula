@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 
 	testConnStr = fmt.Sprintf("postgres://test:test@%s:%s/city2tabula_test?sslmode=disable", host, port.Port())
 
-	testPool, err = pgxpool.New(ctx, testConnStr)
+	testPool, err = pgxpool.New(ctx, testConnStr+"&jit=off")
 	if err != nil {
 		log.Fatalf("failed to create connection pool: %v", err)
 	}
