@@ -565,18 +565,16 @@ components:
           type: boolean
           nullable: true
           description: |
-            OGC Simple Features validity of the face, tested on its 2D outline seen
-            from above (PostGIS ST_IsValid). A vertical wall seen from above is a
-            line, so walls are usually false; the flag does not report 3D validity
-            in the sense of ISO 19107 (Ledoux 2018).
+            OGC Simple Features validity of the face, tested on the face rotated flat
+            into its own plane (closed rings, no self-intersection, holes inside the
+            outer ring), as for a single surface in ISO 19107 (Ledoux 2018).
         is_planar:
           type: boolean
           nullable: true
           description: |
-            True when all vertices of the face lie exactly in one plane, tested
-            without tolerance (PostGIS ST_IsPlanar). Coordinate rounding in source
-            data makes many real roof faces false. `area`, `tilt` and `azimuth`
-            use a best-fit plane either way.
+            True when no vertex lies more than 0.01 m from the face's mid-plane, the
+            default planarity tolerance of val3dity (Ledoux 2018). `area`, `tilt` and
+            `azimuth` use a best-fit plane either way.
 
     BuildingGeometry:
       type: object
