@@ -19,6 +19,9 @@ Breaking changes:
   height. area_total_floor adds the attic floor area weighted as in
   WoFlV § 4, and TABULA matching uses the storeys below the eave. Storey
   counts, floor areas and TABULA types change on re-extraction (#175).
+- TABULA matching compares TABULA's conditioned volume V_C with the
+  building's eave height x footprint (min_volume) instead of its ridge
+  height x footprint, since V_C leaves out an unheated attic (#176).
 
 Features:
 - _building carries full_storeys, attic_storey, attic_floor_area and

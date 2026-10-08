@@ -160,7 +160,7 @@ BEGIN
             MIN(area_total_wall) AS lo_wall, MAX(area_total_wall) AS hi_wall,
             MIN(area_total_floor) AS lo_floor, MAX(area_total_floor) AS hi_floor
         FROM (
-            SELECT max_volume, footprint_area, full_storeys AS number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
+            SELECT min_volume AS max_volume, footprint_area, full_storeys AS number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
             FROM {city2tabula_schema}.{lod_schema}_building
             WHERE footprint_area IS NOT NULL AND full_storeys IS NOT NULL
               AND area_total_roof IS NOT NULL AND area_total_wall IS NOT NULL
@@ -177,7 +177,7 @@ BEGIN
     CROSS JOIN LATERAL (
         SELECT sqrt(avg(term)) AS distance
         FROM (VALUES
-            (power({city2tabula_schema}.minmax_norm(NEW.max_volume, s.lo_vol, s.hi_vol)
+            (power({city2tabula_schema}.minmax_norm(NEW.min_volume, s.lo_vol, s.hi_vol)
                  - {city2tabula_schema}.minmax_norm(v.max_volume, s.lo_vol, s.hi_vol), 2)),
             (power({city2tabula_schema}.minmax_norm(NEW.footprint_area, s.lo_area, s.hi_area)
                  - {city2tabula_schema}.minmax_norm(v.footprint_area, s.lo_area, s.hi_area), 2)),
@@ -215,7 +215,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS {lod_schema}_trg_variant_dims_change
     ON {city2tabula_schema}.{lod_schema}_building;
 CREATE TRIGGER {lod_schema}_trg_variant_dims_change
-    AFTER UPDATE OF max_volume, footprint_area, full_storeys, footprint_complexity,
+    AFTER UPDATE OF min_volume, footprint_area, full_storeys, footprint_complexity,
         roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
     ON {city2tabula_schema}.{lod_schema}_building
     FOR EACH ROW

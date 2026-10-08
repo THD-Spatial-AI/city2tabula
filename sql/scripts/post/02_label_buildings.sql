@@ -16,7 +16,9 @@
 WITH buildings AS (
   -- full_storeys, not number_of_storeys: TABULA's n_Storey counts complete storeys
   -- without the attic (script 06).
-  SELECT building_feature_id, max_volume, footprint_area, full_storeys AS number_of_storeys,
+  -- min_volume (eave height × footprint), not max_volume: TABULA's V_C is the conditioned
+  -- volume, which leaves out an unheated attic (Loga and Diefenbach 2013).
+  SELECT building_feature_id, min_volume AS max_volume, footprint_area, full_storeys AS number_of_storeys,
          footprint_complexity, roof_complexity, attached_neighbour_class,
          area_total_roof, area_total_wall, area_total_floor
   FROM {city2tabula_schema}.{lod_schema}_building
