@@ -178,6 +178,24 @@ func TestConnectPool_ConnectsAndEnablesPostGIS(t *testing.T) {
 	}
 }
 
+func TestConnectPool_DisablesJIT(t *testing.T) {
+	cfg := testConfig("connect_pool_jit_test")
+
+	pool, err := db.ConnectPool(cfg)
+	if err != nil {
+		t.Fatalf("ConnectPool: %v", err)
+	}
+	defer db.ClosePool(pool)
+
+	var jit string
+	if err := pool.QueryRow(context.Background(), `SHOW jit`).Scan(&jit); err != nil {
+		t.Fatalf("SHOW jit: %v", err)
+	}
+	if jit != "off" {
+		t.Errorf("jit = %q on a ConnectPool connection, want off", jit)
+	}
+}
+
 func TestCreateAndDropSchemaIfNotExists_AreIdempotent(t *testing.T) {
 	ctx := context.Background()
 	const schema = "create_drop_idempotent_test"
