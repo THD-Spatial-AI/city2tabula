@@ -8,7 +8,7 @@
 --        -> footprint_area, footprint_complexity, building_centroid_geom,
 --           min_volume, max_volume, area_total_floor recompute (mirrors scripts 04-06)
 --   2. any of those recomputed columns changes
---        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors sql/scripts/post/02_label_buildings.sql)
+--        -> tabula_variant_code / tabula_variant_code_id re-matched (mirrors sql/scripts/post/05_label_buildings.sql)
 -- Step 2 fires automatically after step 1's UPDATE, because Postgres re-evaluates
 -- "AFTER UPDATE OF <cols>" triggers on every UPDATE statement that touches those
 -- columns, including ones issued from inside another trigger's function body.
@@ -134,7 +134,7 @@ ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
 
 -- Re-matches the closest TABULA variant with the same distance as
--- post/02_label_buildings.sql, scoped to one building. The min/max per dimension is
+-- post/05_label_buildings.sql, scoped to one building. The min/max per dimension is
 -- still taken over all buildings and variants, so an edit is judged on the same scale
 -- as the bulk match.
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match()

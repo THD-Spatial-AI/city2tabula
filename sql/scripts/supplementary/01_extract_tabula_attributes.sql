@@ -16,7 +16,7 @@ INSERT INTO {city2tabula_schema}.{tabula_variant_table} (
     building_size_class
 )
 -- TABULA marks a missing value with 0 or leaves it empty, and every matching input here
--- becomes NULL in that case so matching skips it (post/02_label_buildings.sql). The
+-- becomes NULL in that case so matching skips it (post/05_label_buildings.sql). The
 -- footprint is A_C_ExtDim per storey, the external-dimension area comparable with a
 -- LoD2 footprint; A_C_National is each country's own reference area.
 SELECT

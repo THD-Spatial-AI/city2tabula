@@ -19,8 +19,8 @@
 --   footprint_complexity — based on vertex count of the merged GroundSurface boundary.
 --   roof_complexity      — based on number of distinct exposed RoofSurface polygons.
 --
--- Surface counts are the rows script 08 serves: one per face, or one per exposed
--- piece of a partly internal face, none for a fully internal one.
+-- Surface counts: one per face, one per exposed piece of a partly internal face, none
+-- for a fully internal one. post/04_wall_totals.sql recounts walls after party walls.
 --
 -- area_total_floor is the exposed GroundSurface area sum here; script 06 overwrites
 -- it with the total heated floor area estimate and sets the storey counts from

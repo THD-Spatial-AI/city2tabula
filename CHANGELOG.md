@@ -22,8 +22,18 @@ Breaking changes:
 - TABULA matching compares TABULA's conditioned volume V_C with the
   building's eave height x footprint (min_volume) instead of its ridge
   height x footprint, since V_C leaves out an unheated attic (#176).
+- Walls shared with attached neighbours (party walls) are left out of
+  area_total_wall and surface_count_wall and counted in the new
+  area_party_wall; TABULA matching sees the envelope walls only. Wall
+  areas and TABULA types change for attached buildings on
+  re-extraction. The served surfaces are rebuilt after every extraction,
+  and neighbour_building_id is replaced by neighbour_object_id (#14).
 
 Features:
+- Party walls: the part of each wall that lies against an attached
+  neighbour's wall is served as its own surface piece with
+  is_party_wall and neighbour_object_id, on GET /api/v1/buildings and
+  GET /api/v1/geometry, so a viewer can highlight it (#14).
 - _building carries full_storeys, attic_storey, attic_floor_area and
   storey_height; the storey correction trigger follows storey_height
   instead of room_height (#175).

@@ -19,13 +19,15 @@ Given a batch of building IDs, the pipeline:
 3. Computes a surface normal for each face, then derives tilt, azimuth, area, and height, and marks the faces that lie between two solids of the same building as internal.
 4. Aggregates those per-surface values into one row per solid, then one summary row per building.
 5. Approximates building volume from height × footprint area.
-6. Refines the storey count and total floor area.
-7. Writes the resolved surface table: one row per exposed polygon face or face piece, party-wall surfaces excluded (script 08).
+6. Counts the storeys and sets the total floor area.
 
 After all batches, over the whole table:
 
 1. Marks buildings that share a wall with a neighbour.
-2. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
+2. Finds the part of each wall that lies against a neighbour's wall (party walls).
+3. Writes the served surface table: one row per exterior piece of each face, and one per party-wall piece, flagged.
+4. Recomputes each building's wall area and wall count without the party walls.
+5. Matches each building to its closest TABULA archetype using nearest-neighbour search in feature space.
 
 ---
 
@@ -42,9 +44,12 @@ flowchart TD
     E -->|script 05| F["_building<br>Volume added"]
     F -->|script 06| G["_building<br>Storeys + floor area refined"]
     G -->|post 01| N["_building<br>Attached neighbours marked"]
-    N -->|post 02| H["_building<br>TABULA variant code assigned"]
-    I[("tabula.tabula_variant<br>(reference archetypes)")] -->|post 02| H
-    D -->|script 08| J["_surface<br>One row per exposed face<br>party walls excluded"]
+    N -->|post 02| Q["_surface_raw<br>Party-wall pieces split off"]
+    D -->|post 02| Q
+    Q -->|post 03| J["_surface<br>Exterior and party-wall pieces"]
+    J -->|post 04| W["_building<br>Wall area without party walls"]
+    W -->|post 05| H["_building<br>TABULA variant code assigned"]
+    I[("tabula.tabula_variant<br>(reference archetypes)")] -->|post 05| H
 ```
 
 ---
@@ -59,9 +64,11 @@ flowchart TD
 | [04 Building features](04-building-features.md) | Aggregate surface attributes into one row per solid, then one row per building | `_building_part`, `_building` |
 | [05 Volume](05-volume.md) | Approximate building volume from height × footprint | `_building` (UPDATE) |
 | [06 Storeys](06-storeys.md) | Refine storey count; overwrite floor area as footprint × storeys | `_building` (UPDATE) |
-| 08 Build surface | Copy each exposed surface face or face piece into the resolved table, excluding party walls | `_surface` |
 | [Post 01 Neighbour detection](post-01-neighbour-detection.md) | Mark buildings that share a wall with another building, once over the whole table | `_building` (UPDATE) |
-| [Post 02 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype, once over the whole table | `_building` (UPDATE) |
+| [Post 02 Party walls](post-02-party-walls.md) | Split each wall into the part shared with a neighbour and the exterior part | `_surface_raw` (UPDATE) |
+| Post 03 Build surface | Serve every exterior and party-wall piece of every face | `_surface` |
+| Post 04 Wall totals | Recompute `area_total_wall`, `area_party_wall` and `surface_count_wall` | `_building` (UPDATE) |
+| [Post 05 TABULA labelling](07-tabula-labelling.md) | Nearest-neighbour match to closest TABULA archetype, once over the whole table | `_building` (UPDATE) |
 
 ---
 

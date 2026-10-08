@@ -36,7 +36,7 @@ Both heights come from the roof, not the walls, because a gable wall reaches the
 
 ## Stage 2: `_building`
 
-A building with no WallSurface or RoofSurface face gets no `_building` row, so it is not classified, linked or served, and script 08 writes no `_surface` rows for it. Its faces stay in `_surface_raw`.
+A building with no WallSurface or RoofSurface face gets no `_building` row, so it is not classified, linked or served, and the surface builder writes no `_surface` rows for it. Its faces stay in `_surface_raw`.
 
 ### Heights: footprint-weighted over the solids
 
@@ -61,7 +61,7 @@ SUM(exposed_area) FILTER (WHERE classname = 'GroundSurface') AS area_total_floor
 
 ### Surface counts
 
-`surface_count_roof`, `surface_count_wall` and `surface_count_floor` count the rows script 08 serves: one per face, one per exposed piece of a partly internal face, none for a fully internal face.
+`surface_count_roof`, `surface_count_wall` and `surface_count_floor` count the envelope rows the surface builder serves: one per face, one per exposed piece of a partly internal face, none for a fully internal face. [Party-wall detection](post-02-party-walls.md) later recounts walls without the shared pieces.
 
 ### Footprint complexity
 
@@ -110,7 +110,7 @@ The merged GroundSurface geometry is re-projected to the target CRS (`{srid}`) a
 | `footprint_complexity` | 0 = simple, 1 = regular, 2 = complex |
 | `roof_complexity` | 0 = simple, 1 = regular, 2 = complex |
 | `area_total_roof` | Sum of exposed RoofSurface area (sqm) |
-| `area_total_wall` | Sum of exposed WallSurface area (sqm) |
+| `area_total_wall` | Sum of exposed WallSurface area (sqm); [post script 04](post-02-party-walls.md) removes the party-wall area |
 | `area_total_floor` | Initially the GroundSurface sum; overwritten in script 06 |
 | `min_height` | Footprint-weighted mean eave height of the solids (m) |
 | `max_height` | Footprint-weighted mean ridge height of the solids (m) |

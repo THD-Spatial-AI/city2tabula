@@ -5,25 +5,24 @@ package process_test
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 )
 
-// TestScript08_FlagsAreaBelowPrecision pins the contract for a surface whose
+// TestSurfaceBuilder_FlagsAreaBelowPrecision pins the contract for a surface whose
 // area rounds away. The row must survive, because its geometry is source data
 // and still renders, while area_below_precision tells a thermal consumer not to
 // read the zero as a real area. Slivers from wall and roof intersections in the
 // source model are the case this exists for.
-func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
+func TestSurfaceBuilder_FlagsAreaBelowPrecision(t *testing.T) {
 	ctx := context.Background()
 	cfg := pipelineConfig(pipelineTestCase{country: "germany", srid: "25832"})
 	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
 		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
 	}
 
-	// One sliver, one ordinary wall, distinguished only by area. Script 08 serves
+	// One sliver, one ordinary wall, distinguished only by area. The surface builder serves
 	// surfaces only for buildings script 04 gave a row, so the building row is seeded too.
 	seed := `
 		INSERT INTO city2tabula.lod2_building (object_id, country_code, dataset_id, building_feature_id)
@@ -53,15 +52,12 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 			`DELETE FROM city2tabula.lod2_building WHERE object_id = 'bld-sliver'`)
 	})
 
-	script, err := os.ReadFile("sql/scripts/main/08_build_surface.sql")
+	script, err := os.ReadFile("sql/scripts/post/03_build_surface.sql")
 	if err != nil {
-		t.Fatalf("read script 08: %v", err)
+		t.Fatalf("read the surface builder: %v", err)
 	}
-	sql := applyParams(string(script))
-	// The seeded building, rather than the fixed ids the benchmarks use.
-	sql = replaceBuildingIDs(sql, "(4242)")
-	if _, err := testPool.Exec(ctx, sql); err != nil {
-		t.Fatalf("run script 08: %v", err)
+	if _, err := testPool.Exec(ctx, applyParams(string(script))); err != nil {
+		t.Fatalf("run the surface builder: %v", err)
 	}
 
 	rows := map[string]struct {
@@ -90,7 +86,7 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 
 	// The sliver is kept, not dropped: its geometry is still source data.
 	if len(rows) != 2 {
-		t.Fatalf("expected both surfaces to survive script 08, got %d: %v", len(rows), rows)
+		t.Fatalf("expected both surfaces to survive the surface builder, got %d: %v", len(rows), rows)
 	}
 	if !rows["srf-sliver"].flagged {
 		t.Error("sliver with area 0.00 was not flagged area_below_precision")
@@ -98,10 +94,4 @@ func TestScript08_FlagsAreaBelowPrecision(t *testing.T) {
 	if rows["srf-normal"].flagged {
 		t.Errorf("ordinary %.2f m2 wall was flagged area_below_precision", rows["srf-normal"].area)
 	}
-}
-
-// replaceBuildingIDs swaps the {building_ids} value applyParams substituted for
-// one naming the building this test seeds.
-func replaceBuildingIDs(sql, ids string) string {
-	return strings.ReplaceAll(sql, sqlParams["{building_ids}"], ids)
 }

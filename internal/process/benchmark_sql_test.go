@@ -151,5 +151,5 @@ func BenchmarkScript_06_CalcStoreys(b *testing.B) {
 
 func BenchmarkScript_07_LabelBuildingFeatures(b *testing.B) {
 	setupBenchmarkDB(b)
-	runScriptBenchmark(b, "sql/scripts/post/02_label_buildings.sql")
+	runScriptBenchmark(b, "sql/scripts/post/05_label_buildings.sql")
 }
