@@ -72,7 +72,7 @@ The 9 features used are:
 
 | Feature | What it measures |
 |---------|----------------|
-| `max_volume` | Upper-bound volume (ridge height × footprint) |
+| `min_volume` | Eave height × footprint, compared with TABULA's conditioned volume `V_C`, which leaves out an unheated attic |
 | `footprint_area` | Ground floor area |
 | `number_of_storeys` | Storey count |
 | `footprint_complexity` | 0–2 shape complexity code |
@@ -99,7 +99,7 @@ ranked AS (
   CROSS JOIN LATERAL (
     SELECT sqrt(avg(term)) AS distance
     FROM (VALUES
-      (power(minmax_norm(b.max_volume, s.lo_vol, s.hi_vol)
+      (power(minmax_norm(b.max_volume, s.lo_vol, s.hi_vol)  -- b.max_volume is the building's min_volume
            - minmax_norm(v.max_volume, s.lo_vol, s.hi_vol), 2)),
       ... (8 more dimensions)
     ) terms(term)

@@ -115,5 +115,5 @@ func waitUntilReady(t *testing.T, ctx context.Context, host, port string) {
 // ContainerConnString returns the DSN for the running container's default database.
 // Useful for TestMain setups where t is not available.
 func ContainerConnString(host, port string) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s", TestUser, TestPassword, host, port, testDBName)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?jit=off", TestUser, TestPassword, host, port, testDBName)
 }
