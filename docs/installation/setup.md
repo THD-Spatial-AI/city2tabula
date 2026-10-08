@@ -181,7 +181,7 @@ DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME  # the local PostgreSQL inst
 CITYDB_TOOL_PATH     # path to the citydb-tool directory from Step 2 (not needed in Docker, where it is in the image)
 ```
 
-`CITYDB_SRID` and `CITYDB_SRS_NAME` are derived from `COUNTRY`. Set them only for a country missing from that lookup table (`internal/config/srid.go`).
+Every key is described in [Configuration](../configuration/index.md). `CITYDB_SRID` and `CITYDB_SRS_NAME` are derived from `COUNTRY`. Set them only for a country missing from that lookup table (`internal/config/srid.go`).
 
 `DB_NAME` is a base name. The tool appends the country's ISO 3166-1 alpha-2 code (`DB_NAME=city2tabula` with `COUNTRY=netherlands` gives `city2tabula_nl`) and creates the database if it is absent. To use an existing database, give that database the suffixed name.
 
