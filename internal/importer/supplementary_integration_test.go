@@ -108,7 +108,7 @@ func testConfig() *config.Config {
 			Tables:  &config.Tables{Tabula: "tabula", TabulaVariant: "tabula_variant"},
 		},
 		CityDB:      &config.CityDB{SRID: "25832", SRSName: "urn:ogc:def:crs:EPSG::25832"},
-		City2Tabula: &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"},
+		City2Tabula: &config.City2TabulaConfig{StoreyHeight: "2.8"},
 		Batch:       &config.BatchConfig{Threads: 2},
 		RetryConfig: config.DefaultRetryConfig(),
 	}

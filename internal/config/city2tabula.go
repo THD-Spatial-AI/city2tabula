@@ -4,14 +4,12 @@ import "strconv"
 
 // City2TabulaConfig holds City2TABULA specific configuration
 type City2TabulaConfig struct {
-	RoomHeight   string // Default room height in meters used for volume calculations
 	StoreyHeight string // Floor-to-floor height in metres for counting storeys (STOREY_HEIGHT)
 	LinkGridSize int    // Grid cell side length in metres for PyLovo spatial batching (PYLOVO_LINK_GRID_SIZE)
 }
 
 // loadCity2TabulaConfig loads City2TABULA specific configuration
 func loadCity2TabulaConfig() *City2TabulaConfig {
-	roomHeight := GetEnv("ROOM_HEIGHT", "2.5")
 	storeyHeight := GetEnv("STOREY_HEIGHT", "2.8")
 
 	gridSize, err := strconv.Atoi(GetEnv("PYLOVO_LINK_GRID_SIZE", "1000"))
@@ -20,7 +18,6 @@ func loadCity2TabulaConfig() *City2TabulaConfig {
 	}
 
 	return &City2TabulaConfig{
-		RoomHeight:   roomHeight,
 		StoreyHeight: storeyHeight,
 		LinkGridSize: gridSize,
 	}
