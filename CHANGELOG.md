@@ -30,6 +30,9 @@ Breaking changes:
   and neighbour_building_id is replaced by neighbour_object_id (#14).
 
 Features:
+- The server's compose file passes PYLOVO_FDW_HOST, _PORT, _DBNAME,
+  _USER and _PASSWORD through to the container, so on-request runs can
+  link buildings to PyLovo. Left unset, linking stays a no-op.
 - Party walls: the part of each wall that lies against an attached
   neighbour's wall is served as its own surface piece with
   is_party_wall and neighbour_object_id, on GET /api/v1/buildings and
