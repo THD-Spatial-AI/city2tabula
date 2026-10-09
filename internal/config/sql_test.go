@@ -26,7 +26,7 @@ func TestGetSQLParameters(t *testing.T) {
 			Tables: &Tables{Tabula: "tab_table", TabulaVariant: "tab_variant_table"},
 		},
 		CityDB:      &CityDB{SRID: "25832"},
-		City2Tabula: &City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"},
+		City2Tabula: &City2TabulaConfig{StoreyHeight: "2.8"},
 	}
 
 	cases := []struct {
@@ -80,9 +80,6 @@ func TestGetSQLParameters(t *testing.T) {
 			}
 			if params.TabulaVariantTable != "tab_variant_table" {
 				t.Errorf("TabulaVariantTable = %q, want %q", params.TabulaVariantTable, "tab_variant_table")
-			}
-			if params.RoomHeight != "2.5" {
-				t.Errorf("RoomHeight = %q, want %q", params.RoomHeight, "2.5")
 			}
 			if params.PylvoSchema != "pylovo" {
 				t.Errorf("PylvoSchema = %q, want %q", params.PylvoSchema, "pylovo")

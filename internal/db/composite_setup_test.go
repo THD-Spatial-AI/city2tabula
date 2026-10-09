@@ -21,7 +21,7 @@ import (
 func fullCfg(dbName string) *config.Config {
 	cfg := testConfig(dbName)
 	cfg.DB.Tables = &config.Tables{Tabula: "tabula", TabulaVariant: "tabula_variant"}
-	cfg.City2Tabula = &config.City2TabulaConfig{RoomHeight: "2.5", StoreyHeight: "2.8"}
+	cfg.City2Tabula = &config.City2TabulaConfig{StoreyHeight: "2.8"}
 	cfg.RetryConfig = config.DefaultRetryConfig()
 	return cfg
 }
