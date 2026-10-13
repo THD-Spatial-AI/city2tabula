@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.10.1 (2026-10-13)
 
 Fixes:
 - The city2tabula and city2tabula-db services in
