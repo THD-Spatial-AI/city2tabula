@@ -22,6 +22,7 @@ services:
   city2tabula-db:
     image: postgis/postgis:16-3.4
     container_name: city2tabula-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${C2T_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${C2T_DB_PASSWORD:-postgres}
@@ -42,6 +43,7 @@ services:
   # pipeline job without a second artefact.
   city2tabula:
     container_name: city2tabula
+    restart: unless-stopped
     # Dockerfile.runtime, not Dockerfile: this runs compiled binaries on a JRE
     # base, where the interactive service needs the full toolchain image.
     # With both image and build set, `compose up` builds locally and tags the
