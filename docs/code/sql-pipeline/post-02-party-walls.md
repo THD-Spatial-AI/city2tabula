@@ -50,7 +50,7 @@ Every run resets these columns and recomputes them, so a wall becomes exterior a
 - **Exterior pieces** (`is_party_wall = FALSE`): `geom_envelope` when the face has a party wall, otherwise `geom_exposed` when part of it is internal (script 03), otherwise the face itself.
 - **Party-wall pieces** (`is_party_wall = TRUE`): `geom_party`, with `neighbour_object_id`.
 
-Area, height, length and width are measured on each piece; tilt and azimuth are those of the face. A wall that is only partly shared, for example a taller building's wall above its neighbour's roof, is served as one exterior and one party-wall piece.
+Area, height, horizontal extent and slope extent are measured on each piece; tilt and azimuth are those of the face. A wall that is only partly shared, for example a taller building's wall above its neighbour's roof, is served as one exterior and one party-wall piece.
 
 Each side of a shared wall has its own polygon, so the two buildings' party-wall pieces lie on top of each other. A viewer highlights the selected building's pieces only.
 

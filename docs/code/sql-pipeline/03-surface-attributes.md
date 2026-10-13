@@ -20,7 +20,7 @@ For each individual polygon face (from script 02), this script computes these ph
 - **Azimuth**: the compass direction the surface faces (0°/360° = North, 90° = East, 180° = South, 270° = West).
 - **Surface area**: the true 3D face area in square metres.
 - **Height span**: the vertical range of the face (Z max − Z min) in metres.
-- **Length and width**: the long and short side of the smallest rectangle around the face, measured in the face's own plane, in metres.
+- **Horizontal and slope extent**: the face's extent along the horizontal and along the line of steepest slope in its own plane, in metres.
 
 It then marks the faces that lie between two solids of the same building as internal (see [Internal faces](#internal-faces)).
 
@@ -294,20 +294,29 @@ END AS azimuth
 The simplest attribute: the difference between the highest and lowest Z coordinate of the polygon's vertices.
 
 ```sql
--- Length and width: minimum-area rectangle in the surface plane
+-- Horizontal and slope extent: projections on two axes in the surface plane
 LEFT JOIN LATERAL {city2tabula_schema}.surface_dimensions(valid_geom, nx, ny, nz) d
   ON objectclass_id IN (709, 710, 712)
 ```
 
-`surface_dimensions` rotates the face into its own plane with the same rotation as `surface_area_corrected_geom`, then takes `ST_OrientedEnvelope`, the minimum-area rotated rectangle. The longer side is `length`, the shorter `width`. The rotation matters for pitched roofs: in plan view, a 30° roof 5 m deep measures 5 m, but its slope side is 5.77 m.
+`surface_dimensions` fixes two axes in the face's plane from its unit normal n = (nx, ny, nz), with h = √(nx² + ny²):
 
-| Face | `length` | `width` | `height` |
+| Axis | Direction | Column |
+|---|---|---|
+| u | (−ny, nx, 0) / h: horizontal, along the face | `horizontal_extent` |
+| v | (−nz·nx / h, −nz·ny / h, h): the line of steepest slope, pointing up | `slope_extent` |
+
+Each extent is the largest minus the smallest projection of the face's vertices on its axis, so the sign of the normal does not change it. That matters for walls, whose outward flip in `oriented_normals` points some walls of concave footprints inward. Faces with `|nz| > 0.985`, where azimuth is −1, have no horizontal axis of their own and get NULL in both columns.
+
+| Face | `horizontal_extent` | `slope_extent` | `height` |
 |---|---|---|---|
-| Wall 10 × 3 m | 10 | 3 | 3 |
+| Wall 10 m wide, 3 m tall | 10 | 3 | 3 |
+| Wall 2 m wide, 8 m tall | 2 | 8 | 8 |
 | Roof, 12 m eave, 30° pitch, 5 m deep in plan | 12 | 5.77 | 2.89 |
-| Flat roof 8 × 4 m, any orientation | 8 | 4 | 0 |
+| Gable wall, 8 m base, 3 m to the apex | 8 | 3 | 3 |
+| Flat roof or ground face | NULL | NULL | 0 |
 
-For triangles, L-shapes and other non-rectangular faces the rectangle is larger than the face. `surface_area / (length * width)` gives the fraction of the rectangle the face fills. A face whose rectangle collapses to a line has `width` 0.
+On a planar face `height` = `slope_extent` × cos(`tilt`). For a wall, `horizontal_extent` is the run that adds up across coplanar wall segments. For triangles, L-shapes and other non-rectangular faces, `horizontal_extent × slope_extent` is larger than the face; `surface_area / (horizontal_extent × slope_extent)` gives the fraction of that rectangle the face fills.
 
 ---
 
@@ -348,8 +357,8 @@ Faces with no overlap keep both columns NULL. Faces between different buildings 
 | `is_valid` | `ST_IsValid` result for the polygon |
 | `is_planar` | Whether all vertices lie on a single plane |
 | `height` | Vertical span: ZMax − ZMin (m) |
-| `length` | Long side of the minimum-area rectangle in the surface plane (m); NULL for classes other than wall, roof and ground |
-| `width` | Short side of that rectangle (m); NULL as for `length` |
+| `horizontal_extent` | Extent along the horizontal in the surface plane (m); NULL for faces with `\|nz\| > 0.985` and for classes other than wall, roof and ground |
+| `slope_extent` | Extent along the line of steepest slope (m); NULL as for `horizontal_extent` |
 | `normal_x`, `normal_y`, `normal_z` | Unit normal after the orientation rules above |
 | `area_internal` | Part of `surface_area` that lies against another solid of the same building (sqm); NULL when none |
 | `geom_exposed` | Exterior remainder of an internal face; empty when fully internal; NULL when the face has no internal part |

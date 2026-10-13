@@ -1,4 +1,4 @@
--- Calculates surface area, tilt, azimuth, height, length and width for each surface polygon.
+-- Calculates surface area, tilt, azimuth, height, horizontal and slope extent for each surface polygon.
 --
 -- Pipeline stages:
 --   1. new_buildings -> skip already-processed buildings
@@ -10,7 +10,7 @@
 --   7. oriented_normals -> flip walls whose normal points into their own footprint
 --   8. normalized_normals -> per-class flip rules + unit normalisation
 --   9. convergence_corrected -> placeholder for UTM meridian convergence (see Discussion)
---   10. INSERT -> _surface_raw (length/width via surface_dimensions)
+--   10. INSERT -> _surface_raw (horizontal/slope extent via surface_dimensions)
 --   11. UPDATE -> area_internal / geom_exposed for faces between solids of one building
 --
 -- Newell's method (surface_normals):
@@ -240,10 +240,10 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_surface_raw (
     child_row_id,
     height,
     height_unit,
-    length,
-    length_unit,
-    width,
-    width_unit,
+    horizontal_extent,
+    horizontal_extent_unit,
+    slope_extent,
+    slope_extent_unit,
     geom
 )
 SELECT
@@ -306,9 +306,9 @@ SELECT
     child_row_id,
     ROUND((ST_ZMax(valid_geom) - ST_ZMin(valid_geom))::numeric, 2) AS height,
     'm',
-    ROUND(d.length::numeric, 2) AS length,
+    ROUND(d.horizontal_extent::numeric, 2) AS horizontal_extent,
     'm',
-    ROUND(d.width::numeric, 2) AS width,
+    ROUND(d.slope_extent::numeric, 2) AS slope_extent,
     'm',
     valid_geom AS geom
 FROM convergence_corrected

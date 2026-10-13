@@ -3,6 +3,20 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Breaking changes:
+- The surface fields length and width are replaced by
+  horizontal_extent and slope_extent, on lod2_surface_raw,
+  lod2_surface and the surfaces of GET /api/v1/buildings. length and
+  width were the long and short side of the smallest rectangle around
+  the face, so neither had a fixed direction. horizontal_extent is the
+  face's extent along the horizontal in its plane (a wall's run, a
+  roof's eave length), slope_extent its extent up the fall line (a
+  wall's height, a roof's slope length). Faces within about 10 degrees
+  of horizontal, such as ground faces and flat roofs, have neither.
+  Existing databases need the city2tabula schema recreated (#188).
+
 ## v0.9.0 (2026-10-09)
 
 Breaking changes:

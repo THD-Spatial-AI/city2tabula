@@ -57,37 +57,34 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
--- Long and short side of the minimum-area rectangle around a face, measured in
--- the face's own plane. Rotated first because ST_OrientedEnvelope is 2D only and
--- a plan projection shortens a pitched roof's slope side by cos(slope).
--- A degenerate face whose envelope collapses to a line or point has width 0.
-CREATE OR REPLACE FUNCTION {city2tabula_schema}.surface_dimensions(
+-- Extent of a face along two axes in its plane, fixed by its unit normal n:
+--   u, horizontal along the face: (-ny, nx, 0) / h, with h = sqrt(nx^2 + ny^2)
+--   v, fall line pointing up the slope: (-nz*nx / h, -nz*ny / h, h)
+-- Each extent is max minus min of the vertices projected on the axis, so the sign
+-- of n does not matter. Faces with |nz| > 0.985, where azimuth is -1, have no
+-- horizontal axis in their plane and get NULL in both.
+-- DROP because CREATE OR REPLACE cannot change the OUT columns of an existing function.
+DROP FUNCTION IF EXISTS {city2tabula_schema}.surface_dimensions(
+    geometry, double precision, double precision, double precision
+);
+CREATE FUNCTION {city2tabula_schema}.surface_dimensions(
     geom geometry,
     nx double precision,
     ny double precision,
     nz double precision,
-    OUT length double precision,
-    OUT width double precision
+    OUT horizontal_extent double precision,
+    OUT slope_extent double precision
 ) AS $$
-DECLARE
-    env geometry;
-    side_a double precision;
-    side_b double precision;
-BEGIN
-    env := ST_OrientedEnvelope(ST_Force2D(ST_RotateY(
-        ST_RotateX(geom, atan2(ny, nz)),
-        -atan2(nx, sqrt(ny*ny + nz*nz))
-    )));
-
-    IF GeometryType(env) <> 'POLYGON' THEN
-        length := ST_Length(env);
-        width := 0.0;
-        RETURN;
-    END IF;
-
-    side_a := ST_Distance(ST_PointN(ST_ExteriorRing(env), 1), ST_PointN(ST_ExteriorRing(env), 2));
-    side_b := ST_Distance(ST_PointN(ST_ExteriorRing(env), 2), ST_PointN(ST_ExteriorRing(env), 3));
-    length := GREATEST(side_a, side_b);
-    width := LEAST(side_a, side_b);
-END;
-$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+    WITH axes AS (
+        SELECT -ny / h AS ux, nx / h AS uy,
+               -nz * nx / h AS vx, -nz * ny / h AS vy, h AS vz
+        FROM (SELECT sqrt(nx * nx + ny * ny) AS h) s
+        WHERE ABS(nz) <= 0.985
+    ),
+    projected AS (
+        SELECT ST_X(dp.geom) * ux + ST_Y(dp.geom) * uy AS u,
+               ST_X(dp.geom) * vx + ST_Y(dp.geom) * vy + ST_Z(dp.geom) * vz AS v
+        FROM axes, ST_DumpPoints(geom) dp
+    )
+    SELECT MAX(u) - MIN(u), MAX(v) - MIN(v) FROM projected;
+$$ LANGUAGE sql IMMUTABLE STRICT;

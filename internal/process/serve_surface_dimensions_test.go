@@ -13,10 +13,10 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
 )
 
-// TestServer_SurfaceDimensions extracts a gable house and checks the length, width
-// and height served per surface. The house is 10 m by 8 m with 6 m walls and a 30
-// degree roof whose ridge runs along x, so each roof face is 10 m by 4/cos 30 m in
-// its own plane and rises 4 tan 30 m.
+// TestServer_SurfaceDimensions extracts a gable house and checks the horizontal
+// extent, slope extent and height served per surface. The house is 10 m by 8 m with
+// 6 m walls and a 30 degree roof whose ridge runs along x, so each roof face is 10 m
+// along the eave, 4/cos 30 m up the slope, and rises 4 tan 30 m.
 func TestServer_SurfaceDimensions(t *testing.T) {
 	ctx := context.Background()
 	resetSchemas(t)
@@ -64,10 +64,14 @@ func TestServer_SurfaceDimensions(t *testing.T) {
 		t.Fatalf("BuildingsByBBox: %v", err)
 	}
 
+	slope := 4 / math.Cos(math.Pi/6)
 	want := map[string][]dims{
-		"WallSurface":   {{10, eave, eave}, {10, eave, eave}, {ridge, 8, ridge}, {ridge, 8, ridge}},
-		"RoofSurface":   {{10, 4 / math.Cos(math.Pi/6), rise}, {10, 4 / math.Cos(math.Pi/6), rise}},
-		"GroundSurface": {{10, 8, 0}},
+		"WallSurface": {
+			{ptr(10), ptr(eave), eave}, {ptr(10), ptr(eave), eave},
+			{ptr(8), ptr(ridge), ridge}, {ptr(8), ptr(ridge), ridge},
+		},
+		"RoofSurface":   {{ptr(10), ptr(slope), rise}, {ptr(10), ptr(slope), rise}},
+		"GroundSurface": {{nil, nil, 0}},
 	}
 	got := map[string][]dims{}
 	for _, b := range buildings {
@@ -75,10 +79,10 @@ func TestServer_SurfaceDimensions(t *testing.T) {
 			continue
 		}
 		for _, s := range b.Surfaces {
-			if s.Length == nil || s.Width == nil || s.Height == nil {
-				t.Fatalf("%s %s: length, width or height not served", s.Type, s.ID)
+			if s.Height == nil {
+				t.Fatalf("%s %s: height not served", s.Type, s.ID)
 			}
-			got[s.Type] = append(got[s.Type], dims{*s.Length, *s.Width, *s.Height})
+			got[s.Type] = append(got[s.Type], dims{s.HorizontalExtent, s.SlopeExtent, *s.Height})
 		}
 	}
 	for typ, ws := range want {
@@ -87,20 +91,29 @@ func TestServer_SurfaceDimensions(t *testing.T) {
 		}
 		for _, w := range ws {
 			if !hasDims(got[typ], w) {
-				t.Errorf("%s: no surface with length %.2f, width %.2f, height %.2f in %v", typ, w.length, w.width, w.height, got[typ])
+				t.Errorf("%s: no surface %v in %v", typ, w, got[typ])
 			}
 		}
 	}
 }
 
-// dims is one surface's served length, width and height.
-type dims struct{ length, width, height float64 }
+// dims is one surface's served horizontal extent, slope extent and height. The
+// extents are nil for flat faces.
+type dims struct {
+	horizontal, slope *float64
+	height            float64
+}
+
+// String prints d with NULL for an absent extent.
+func (d dims) String() string {
+	return fmt.Sprintf("{horizontal %s slope %s height %.3f}", fmtPtr(d.horizontal), fmtPtr(d.slope), d.height)
+}
 
 // hasDims reports whether any of ds matches w within the 2-decimal rounding the
 // pipeline stores.
 func hasDims(ds []dims, w dims) bool {
 	for _, d := range ds {
-		if math.Abs(d.length-w.length) <= 0.01 && math.Abs(d.width-w.width) <= 0.01 && math.Abs(d.height-w.height) <= 0.01 {
+		if closeOrBothNil(d.horizontal, w.horizontal) && closeOrBothNil(d.slope, w.slope) && math.Abs(d.height-w.height) <= 0.01 {
 			return true
 		}
 	}
