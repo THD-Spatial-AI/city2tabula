@@ -41,9 +41,6 @@ info:
 
     ## Surface measurement references
 
-    - Freeman, H. and Shapira, R. (1975). Determining the minimum-area encasing
-      rectangle for an arbitrary closed curve. Communications of the ACM 18(7),
-      409-413. https://doi.org/10.1145/360881.360919
     - Gröger, G., Kolbe, T. H., Nagel, C. and Häfele, K.-H. (2012). OGC City
       Geography Markup Language (CityGML) Encoding Standard 2.0, OGC 12-019.
     - Labetski, A., Vitalis, S., Biljecki, F., Arroyo Ohori, K. and Stoter, J.
@@ -498,7 +495,7 @@ components:
         taken from the LoD2 model geometry; references are listed under
         "Surface measurement references" at the top of this document. Where part
         of a face lies against another solid of the same building, `area`,
-        `length`, `width` and `height` describe only its exposed piece. A wall
+        `horizontal_extent`, `slope_extent` and `height` describe only its exposed piece. A wall
         shared with an attached neighbour is served as separate pieces: the
         exterior part and the shared part, the latter with `is_party_wall`.
       properties:
@@ -539,23 +536,25 @@ components:
             10 degrees of horizontal are reported as 90. This is the complement
             of the Energy ADE ThermalBoundary `inclination` (0 for a horizontal
             plane): inclination = 90 - tilt.
-        length:
+        horizontal_extent:
           type: number
           nullable: true
           description: |
-            Metres. Long side of the smallest-area rectangle enclosing the face,
-            measured in the face's own plane (Freeman and Shapira 1975; the length
-            of the object-oriented bounding box in Labetski et al. 2023). For a
-            pitched roof face this follows the slope, not its projection on the
-            ground. Null for faces other than walls, roofs and ground.
-        width:
+            Metres. Extent of the face along the horizontal line in its own
+            plane, perpendicular to `azimuth`: a wall's run along the facade, a
+            pitched roof face's length along the eave. Null for faces within
+            about 10 degrees of horizontal (`tilt` 90), whose plane has no single
+            horizontal direction, and for faces other than walls, roofs and ground.
+        slope_extent:
           type: number
           nullable: true
           description: |
-            Metres. Short side of the same rectangle as `length`. 0 for a
-            degenerate face. For a face that is not a rectangle (a gable wall, a
-            hipped roof facet, an L-shaped ground face), length x width is larger
-            than `area`. Null for faces other than walls, roofs and ground.
+            Metres. Extent of the face along its line of steepest slope: equal to
+            `height` for a vertical wall, the length up the slope for a pitched
+            roof face (`height` = `slope_extent` x cos(`tilt`)). For a face that
+            is not a rectangle (a gable wall, a hipped roof facet),
+            `horizontal_extent` x `slope_extent` is larger than `area`. Null as
+            for `horizontal_extent`.
         height:
           type: number
           nullable: true
@@ -563,8 +562,8 @@ components:
             Metres. Vertical extent of the face, highest minus lowest point (the
             height range of Labetski et al. 2023, per face). For a wall, its
             height; for a gable wall, up to the ridge; for a pitched roof face, the
-            rise from eave to ridge, not the length along the slope; about 0 for a
-            flat roof or ground face.
+            rise from eave to ridge, not the length along the slope
+            (`slope_extent`); about 0 for a flat roof or ground face.
         area_below_precision:
           type: boolean
           nullable: true

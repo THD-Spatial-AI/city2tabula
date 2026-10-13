@@ -72,11 +72,12 @@ type Surface struct {
 	AreaBelowPrecision *bool `json:"area_below_precision,omitempty"`
 	IsValid            *bool `json:"is_valid,omitempty"`
 	IsPlanar           *bool `json:"is_planar,omitempty"`
-	// Length and Width are the sides of the minimum-area rectangle around the
-	// face in its own plane; Height is its vertical extent. All in metres.
-	Length *float64 `json:"length,omitempty"`
-	Width  *float64 `json:"width,omitempty"`
-	Height *float64 `json:"height,omitempty"`
+	// HorizontalExtent and SlopeExtent are the extents of the face along the
+	// horizontal and along the fall line in its own plane, absent for faces
+	// within about 10 degrees of horizontal; Height is its vertical extent. All in metres.
+	HorizontalExtent *float64 `json:"horizontal_extent,omitempty"`
+	SlopeExtent      *float64 `json:"slope_extent,omitempty"`
+	Height           *float64 `json:"height,omitempty"`
 	// IsPartyWall marks a piece shared with the attached neighbour NeighbourObjectID.
 	IsPartyWall       *bool   `json:"is_party_wall,omitempty"`
 	NeighbourObjectID *string `json:"neighbour_object_id,omitempty"`
@@ -164,7 +165,7 @@ const (
 	// release stores attached_neighbour_id as INTEGER[].
 	neighbourColumns = "b.has_attached_neighbour, b.attached_neighbour_class, b.attached_neighbour_id::TEXT[]"
 	surfaceColumns   = "id, building_object_id, surface_type, surface_area, azimuth, tilt, is_valid, is_planar, " +
-		"length, width, height, is_party_wall, neighbour_object_id, geom"
+		"horizontal_extent, slope_extent, height, is_party_wall, neighbour_object_id, geom"
 )
 
 // allLODs reads columns of one City2TABULA table across the LOD2 and LOD3
@@ -219,7 +220,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		SELECT building_object_id, id::text, surface_type,
 		       surface_area, azimuth, tilt,
 		       (surface_area IS NOT NULL AND surface_area <= 0),
-		       is_valid, is_planar, length, width, height, is_party_wall, neighbour_object_id
+		       is_valid, is_planar, horizontal_extent, slope_extent, height, is_party_wall, neighbour_object_id
 		FROM %s s
 		WHERE building_object_id = ANY($1)`,
 		allLODs(cfg, "surface", surfaceColumns),
@@ -237,7 +238,7 @@ func attachSurfaces(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		if err := rows.Scan(
 			&buildingObjectID, &s.ID, &s.Type,
 			&s.AreaSqm, &s.Azimuth, &s.Tilt, &s.AreaBelowPrecision, &s.IsValid, &s.IsPlanar,
-			&s.Length, &s.Width, &s.Height, &s.IsPartyWall, &s.NeighbourObjectID,
+			&s.HorizontalExtent, &s.SlopeExtent, &s.Height, &s.IsPartyWall, &s.NeighbourObjectID,
 		); err != nil {
 			return fmt.Errorf("failed to scan surface row: %w", err)
 		}

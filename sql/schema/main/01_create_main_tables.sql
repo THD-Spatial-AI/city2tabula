@@ -46,12 +46,13 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   classname VARCHAR(255),
   height DOUBLE PRECISION,
   height_unit VARCHAR CHECK (height_unit IN ('m')),
-  -- length / width: long and short side of the minimum-area rectangle around the
-  -- face, measured in its own plane (surface_dimensions). NULL outside wall, roof and ground.
-  length DOUBLE PRECISION,
-  length_unit VARCHAR CHECK (length_unit IN ('m')),
-  width DOUBLE PRECISION,
-  width_unit VARCHAR CHECK (width_unit IN ('m')),
+  -- horizontal_extent / slope_extent: extent of the face along the horizontal and
+  -- along the fall line in its plane (surface_dimensions). NULL outside wall, roof
+  -- and ground, and for faces with |nz| > 0.985.
+  horizontal_extent DOUBLE PRECISION,
+  horizontal_extent_unit VARCHAR CHECK (horizontal_extent_unit IN ('m')),
+  slope_extent DOUBLE PRECISION,
+  slope_extent_unit VARCHAR CHECK (slope_extent_unit IN ('m')),
   surface_area DOUBLE PRECISION,
   surface_area_unit VARCHAR CHECK (surface_area_unit IN ('sqm')),
   -- tilt: angle from vertical, asin(|nz|). 0 = wall, 90 = flat roof. Complement of
@@ -196,10 +197,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     -- outside 0-360 so it cannot be read as a bearing. Energy ADE 1.0 uses 0 for horizontal surfaces.
     azimuth            DOUBLE PRECISION,
     height             DOUBLE PRECISION,
-    -- length / width: long and short side of the minimum-area rectangle around the
-    -- face, measured in its own plane (surface_dimensions). NULL outside wall, roof and ground.
-    length             DOUBLE PRECISION,
-    width              DOUBLE PRECISION,
+    -- horizontal_extent / slope_extent: as on _surface_raw (surface_dimensions).
+    horizontal_extent  DOUBLE PRECISION,
+    slope_extent       DOUBLE PRECISION,
     is_valid           BOOLEAN,
     is_planar          BOOLEAN,
     -- is_party_wall: a piece shared with the attached neighbour neighbour_object_id;

@@ -354,18 +354,25 @@ func runPipelineTest(t *testing.T, tc pipelineTestCase) {
 		t.Error("surface builder failed: lod2_surface is empty, expected surface rows")
 	}
 
-	// Every served wall, roof and ground piece carries an in-plane
-	// length and width, with the short side stored as width.
+	// Every served wall, roof and ground piece has both extents unless it is flat
+	// (tilt 90), where both are NULL. On a planar face height = slope_extent x
+	// cos(tilt), and the rectangle the two extents span contains the face; each
+	// extent is rounded to 0.005 m, which bounds the product's shortfall.
 	var badDims int
 	if err := testPool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM city2tabula.lod2_surface
 		WHERE surface_type IN ('WallSurface', 'RoofSurface', 'GroundSurface')
-		  AND (length IS NULL OR width IS NULL OR width > length)`,
+		  AND CASE WHEN tilt = 90 THEN horizontal_extent IS NOT NULL OR slope_extent IS NOT NULL
+		           ELSE horizontal_extent IS NULL OR slope_extent IS NULL
+		                OR horizontal_extent * slope_extent
+		                   < surface_area - 0.005 * (horizontal_extent + slope_extent) - 0.01
+		                OR (is_planar AND ABS(slope_extent * COS(RADIANS(tilt)) - height) > 0.02)
+		      END`,
 	).Scan(&badDims); err != nil {
 		t.Fatalf("failed to query surface dimensions: %v", err)
 	}
 	if badDims > 0 {
-		t.Errorf("%d surfaces have missing length/width or width > length", badDims)
+		t.Errorf("%d surfaces have extents that are missing, set on a flat face, or inconsistent with area or height", badDims)
 	}
 
 	// Regression (#121): a multi-face surface feature (a 3DBAG WallSurface covers all of a
