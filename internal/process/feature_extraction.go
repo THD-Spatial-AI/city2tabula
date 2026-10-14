@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
@@ -15,6 +16,7 @@ import (
 // listed in config.CityDB.LODLevels. Schemas that are not configured are never
 // queried, so tests only need to seed the schemas they care about.
 func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
+	start := time.Now()
 	var lod2BldIDs, lod3BldIDs []int64
 
 	for _, lod := range cfg.CityDB.LODLevels {
@@ -97,6 +99,8 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 		}
 	}
 
+	utils.Info.Printf("Feature extraction complete: %d buildings in %s",
+		len(lod2BldIDs)+len(lod3BldIDs), time.Since(start).Round(time.Millisecond))
 	return nil
 }
 

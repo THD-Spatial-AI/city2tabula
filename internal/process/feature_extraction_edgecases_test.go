@@ -3,12 +3,15 @@
 package process_test
 
 import (
+	"bytes"
 	"context"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/process"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
 // setupGermanyLOD2 resets the schemas, seeds Germany's LOD2 fixture, and runs the
@@ -64,6 +67,29 @@ func TestRunFeatureExtraction_BuildingLimitTruncatesCount(t *testing.T) {
 	}
 	if count != limit {
 		t.Errorf("expected BUILDING_LIMIT=%d to cap processed buildings at %d, got %d", limit, limit, count)
+	}
+}
+
+// TestRunFeatureExtraction_LogsCompletion pins the INFO line a successful run
+// ends with, so a finished extraction is distinguishable from a hung one in the log.
+func TestRunFeatureExtraction_LogsCompletion(t *testing.T) {
+	tc := setupGermanyLOD2(t)
+	cfg := pipelineConfig(*tc)
+	const limit = 3
+	cfg.Batch.BuildingLimit = limit
+
+	var buf bytes.Buffer
+	prev := utils.Info.Writer()
+	utils.Info.SetOutput(&buf)
+	t.Cleanup(func() { utils.Info.SetOutput(prev) })
+
+	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
+		t.Fatalf("RunFeatureExtraction: %v", err)
+	}
+
+	want := regexp.MustCompile(`Feature extraction complete: 3 buildings in \d`)
+	if !want.Match(buf.Bytes()) {
+		t.Errorf("log has no line matching %q:\n%s", want, buf.String())
 	}
 }
 

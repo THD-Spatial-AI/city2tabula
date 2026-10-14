@@ -6,6 +6,12 @@ v0.8.0 are described in their tag messages.
 ## Unreleased
 
 Fixes:
+- A successful feature extraction logs "Feature extraction complete"
+  with its building count and duration, and an on-request run logs its
+  completion with the run id, country, linked building count and
+  duration. Before, the log of a successful run stopped at "Extracting
+  Features", which read as a hung run. The two on-request failure paths
+  that set a run failed without logging now log the error too.
 - The city2tabula and city2tabula-db services in
   environment/http/docker-compose.yml restart unless stopped, so they
   come back after a Docker or host restart. city2tabula-cli, which is
