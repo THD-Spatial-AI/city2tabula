@@ -198,6 +198,7 @@ func (s *Server) GetRun(id string) (*Run, bool) {
 }
 
 func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, bboxMode string, key string) {
+	start := time.Now()
 	// The run stays pending while it waits for a conflicting region, so a
 	// caller polling can tell waiting from working.
 	s.acquireRegion(cfg.DB.Name, bbox)
@@ -213,12 +214,14 @@ func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, b
 
 	_, pool, err := s.PoolFor(cfg.Country)
 	if err != nil {
+		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
 		s.setRunStatus(id, StatusFailed, err.Error())
 		return
 	}
 
 	count, err := onrequest.CountBuildingLink(context.Background(), pool, &cfg, bbox)
 	if err != nil {
+		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
 		s.setRunStatus(id, StatusFailed, err.Error())
 		return
 	}
@@ -228,6 +231,8 @@ func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, b
 		return
 	}
 
+	utils.Info.Printf("on-request run %s (%s) completed: %d linked buildings in bbox %s, %s",
+		id, cfg.Country, count, bbox, time.Since(start).Round(time.Millisecond))
 	s.setRunStatus(id, StatusCompleted, "")
 }
 
