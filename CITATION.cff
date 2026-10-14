@@ -8,7 +8,7 @@ abstract: >
   typology classification and heating demand estimation workflows.
 type: software
 version: "0.10.1"
-date-released: "2026-10-13"
+date-released: "2026-10-14"
 repository-code: "https://github.com/THD-Spatial-AI/city2tabula"
 license: Apache-2.0
 authors:
