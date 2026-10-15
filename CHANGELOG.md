@@ -3,6 +3,13 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- An on-request run opens two database pools instead of three, and
+  the per-connection PostGIS extension checks log at DEBUG instead of
+  INFO, so the server log no longer repeats them for every run.
+
 ## v0.10.1 (2026-10-14)
 
 Fixes:
