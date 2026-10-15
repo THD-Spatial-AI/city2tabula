@@ -30,11 +30,15 @@ const (
 // the MVP since the ground truth after a successful run is building_link itself;
 // a lost run record just means the caller has to re-check coverage and retrigger.
 type Run struct {
-	ID        string
-	Country   string
-	Status    string
-	Error     string
+	ID      string
+	Country string
+	Status  string
+	Error   string
+	// Stage is the pipeline step last entered; zero while the run is pending.
+	// A failed run keeps the step it failed in.
+	Stage     onrequest.Stage
 	CreatedAt time.Time
+	StartedAt time.Time // zero while pending
 	UpdatedAt time.Time
 }
 
@@ -212,7 +216,8 @@ func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, b
 
 	s.setRunStatus(id, StatusRunning, "")
 
-	if err := onrequest.RunForRegion(&cfg, bbox, bboxMode); err != nil {
+	onStage := func(stage onrequest.Stage) { s.setRunStage(id, stage) }
+	if err := onrequest.RunForRegion(&cfg, bbox, bboxMode, onStage); err != nil {
 		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
 		s.setRunStatus(id, StatusFailed, err.Error())
 		return
@@ -279,14 +284,32 @@ func (s *Server) conflictsLocked(dbName string, bbox onrequest.Bbox) bool {
 	return false
 }
 
+// setRunStatus records a status change. Entering running stamps StartedAt.
 func (s *Server) setRunStatus(id, status, errMsg string) {
+	s.updateRun(id, func(run *Run, now time.Time) {
+		run.Status = status
+		run.Error = errMsg
+		if status == StatusRunning && run.StartedAt.IsZero() {
+			run.StartedAt = now
+		}
+	})
+}
+
+// setRunStage records the pipeline step a run has entered.
+func (s *Server) setRunStage(id string, stage onrequest.Stage) {
+	s.updateRun(id, func(run *Run, _ time.Time) { run.Stage = stage })
+}
+
+// updateRun applies change to the stored run under the lock and stamps
+// UpdatedAt. An unknown id is ignored.
+func (s *Server) updateRun(id string, change func(run *Run, now time.Time)) {
 	s.runsMu.Lock()
 	defer s.runsMu.Unlock()
 	run, ok := s.runs[id]
 	if !ok {
 		return
 	}
-	run.Status = status
-	run.Error = errMsg
-	run.UpdatedAt = time.Now().UTC()
+	now := time.Now().UTC()
+	change(run, now)
+	run.UpdatedAt = now
 }

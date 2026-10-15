@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -210,8 +211,13 @@ func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 	// Generous WGS84 box around Deggendorf/Bavaria - comfortably covers the tile.
 	bbox := onrequest.Bbox{Xmin: 12.0, Ymin: 48.5, Xmax: 13.5, Ymax: 49.2}
 
-	if err := onrequest.RunForRegion(cfg, bbox, "intersects"); err != nil {
+	var stages []onrequest.Stage
+	onStage := func(stage onrequest.Stage) { stages = append(stages, stage) }
+	if err := onrequest.RunForRegion(cfg, bbox, "intersects", onStage); err != nil {
 		t.Fatalf("RunForRegion: %v", err)
+	}
+	if !slices.Equal(stages, onrequest.Stages) {
+		t.Errorf("reported stages %+v, want each of %+v in order", stages, onrequest.Stages)
 	}
 
 	// seedEmptyPylovoTables leaves nothing to match against, so every building

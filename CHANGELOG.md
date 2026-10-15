@@ -5,6 +5,13 @@ v0.8.0 are described in their tag messages.
 
 ## Unreleased
 
+Features:
+- GET /api/v1/runs/{id} and POST /api/v1/runs report the pipeline step
+  a run is in: stage (import, extract_features or link_buildings),
+  stage_label, stage_index and stage_count, plus created_at,
+  started_at and updated_at. The stage fields and started_at are
+  absent while a run is pending.
+
 Fixes:
 - The run status read a run record the pipeline goroutine was still
   writing, without a lock. The server now returns a copy.

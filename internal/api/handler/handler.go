@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
@@ -51,14 +52,37 @@ type runRequest struct {
 }
 
 type runResponse struct {
-	RunID   string `json:"run_id"`
-	Country string `json:"country"`
-	Status  string `json:"status"`
-	Error   string `json:"error,omitempty"`
+	RunID      string     `json:"run_id"`
+	Country    string     `json:"country"`
+	Status     string     `json:"status"`
+	Error      string     `json:"error,omitempty"`
+	Stage      string     `json:"stage,omitempty"`
+	StageLabel string     `json:"stage_label,omitempty"`
+	StageIndex int        `json:"stage_index,omitempty"`
+	StageCount int        `json:"stage_count,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	StartedAt  *time.Time `json:"started_at,omitempty"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
+// toRunResponse maps a run to its JSON form. The stage fields and started_at
+// are omitted while the run is pending.
 func toRunResponse(run *server.Run) runResponse {
-	return runResponse{RunID: run.ID, Country: run.Country, Status: run.Status, Error: run.Error}
+	resp := runResponse{
+		RunID: run.ID, Country: run.Country, Status: run.Status, Error: run.Error,
+		CreatedAt: run.CreatedAt, UpdatedAt: run.UpdatedAt,
+	}
+	for i, stage := range onrequest.Stages {
+		if stage == run.Stage {
+			resp.Stage, resp.StageLabel = stage.Name, stage.Label
+			resp.StageIndex, resp.StageCount = i+1, len(onrequest.Stages)
+		}
+	}
+	if !run.StartedAt.IsZero() {
+		started := run.StartedAt
+		resp.StartedAt = &started
+	}
+	return resp
 }
 
 // Runs handles POST /api/v1/runs: triggers a City2TABULA run for one
