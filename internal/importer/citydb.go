@@ -43,7 +43,7 @@ func ImportCityDBData(conn *pgxpool.Pool, config *config.Config, bbox, bboxMode 
 		utils.Warn.Printf("No dataset folders under %s or %s, nothing to import", config.Data.Lod2, config.Data.Lod3)
 	}
 	for _, d := range datasets {
-		if err := importCityDBFiles(cityDBExecPath, d, config, bbox, bboxMode); err != nil {
+		if err := importDatasetOnce(conn, cityDBExecPath, d, config, bbox, bboxMode); err != nil {
 			return err
 		}
 	}

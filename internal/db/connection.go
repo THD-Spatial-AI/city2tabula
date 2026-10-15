@@ -155,7 +155,7 @@ func ConnectPool(config *config.Config) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	utils.Info.Println("Connected to PostgreSQL database with pool")
+	utils.Debug.Println("Connected to PostgreSQL database with pool")
 	return pool, nil
 }
 
@@ -164,7 +164,7 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 	if _, err := pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS postgis`); err != nil {
 		return fmt.Errorf("failed to enable PostGIS: %w", err)
 	}
-	utils.Info.Println("PostGIS extension enabled")
+	utils.Debug.Println("PostGIS extension enabled")
 
 	// PostGIS 3.6+ doesn't have separate postgis_raster extension
 	// Check PostGIS version and handle accordingly
@@ -173,7 +173,7 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 	if err != nil {
 		utils.Warn.Printf("Could not determine PostGIS version: %v", err)
 	} else {
-		utils.Info.Printf("PostGIS version: %s", version)
+		utils.Debug.Printf("PostGIS version: %s", version)
 	}
 
 	// Try postgis_raster but don't fail if it doesn't exist (PostGIS 3.6+)
@@ -181,7 +181,7 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 		utils.Warn.Printf("PostGIS Raster extension not available (likely PostGIS 3.6+): %v", err)
 		// Don't return error - raster functionality is built into PostGIS 3.6+
 	} else {
-		utils.Info.Println("PostGIS Raster extension enabled")
+		utils.Debug.Println("PostGIS Raster extension enabled")
 	}
 
 	// Try SFCGAL extension
@@ -189,7 +189,7 @@ func enablePostgis(ctx context.Context, pool *pgxpool.Pool, config *config.Confi
 		utils.Warn.Printf("PostGIS SFCGAL extension not available: %v", err)
 		// Don't fail if SFCGAL is not installed
 	} else {
-		utils.Info.Println("PostGIS SFCGAL extension enabled")
+		utils.Debug.Println("PostGIS SFCGAL extension enabled")
 	}
 
 	return nil

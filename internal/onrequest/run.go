@@ -65,6 +65,12 @@ func CheckRunnable(cfg *config.Config) error {
 	}
 	defer db.ClosePool(pool)
 
+	return checkRunSchemas(pool, cfg)
+}
+
+// checkRunSchemas is CheckRunnable's check for a database known to exist, run
+// on a pool the caller already holds.
+func checkRunSchemas(pool *pgxpool.Pool, cfg *config.Config) error {
 	missing, err := db.MissingRunSchemas(pool, cfg)
 	if err != nil {
 		return err
@@ -112,7 +118,7 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string, onStage func(S
 	defer db.ClosePool(pool)
 
 	if existed {
-		if err := CheckRunnable(cfg); err != nil {
+		if err := checkRunSchemas(pool, cfg); err != nil {
 			return err
 		}
 
