@@ -13,11 +13,18 @@ Features:
   bboxes per dataset. Adding, replacing or removing a source file
   invalidates the dataset's records. Imports without a bbox, or with
   IMPORT_LIMIT set, are neither skipped nor recorded.
+- GET /api/v1/runs/{id} and POST /api/v1/runs report the pipeline step
+  a run is in: stage (import, extract_features or link_buildings),
+  stage_label, stage_index and stage_count, plus created_at,
+  started_at and updated_at. The stage fields and started_at are
+  absent while a run is pending.
 
 Fixes:
 - An on-request run opens two database pools instead of three, and
   the per-connection PostGIS extension checks log at DEBUG instead of
   INFO, so the server log no longer repeats them for every run.
+- The run status read a run record the pipeline goroutine was still
+  writing, without a lock. The server now returns a copy.
 
 ## v0.10.1 (2026-10-14)
 

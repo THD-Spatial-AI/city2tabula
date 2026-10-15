@@ -84,12 +84,28 @@ func checkRunSchemas(pool *pgxpool.Pool, cfg *config.Config) error {
 	return nil
 }
 
+// Stage is one step of an on-request run, as reported in the run status.
+type Stage struct {
+	Name  string
+	Label string
+}
+
+// Stages are the steps RunForRegion reports, in the order it runs them. Name
+// is part of the HTTP API (docs/openapi/openapi.yaml), so it must not change.
+var Stages = []Stage{
+	{Name: "import", Label: "Importing 3D building data"},
+	{Name: "extract_features", Label: "Extracting building features"},
+	{Name: "link_buildings", Label: "Linking to grid buildings"},
+}
+
 // RunForRegion imports 3D data for cfg's country, scoped to bbox, then extracts
 // features and links against PyLovo. cfg must come from config.RegionConfig —
 // Country, DB.Name, CityDB.SRID/SRSName, and Data.Lod2/Lod3 all need to already
 // be resolved for the target country. bboxMode is citydb-tool's --bbox-mode
-// (intersects, contains, or on_tile).
-func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string) error {
+// (intersects, contains, or on_tile). onStage is called with each entry of
+// Stages as that step starts.
+func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string, onStage func(Stage)) error {
+	onStage(Stages[0])
 	existed, err := db.DatabaseExists(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to check whether database %s exists: %w", cfg.DB.Name, err)
@@ -115,10 +131,12 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string) error {
 		}
 	}
 
+	onStage(Stages[1])
 	if err := process.RunFeatureExtraction(cfg, pool); err != nil {
 		return fmt.Errorf("failed to extract features for %s: %w", cfg.Country, err)
 	}
 
+	onStage(Stages[2])
 	if err := process.RunPyLovoLinkBuild(cfg, pool); err != nil {
 		return fmt.Errorf("failed to link PyLovo buildings for %s: %w", cfg.Country, err)
 	}

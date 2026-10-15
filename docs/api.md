@@ -92,7 +92,32 @@ sequenceDiagram
 curl http://localhost:5000/api/v1/runs/<run_id>
 ```
 
+```json
+{
+  "run_id": "0b003631-88c4-4907-a89e-3db1466eb47f",
+  "country": "germany",
+  "status": "running",
+  "stage": "extract_features",
+  "stage_label": "Extracting building features",
+  "stage_index": 2,
+  "stage_count": 3,
+  "created_at": "2026-10-15T12:00:00Z",
+  "started_at": "2026-10-15T12:00:01Z",
+  "updated_at": "2026-10-15T12:00:04Z"
+}
+```
+
 `no_data` means the pipeline ran successfully but found no source data for that bbox, which is not an error. `failed` means a real error; check `error` in the response.
+
+A `pending` run is waiting for another run over an overlapping area to finish. It has no stage fields and no `started_at`. Once running, `stage` names the step the run is in:
+
+| `stage` | `stage_index` | `stage_label` |
+|---|---|---|
+| `import` | 1 | Importing 3D building data |
+| `extract_features` | 2 | Extracting building features |
+| `link_buildings` | 3 | Linking to grid buildings |
+
+A `failed` run keeps the stage it failed in; a `completed` or `no_data` run ends on `link_buildings`. The first run in a country also creates its database during `import`, so that step takes longer than on later runs.
 
 ```mermaid
 sequenceDiagram
@@ -101,7 +126,7 @@ sequenceDiagram
 
     loop until status is completed, no_data, or failed
         C->>S: GET /api/v1/runs/{id}
-        S-->>C: 200 {run_id, status, error}
+        S-->>C: 200 {run_id, status, stage, error}
         Note over C: wait, then poll again
     end
 ```

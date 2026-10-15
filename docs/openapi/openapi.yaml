@@ -343,6 +343,30 @@ components:
         error:
           type: string
           description: Present only when status is `failed`
+        stage:
+          type: string
+          enum: [import, extract_features, link_buildings]
+          description: Step the run is in. Absent while `pending`; a `failed` run keeps the step it failed in.
+        stage_label:
+          type: string
+          description: English label for `stage`, such as "Extracting building features"
+        stage_index:
+          type: integer
+          minimum: 1
+          description: 1-based position of `stage`, absent while `pending`
+        stage_count:
+          type: integer
+          description: Number of stages, absent while `pending`
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          description: When the run left `pending`, absent before that
+        updated_at:
+          type: string
+          format: date-time
 
     BuildingsResponse:
       type: object
