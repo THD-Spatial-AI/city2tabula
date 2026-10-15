@@ -45,3 +45,13 @@ func TestSetRunStage_RecordsStageAndStartTime(t *testing.T) {
 		t.Errorf("StartedAt = %v, want the time the run entered running, %v", run.StartedAt, started.StartedAt)
 	}
 }
+
+// An unknown id is how GET /api/v1/runs/{id} tells a never-started run, or one
+// lost to a restart, from a live one.
+func TestGetRun_UnknownIDNotFound(t *testing.T) {
+	s := New(config.Config{})
+
+	if run, ok := s.GetRun("missing"); ok || run != nil {
+		t.Errorf("GetRun(missing) = %+v, %v; want nil, false", run, ok)
+	}
+}
