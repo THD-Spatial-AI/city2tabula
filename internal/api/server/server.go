@@ -184,17 +184,23 @@ func (s *Server) StartRun(country string, bbox onrequest.Bbox, bboxMode string) 
 	s.runs[run.ID] = run
 	s.runsMu.Unlock()
 
+	snapshot := *run
 	go s.executeRun(run.ID, cfg, bbox, bboxMode, key)
 
-	return run, nil
+	return &snapshot, nil
 }
 
-// GetRun returns the current state of a previously started run.
+// GetRun returns a copy of the current state of a previously started run. A
+// copy, because the run goroutine keeps updating the stored record.
 func (s *Server) GetRun(id string) (*Run, bool) {
 	s.runsMu.RLock()
 	defer s.runsMu.RUnlock()
 	run, ok := s.runs[id]
-	return run, ok
+	if !ok {
+		return nil, false
+	}
+	snapshot := *run
+	return &snapshot, true
 }
 
 func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, bboxMode string, key string) {

@@ -3,6 +3,12 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- The run status read a run record the pipeline goroutine was still
+  writing, without a lock. The server now returns a copy.
+
 ## v0.10.1 (2026-10-14)
 
 Fixes:
