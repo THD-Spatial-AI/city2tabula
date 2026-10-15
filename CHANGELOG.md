@@ -3,6 +3,22 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- A bbox import skips citydb-tool for a dataset when an earlier import
+  from the same source files already covered the bbox, so repeating a
+  run over an imported area no longer re-reads the source files. Each
+  LOD schema gains a c2t_import_extent table recording the imported
+  bboxes per dataset. Adding, replacing or removing a source file
+  invalidates the dataset's records. Imports without a bbox, or with
+  IMPORT_LIMIT set, are neither skipped nor recorded.
+
+Fixes:
+- An on-request run opens two database pools instead of three, and
+  the per-connection PostGIS extension checks log at DEBUG instead of
+  INFO, so the server log no longer repeats them for every run.
+
 ## v0.10.1 (2026-10-14)
 
 Fixes:
