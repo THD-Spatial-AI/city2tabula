@@ -247,7 +247,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_surface_raw (
     geom
 )
 SELECT
-    gen_random_uuid() AS id,
+    id,
     building_feature_id,
     owner_feature_id,
     surface_feature_id,

@@ -16,6 +16,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature (
 
 
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_child_feature_geom_dump CASCADE;
+-- Script 02 sets id to md5('<surface_object_id>.<face>')::uuid, face being the
+-- polygon's 1-based position in the source feature's MultiSurface, so it is the same
+-- every time the source is extracted.
 CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     child_row_id UUID,
@@ -35,6 +38,7 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
 -- Keeps building_feature_id and surface_feature_id so individual surfaces can
 -- be traced back to their source features in 3DCityDB.
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_surface_raw CASCADE;
+-- id is the geom_dump id of the face it was computed from.
 CREATE TABLE {city2tabula_schema}.{lod_schema}_surface_raw (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   building_feature_id INTEGER,
@@ -176,6 +180,9 @@ CREATE TABLE {city2tabula_schema}.{lod_schema}_building (
 -- surface_object_id / surface_feature_id are the source surface feature and are
 -- shared across every face of a multi-face feature (e.g. a 3DBAG WallSurface), so
 -- neither is unique in this table; the row id is the only unique key.
+-- Script post/03 sets id to md5('<surface_raw id>.<e|p><piece>')::uuid: e for an
+-- exterior piece, p for a party-wall piece, numbered from 1. The rebuild therefore
+-- serves the same ids; a wall's piece ids change only when its party-wall split does.
 DROP TABLE IF EXISTS {city2tabula_schema}.{lod_schema}_surface CASCADE;
 CREATE TABLE {city2tabula_schema}.{lod_schema}_surface (
     id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
