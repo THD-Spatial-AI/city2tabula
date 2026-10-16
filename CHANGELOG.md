@@ -20,6 +20,13 @@ Features:
   absent while a run is pending.
 
 Fixes:
+- A surface's id stays the same when the surface table is rebuilt.
+  Every extraction rebuilt it and gave every surface in the country a
+  new random UUID, so an id stored by a client stopped matching after
+  any later run. The id is now an md5-derived UUID of the source
+  surface's object id, the face's position in it and the exterior or
+  party-wall piece. In an existing database the ids change once, on
+  the first run after upgrading, and are stable from then on.
 - An on-request run opens two database pools instead of three, and
   the per-connection PostGIS extension checks log at DEBUG instead of
   INFO, so the server log no longer repeats them for every run.

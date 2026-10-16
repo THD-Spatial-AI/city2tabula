@@ -525,9 +525,13 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: |
-            Identifier of this face, unique per face. One CityGML surface can
-            consist of several faces, each with its own `id`.
+            Identifier of this surface piece, unique per piece. Derived from the
+            source surface, the face within it and the piece of that face, so it
+            stays the same when the data is rebuilt; a wall's piece ids change
+            only when its split into exterior and party-wall pieces changes.
+            Treat it as opaque.
         type:
           type: string
           description: |

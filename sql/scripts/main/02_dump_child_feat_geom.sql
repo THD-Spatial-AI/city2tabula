@@ -1,5 +1,8 @@
 -- Explodes each MULTIPOLYGON surface geometry into individual POLYGON faces via ST_Dump.
--- One row per polygon face is inserted into _child_feature_geom_dump, cast to POLYGONZ.
+-- One row per polygon face is inserted into _child_feature_geom_dump, cast to POLYGONZ,
+-- with the id md5('<surface_object_id>.<face>')::uuid (face = the polygon's position in
+-- the MultiSurface), so re-extracting the same source gives the same id. Each surface
+-- object id has one _child_feature row, so the key is unique.
 -- Skips buildings whose dump rows already exist.
 
 WITH new_buildings AS (
@@ -22,9 +25,11 @@ dumped AS (
     c.surface_object_id,
     c.objectclass_id,
     c.classname AS classname,
-    (ST_Dump(c.geom)).geom AS geom
+    d.path[1] AS face,
+    d.geom
   FROM {city2tabula_schema}.{lod_schema}_child_feature c
   INNER JOIN new_buildings nb ON c.building_feature_id = nb.building_feature_id
+  CROSS JOIN LATERAL ST_Dump(c.geom) d
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     id,
@@ -41,7 +46,7 @@ INSERT INTO {city2tabula_schema}.{lod_schema}_child_feature_geom_dump (
     geom
 )
 SELECT
-    gen_random_uuid() AS id,
+    md5(surface_object_id || '.' || face)::uuid AS id,
     child_row_id,
     building_feature_id,
     owner_feature_id,
