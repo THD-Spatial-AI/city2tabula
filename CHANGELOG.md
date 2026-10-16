@@ -27,6 +27,11 @@ Features:
 - The HTTP server logs one line per request (method, path, query,
   status, duration) and returns an X-Request-ID header, reusing a
   valid id the caller sent. Health checks log at DEBUG.
+- On-request run lines carry run_id, country, bbox and bbox_mode: run
+  started (with the time spent waiting for an overlapping run), one
+  line per stage, and run completed, run found no source data or run
+  failed, the last naming the stage and the error. A run accepted line
+  links the request id to the run id.
 
 Fixes:
 - An on-request run opens two database pools instead of three, and
