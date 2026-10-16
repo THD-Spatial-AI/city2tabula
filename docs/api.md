@@ -12,6 +12,10 @@ The interactive reference lives in its own standalone page, [`openapi/index.html
 !!! note "Try it out needs a proxy or same-origin setup"
     The server sends no CORS headers, so Swagger UI's **Try it out** fails against a running instance from this docs page. The `curl` examples below work instead.
 
+## Request ids
+
+Every response carries an `X-Request-ID` header. Send your own id in that header (up to 128 letters, digits, `.`, `_` or `-`) to have it reused; otherwise the server generates one. Quote it when reporting a problem with a request.
+
 ## Workflow
 
 | Step | Endpoint | Purpose |

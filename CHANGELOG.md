@@ -24,6 +24,9 @@ Features:
   keep working through the same handler. Debug lines are no longer
   written to the log file at INFO level, and error lines go to stdout
   with the rest instead of stderr.
+- The HTTP server logs one line per request (method, path, query,
+  status, duration) and returns an X-Request-ID header, reusing a
+  valid id the caller sent. Health checks log at DEBUG.
 
 Fixes:
 - An on-request run opens two database pools instead of three, and
