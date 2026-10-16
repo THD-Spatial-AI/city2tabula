@@ -18,6 +18,12 @@ Features:
   stage_label, stage_index and stage_count, plus created_at,
   started_at and updated_at. The stage fields and started_at are
   absent while a run is pending.
+- Logging is structured: every line carries time, level, the source
+  file and line, and the message, as key=value text or, with
+  LOG_FORMAT=json, one JSON object per line. The existing log calls
+  keep working through the same handler. Debug lines are no longer
+  written to the log file at INFO level, and error lines go to stdout
+  with the rest instead of stderr.
 
 Fixes:
 - An on-request run opens two database pools instead of three, and
