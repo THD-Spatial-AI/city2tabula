@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.11.0 (2026-10-16)
 
 Features:
 - A bbox import skips citydb-tool for a dataset when an earlier import
