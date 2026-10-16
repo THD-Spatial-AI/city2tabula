@@ -2,7 +2,9 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,10 +18,14 @@ import (
 func restoreLoggerState(t *testing.T) {
 	t.Helper()
 	origInfo, origDebug, origWarn, origError := Info, Debug, Warn, Error
-	origLevel := currentLogLevel
+	origLogger, origDefault := Logger, slog.Default()
+	origLevel, origSlogLevel := currentLogLevel, level.Level()
 	t.Cleanup(func() {
 		Info, Debug, Warn, Error = origInfo, origDebug, origWarn, origError
+		Logger = origLogger
+		slog.SetDefault(origDefault)
 		currentLogLevel = origLevel
+		level.Set(origSlogLevel)
 	})
 }
 
@@ -167,5 +173,83 @@ func TestInitLogger_DebugLevelRoutesDebugOutputToStdout(t *testing.T) {
 	}
 	if !strings.Contains(string(captured), "debug-marker") {
 		t.Errorf("expected DEBUG-level InitLogger to route Debug output to stdout too, got: %q", captured)
+	}
+}
+
+// TestInitLogger_JSONFormat pins LOG_FORMAT=json: every line in the log file is a
+// JSON object carrying level, msg and the caller's package/file.go:line.
+func TestInitLogger_JSONFormat(t *testing.T) {
+	restoreLoggerState(t)
+	t.Chdir(t.TempDir())
+	os.Unsetenv("LOG_LEVEL")
+	t.Setenv("LOG_FORMAT", "json")
+
+	InitLogger()
+	Warn.Printf("disk %s is full", "/data")
+	Logger.Info("run stage", "run_id", "r1", "stage", "import")
+
+	entries, err := os.ReadDir("logs")
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("expected one log file in logs/, got %v (err %v)", entries, err)
+	}
+	data, err := os.ReadFile(filepath.Join("logs", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("read log file: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("got %d log lines, want 3 (init, warn, stage):\n%s", len(lines), data)
+	}
+	var warn, stage map[string]any
+	if err := json.Unmarshal([]byte(lines[1]), &warn); err != nil {
+		t.Fatalf("warn line is not JSON: %v\n%s", err, lines[1])
+	}
+	if err := json.Unmarshal([]byte(lines[2]), &stage); err != nil {
+		t.Fatalf("stage line is not JSON: %v\n%s", err, lines[2])
+	}
+	if warn["level"] != "WARN" || warn["msg"] != "disk /data is full" {
+		t.Errorf("warn line = %v, want level WARN and the formatted message", warn)
+	}
+	if src, _ := warn["source"].(string); !strings.HasPrefix(src, "utils/logger_test.go:") {
+		t.Errorf("warn source = %q, want utils/logger_test.go:<line>", warn["source"])
+	}
+	if stage["run_id"] != "r1" || stage["stage"] != "import" {
+		t.Errorf("stage line = %v, want run_id r1 and stage import as fields", stage)
+	}
+}
+
+// TestDebugFilteredBelowLevel pins that a Debug line is dropped at INFO and
+// written at DEBUG, for both the printf-style and the structured logger.
+func TestDebugFilteredBelowLevel(t *testing.T) {
+	restoreLoggerState(t)
+	var buf bytes.Buffer
+	setLogger(slog.New(newHandler(&buf, "text")))
+
+	setLevel(LogLevelInfo)
+	Debug.Printf("hidden-printf")
+	Logger.Debug("hidden-structured")
+	if buf.Len() != 0 {
+		t.Fatalf("debug lines written at INFO: %q", buf.String())
+	}
+
+	setLevel(LogLevelDebug)
+	Debug.Printf("shown-printf")
+	Logger.Debug("shown-structured")
+	for _, want := range []string{"level=DEBUG", "shown-printf", "shown-structured"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("debug output at DEBUG lacks %q: %q", want, buf.String())
+		}
+	}
+}
+
+func TestLogFormatFromEnv(t *testing.T) {
+	for _, tc := range []struct{ env, want string }{
+		{"json", "json"}, {"JSON", "json"}, {"text", "text"}, {"yaml", "text"}, {"", "text"},
+	} {
+		t.Setenv("LOG_FORMAT", tc.env)
+		if got := logFormatFromEnv(); got != tc.want {
+			t.Errorf("LOG_FORMAT=%q: got %q, want %q", tc.env, got, tc.want)
+		}
 	}
 }

@@ -13,6 +13,10 @@ info:
     result: building attributes, per-surface envelope data, and (separately)
     footprint geometry.
 
+    Every response carries an `X-Request-ID` header: the caller's own id when
+    it sent a valid one (up to 128 of `A-Z a-z 0-9 . _ -`), otherwise a
+    generated one.
+
     ## Workflow
 
     1. `GET /coverage` cheap check for whether a bbox already has data.

@@ -40,6 +40,7 @@ An empty value counts as unset and takes the default.
 | `BUILDING_LIMIT` | `0` (all) | Processes at most this many buildings per LoD in `-extract-features`, and in total in `-link-pylovo`. For tests and benchmarks on an imported database. |
 | `IMPORT_LIMIT` | `0` (all) | Imports at most this many features from each `gml/` or `cityjson/` folder. For building a small test database. |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARN` or `ERROR`. |
+| `LOG_FORMAT` | `text` | `text` writes one `key=value` line per entry, `json` one JSON object per line. Both carry `time`, `level`, `source` (file and line) and `msg`. |
 
 ## Building features
 

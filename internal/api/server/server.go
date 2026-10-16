@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -170,7 +171,7 @@ func (s *Server) StartRun(country string, bbox onrequest.Bbox, bboxMode string) 
 		// rather than starting a second one means both callers poll the same
 		// id and the region is processed once.
 		if existing, found := s.GetRun(id); found {
-			utils.Info.Printf("on-request run %s (%s) joined by an identical request for %s", id, cfg.Country, bbox)
+			runLogger(id, cfg.Country, bbox, bboxMode).Info("run joined by an identical request")
 			return existing, nil
 		}
 		// The run record vanished without clearing its key; fall through and
@@ -207,7 +208,17 @@ func (s *Server) GetRun(id string) (*Run, bool) {
 	return &snapshot, true
 }
 
+// runLogger returns the logger for one run's lines, carrying the fields that
+// identify the run in the log.
+func runLogger(id, country string, bbox onrequest.Bbox, bboxMode string) *slog.Logger {
+	return utils.Logger.With("run_id", id, "country", country, "bbox", bbox.String(), "bbox_mode", bboxMode)
+}
+
+// executeRun runs the pipeline for one accepted run and records its outcome.
+// Every line it logs carries the run's id, country and bbox, and a failure
+// names the stage it happened in.
 func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, bboxMode string, key string) {
+	log := runLogger(id, cfg.Country, bbox, bboxMode)
 	start := time.Now()
 	// The run stays pending while it waits for a conflicting region, so a
 	// caller polling can tell waiting from working.
@@ -215,35 +226,42 @@ func (s *Server) executeRun(id string, cfg config.Config, bbox onrequest.Bbox, b
 	defer s.releaseRegion(cfg.DB.Name, bbox, key)
 
 	s.setRunStatus(id, StatusRunning, "")
+	log.Info("run started", "waited_ms", time.Since(start).Milliseconds())
 
-	onStage := func(stage onrequest.Stage) { s.setRunStage(id, stage) }
-	if err := onrequest.RunForRegion(&cfg, bbox, bboxMode, onStage); err != nil {
-		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
+	stage := "start"
+	fail := func(err error) {
+		log.Error("run failed", "stage", stage, "error", err.Error(),
+			"duration_ms", time.Since(start).Milliseconds())
 		s.setRunStatus(id, StatusFailed, err.Error())
+	}
+	onStage := func(st onrequest.Stage) {
+		stage = st.Name
+		log.Info("run stage", "stage", st.Name)
+		s.setRunStage(id, st)
+	}
+	if err := onrequest.RunForRegion(&cfg, bbox, bboxMode, onStage); err != nil {
+		fail(err)
 		return
 	}
 
+	stage = "count_linked"
 	_, pool, err := s.PoolFor(cfg.Country)
 	if err != nil {
-		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
-		s.setRunStatus(id, StatusFailed, err.Error())
+		fail(err)
 		return
 	}
-
 	count, err := onrequest.CountBuildingLink(context.Background(), pool, &cfg, bbox)
 	if err != nil {
-		utils.Error.Printf("on-request run %s (%s) failed: %v", id, cfg.Country, err)
-		s.setRunStatus(id, StatusFailed, err.Error())
+		fail(err)
 		return
 	}
 	if count == 0 {
-		utils.Warn.Printf("on-request run %s (%s) found no source data for bbox %s", id, cfg.Country, bbox)
+		log.Warn("run found no source data", "duration_ms", time.Since(start).Milliseconds())
 		s.setRunStatus(id, StatusNoData, "")
 		return
 	}
 
-	utils.Info.Printf("on-request run %s (%s) completed: %d linked buildings in bbox %s, %s",
-		id, cfg.Country, count, bbox, time.Since(start).Round(time.Millisecond))
+	log.Info("run completed", "linked_buildings", count, "duration_ms", time.Since(start).Milliseconds())
 	s.setRunStatus(id, StatusCompleted, "")
 }
 

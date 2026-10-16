@@ -15,6 +15,7 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
 	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
+	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
 // Handler holds the dependencies shared by all HTTP handlers.
@@ -107,6 +108,9 @@ func (h *Handler) Runs(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// Links the request to the run: the run's own lines carry run_id only.
+	utils.Logger.Info("run accepted", "request_id", RequestID(r.Context()), "run_id", run.ID,
+		"country", run.Country, "bbox", bbox.String(), "bbox_mode", req.BboxMode)
 
 	writeJSON(w, http.StatusAccepted, toRunResponse(run))
 }

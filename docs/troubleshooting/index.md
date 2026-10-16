@@ -6,6 +6,8 @@ audience: developer
 
 Errors are listed by the step that reports them. Setting `LOG_LEVEL=DEBUG` also logs each SQL task as it starts and finishes.
 
+The HTTP server logs one `http request` line per request with its `request_id`, and every line of an on-request run carries `run_id`, `country` and `bbox`. A `run accepted` line links the two. To follow one run, filter the log on its `run_id`; a `run failed` line names the `stage` it failed in and the `error`.
+
 ## Configuration
 
 | Error | Cause | Fix |

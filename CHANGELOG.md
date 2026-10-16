@@ -18,6 +18,20 @@ Features:
   stage_label, stage_index and stage_count, plus created_at,
   started_at and updated_at. The stage fields and started_at are
   absent while a run is pending.
+- Logging is structured: every line carries time, level, the source
+  file and line, and the message, as key=value text or, with
+  LOG_FORMAT=json, one JSON object per line. The existing log calls
+  keep working through the same handler. Debug lines are no longer
+  written to the log file at INFO level, and error lines go to stdout
+  with the rest instead of stderr.
+- The HTTP server logs one line per request (method, path, query,
+  status, duration) and returns an X-Request-ID header, reusing a
+  valid id the caller sent. Health checks log at DEBUG.
+- On-request run lines carry run_id, country, bbox and bbox_mode: run
+  started (with the time spent waiting for an overlapping run), one
+  line per stage, and run completed, run found no source data or run
+  failed, the last naming the stage and the error. A run accepted line
+  links the request id to the run id.
 
 Fixes:
 - A surface's id stays the same when the surface table is rebuilt.
