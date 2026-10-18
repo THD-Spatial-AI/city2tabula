@@ -133,10 +133,9 @@ CREATE TRIGGER {lod_schema}_trg_footprint_geom_change
 ALTER TABLE {city2tabula_schema}.{lod_schema}_building
     DISABLE TRIGGER {lod_schema}_trg_footprint_geom_change;
 
--- Re-matches the closest TABULA variant with the same distance as
--- post/05_label_buildings.sql, scoped to one building. The min/max per dimension is
--- still taken over all buildings and variants, so an edit is judged on the same scale
--- as the bulk match.
+-- Re-matches the closest TABULA variant with the same distance and scale as
+-- post/05_label_buildings.sql, scoped to one building, so an edit is judged as the bulk
+-- match judges it. The two scales must stay identical.
 CREATE OR REPLACE FUNCTION {city2tabula_schema}.{lod_schema}_recalc_variant_match()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -153,22 +152,13 @@ BEGIN
             MIN(max_volume) AS lo_vol, MAX(max_volume) AS hi_vol,
             MIN(footprint_area) AS lo_area, MAX(footprint_area) AS hi_area,
             MIN(number_of_storeys) AS lo_storeys, MAX(number_of_storeys) AS hi_storeys,
-            MIN(footprint_complexity) AS lo_fc, MAX(footprint_complexity) AS hi_fc,
-            MIN(roof_complexity) AS lo_rc, MAX(roof_complexity) AS hi_rc,
-            MIN(attached_neighbour_class) AS lo_ac, MAX(attached_neighbour_class) AS hi_ac,
+            0 AS lo_fc, 2 AS hi_fc,
+            0 AS lo_rc, 2 AS hi_rc,
+            0 AS lo_ac, 2 AS hi_ac,
             MIN(area_total_roof) AS lo_roof, MAX(area_total_roof) AS hi_roof,
             MIN(area_total_wall) AS lo_wall, MAX(area_total_wall) AS hi_wall,
             MIN(area_total_floor) AS lo_floor, MAX(area_total_floor) AS hi_floor
-        FROM (
-            SELECT min_volume AS max_volume, footprint_area, full_storeys AS number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
-            FROM {city2tabula_schema}.{lod_schema}_building
-            WHERE footprint_area IS NOT NULL AND full_storeys IS NOT NULL
-              AND area_total_roof IS NOT NULL AND area_total_wall IS NOT NULL
-              AND area_total_floor IS NOT NULL
-            UNION ALL
-            SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity, roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall, area_total_floor
-            FROM {city2tabula_schema}.tabula_variant
-        ) all_data
+        FROM {city2tabula_schema}.tabula_variant
     )
     SELECT v.tabula_variant_code_id, v.tabula_variant_code
     INTO match
