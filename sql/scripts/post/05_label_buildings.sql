@@ -1,14 +1,18 @@
 -- Assigns each building its best-matching TABULA variant code using nearest-neighbour
 -- matching over 9 dimensions (volume, footprint, storeys, footprint and roof
 -- complexity, attached neighbours, roof, wall and floor area). Runs once after every
--- batch, following neighbour detection (01_detect_neighbours.sql), because the
--- normalisation spans all buildings.
+-- batch, following neighbour detection (01_detect_neighbours.sql), which sets
+-- attached_neighbour_class.
 --
--- Each dimension is min-max normalised over buildings and variants together, so both
--- sides share one scale (minmax_norm). TABULA leaves many variant values empty; the
--- extraction stores them as NULL. The distance is the root mean square over the
--- dimensions both sides know, as in Gower's (1971) coefficient: a plain sum would
--- favour variants with fewer known values. A dimension with no spread drops out too.
+-- Both sides share one scale per dimension (minmax_norm), and that scale never depends
+-- on the buildings, so a label does not change when other buildings are extracted. The
+-- six measured dimensions are scaled over the country's TABULA variants. The three codes
+-- (footprint and roof complexity, attached neighbours) are scaled over their fixed range
+-- 0 to 2, because the variants of a country often share one value and would leave no
+-- range at all. TABULA leaves many variant values empty; the extraction stores them as
+-- NULL. The distance is the root mean square over the dimensions both sides know, as in
+-- Gower's (1971) coefficient: a plain sum would favour variants with fewer known values.
+-- A measured dimension whose variants have no spread drops out too.
 --
 -- Gower, J. C. (1971). A general coefficient of similarity and some of its
 -- properties. Biometrics 27(4), 857-871. https://doi.org/10.2307/2528823
@@ -29,27 +33,19 @@ WITH buildings AS (
     AND area_total_floor IS NOT NULL
 ),
 stats AS (
+  -- The fixed 0 to 2 code range must match the CASE codes in script 04, the neighbour
+  -- class in post/01 and supplementary/01_extract_tabula_attributes.sql.
   SELECT
-    MIN(max_volume)               AS lo_vol,     MAX(max_volume)               AS hi_vol,
-    MIN(footprint_area)           AS lo_area,    MAX(footprint_area)           AS hi_area,
-    MIN(number_of_storeys)        AS lo_storeys, MAX(number_of_storeys)        AS hi_storeys,
-    MIN(footprint_complexity)     AS lo_fc,      MAX(footprint_complexity)     AS hi_fc,
-    MIN(roof_complexity)          AS lo_rc,      MAX(roof_complexity)          AS hi_rc,
-    MIN(attached_neighbour_class) AS lo_ac,      MAX(attached_neighbour_class) AS hi_ac,
-    MIN(area_total_roof)          AS lo_roof,    MAX(area_total_roof)          AS hi_roof,
-    MIN(area_total_wall)          AS lo_wall,    MAX(area_total_wall)          AS hi_wall,
-    MIN(area_total_floor)         AS lo_floor,   MAX(area_total_floor)         AS hi_floor
-  FROM (
-    SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-           roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall,
-           area_total_floor
-    FROM buildings
-    UNION ALL
-    SELECT max_volume, footprint_area, number_of_storeys, footprint_complexity,
-           roof_complexity, attached_neighbour_class, area_total_roof, area_total_wall,
-           area_total_floor
-    FROM {city2tabula_schema}.tabula_variant
-  ) all_data
+    MIN(max_volume)        AS lo_vol,     MAX(max_volume)        AS hi_vol,
+    MIN(footprint_area)    AS lo_area,    MAX(footprint_area)    AS hi_area,
+    MIN(number_of_storeys) AS lo_storeys, MAX(number_of_storeys) AS hi_storeys,
+    0                      AS lo_fc,      2                      AS hi_fc,
+    0                      AS lo_rc,      2                      AS hi_rc,
+    0                      AS lo_ac,      2                      AS hi_ac,
+    MIN(area_total_roof)   AS lo_roof,    MAX(area_total_roof)   AS hi_roof,
+    MIN(area_total_wall)   AS lo_wall,    MAX(area_total_wall)   AS hi_wall,
+    MIN(area_total_floor)  AS lo_floor,   MAX(area_total_floor)  AS hi_floor
+  FROM {city2tabula_schema}.tabula_variant
 ),
 ranked AS (
   SELECT b.building_feature_id,

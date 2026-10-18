@@ -67,3 +67,59 @@ func TestPipeline_TabulaMatching_UnknownValuesAndIntegerCodes(t *testing.T) {
 		}
 	}
 }
+
+// TestPipeline_TabulaMatching_LabelIndependentOfOtherBuildings pins that a building's
+// label depends only on its own values and the TABULA variants. BOX (10 m cube, 4
+// storeys) differs from V_AREA only in storeys and from V_STOREY by a factor of two in
+// volume and every area, so V_AREA is nearer on the variants' own scale. Neither the
+// other buildings of the parts fixture nor the 100 m BIG extracted later may change that:
+// scaled over all buildings, they stretch the volume and area ranges until the factor of
+// two no longer counts and V_STOREY wins.
+func TestPipeline_TabulaMatching_LabelIndependentOfOtherBuildings(t *testing.T) {
+	ctx := context.Background()
+	resetSchemas(t)
+	cfg := pipelineConfig(pipelineTestCase{country: "austria", srid: fmt.Sprint(partsSRID)})
+	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
+		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
+	}
+
+	const x, y = -7000.0, 342800.0
+	first := &partsFixture{nextID: 610000}
+	first.solid(first.feature(901, "BOX"), box{x, y, x + 10, y + 10, 200, 210, "SENW", 200})
+	mustExec(t, ctx, buildPartsFixture()+first.sql.String())
+	seedDB(t)
+	mustExec(t, ctx, `
+		INSERT INTO city2tabula.tabula_variant (tabula_variant_code_id, tabula_variant_code, max_volume,
+			footprint_area, number_of_storeys, area_total_roof, area_total_wall, area_total_floor)
+		VALUES (1, 'V_AREA',   1000, 100, 1, 100, 400, 400),
+		       (2, 'V_STOREY', 2000, 200, 4, 200, 800, 800)`)
+
+	label := func() string {
+		t.Helper()
+		var got string
+		if err := testPool.QueryRow(ctx,
+			`SELECT COALESCE(tabula_variant_code, '') FROM city2tabula.lod2_building WHERE object_id = 'BOX'`,
+		).Scan(&got); err != nil {
+			t.Fatalf("read BOX label: %v", err)
+		}
+		return got
+	}
+
+	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
+		t.Fatalf("first RunFeatureExtraction: %v", err)
+	}
+	if got := label(); got != "V_AREA" {
+		t.Fatalf("BOX matched %q, want V_AREA", got)
+	}
+
+	second := &partsFixture{nextID: 620000}
+	second.solid(second.feature(901, "BIG"), box{x + 500, y, x + 600, y + 100, 200, 210, "SENW", 200})
+	mustExec(t, ctx, second.sql.String()+
+		"UPDATE lod2.feature SET lineage = 'test-dataset' WHERE lineage IS NULL;")
+	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
+		t.Fatalf("second RunFeatureExtraction: %v", err)
+	}
+	if got := label(); got != "V_AREA" {
+		t.Errorf("BOX matched %q after BIG was extracted, want V_AREA unchanged", got)
+	}
+}

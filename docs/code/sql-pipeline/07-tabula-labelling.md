@@ -12,7 +12,7 @@ audience: developer
 
 ## Purpose
 
-Assigns each building its best-matching TABULA archetype (variant code) by finding the **nearest neighbour** in a 9-dimensional feature space. It runs once over the whole table after every batch and after [neighbour detection](post-01-neighbour-detection.md), because the normalisation spans all buildings.
+Assigns each building its best-matching TABULA archetype (variant code) by finding the **nearest neighbour** in a 9-dimensional feature space. It runs once over the whole table after every batch and after [neighbour detection](post-01-neighbour-detection.md), which sets `attached_neighbour_class`. A building's label depends only on its own values and the country's TABULA variants, so extracting other buildings never changes it.
 
 TABULA (Typology Approach for Building Stock Energy Assessment) defines a set of reference building archetypes for each country, characterised by attributes like volume, floor area, and storey count. This script maps each extracted building to the archetype it most closely resembles.
 
@@ -39,10 +39,10 @@ The 9 features have very different scales. Volume is measured in cubic metres an
 **Min-max normalisation** rescales every feature to the range [0, 1]:
 
 ```
-normalised_value = (raw_value - global_min) / (global_max - global_min)
+normalised_value = (raw_value - range_min) / (range_max - range_min)
 ```
 
-After normalisation, a difference of 1.0 in any dimension means spanning the full range of that feature. All dimensions contribute equally to the distance.
+After normalisation, a difference of 1.0 in any dimension means spanning the full range of that feature. All dimensions contribute equally to the distance. Buildings may fall outside [0, 1]; the distance handles that without clamping.
 
 ---
 
@@ -51,22 +51,24 @@ After normalisation, a difference of 1.0 in any dimension means spanning the ful
 ### Step 1: `stats`
 
 ```sql
-WITH stats AS (
+stats AS (
   SELECT
-    MIN(max_volume) AS min_vol, MAX(max_volume) AS max_vol,
-    MIN(footprint_area) AS min_area, MAX(footprint_area) AS max_area,
+    MIN(max_volume) AS lo_vol, MAX(max_volume) AS hi_vol,
     ...
-  FROM (
-    SELECT ... FROM {lod_schema}_building WHERE ...
-    UNION ALL
-    SELECT ... FROM tabula_variant WHERE ...
-  ) all_data
+    0 AS lo_fc, 2 AS hi_fc,   -- likewise roof complexity and attached neighbours
+    ...
+  FROM tabula_variant
 )
 ```
 
-Computes the global minimum and maximum for each of the 9 features across **both** buildings and TABULA variants combined.
+Sets the range of each of the 9 features:
 
-**Why combine them?** If the normalisation range is computed from buildings only, variants may fall outside [0, 1] (if any variant has a larger volume than any extracted building, for example). Using the combined range ensures both sides are scaled to the same axis, making cross-table Euclidean distances meaningful.
+| Features | Range |
+|---|---|
+| `min_volume`, `footprint_area`, `number_of_storeys`, `area_total_roof`, `area_total_wall`, `area_total_floor` | minimum to maximum over the country's TABULA variants |
+| `footprint_complexity`, `roof_complexity`, `attached_neighbour_class` | fixed 0 to 2, the codes' own range on both sides |
+
+The ranges never include the extracted buildings, so a label does not move when another area is extracted. The codes use their fixed range because a country's variants often share one value (in Germany, every variant that has a complexity code has the same one), which would leave no range and drop the dimension. The correction trigger `{lod_schema}_recalc_variant_match` (`sql/schema/main/03_create_correction_triggers.sql`) uses the same ranges.
 
 The 9 features used are:
 

@@ -3,6 +3,23 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- A building's TABULA label no longer changes when other buildings are
+  extracted (#200). The match scaled each dimension over all buildings
+  in the database together with the variants, so extracting a new area
+  could relabel buildings already stored. Volume, footprint, storeys
+  and the roof, wall and floor areas are now scaled over the country's
+  TABULA variants, and footprint complexity, roof complexity and
+  attached neighbours over their fixed code range 0 to 2. Labels shift
+  once, on the first relabel after upgrading: in the four demo
+  databases 30 to 73 percent of labels change, mostly in the
+  construction-period band, while 85 to 98 percent keep their building
+  type. Existing databases keep the old scale in the correction trigger
+  `<lod>_recalc_variant_match` until the city2tabula schema is
+  recreated.
+
 ## v0.11.0 (2026-10-16)
 
 Features:
