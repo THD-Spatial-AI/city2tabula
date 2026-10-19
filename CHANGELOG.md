@@ -3,6 +3,22 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- Every OSM way that covers a 3D building is linked, not only the best
+  one (#203). Where OSM maps one building as several ways, the others
+  had no building_link row, so a caller asking for them got no 3D data.
+  The best way keeps match_type 1; each further way with overlap 0.5 or
+  more gets a row with the new match_type 4 and the same object_id. In
+  the German demo data this links 63 further ways on 49 buildings, and
+  no building's best way changes. GET /api/v1/buildings?osm_ids=
+  returns each building once however many of its ways are asked for,
+  with a new osm_ids field listing all its ways, best first. A
+  building_link table created by an earlier release is updated to one
+  row per way on the next link run; existing links are filled in with
+  -link-pylovo -relink.
+
 ## v0.11.1 (2026-10-18)
 
 Fixes:

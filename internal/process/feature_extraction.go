@@ -224,6 +224,9 @@ func runPyLovoLink(cfg *config.Config, pool *pgxpool.Pool, relink bool) error {
 	if err := setupPylovoFDW(context.Background(), pool, cfg); err != nil {
 		return fmt.Errorf("failed to set up PyLovo FDW: %w", err)
 	}
+	if err := ensureLinkTableShape(context.Background(), pool, cfg); err != nil {
+		return err
+	}
 
 	limit := cfg.Batch.BuildingLimit
 	linked := 0
@@ -326,7 +329,10 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 	if buildingLimit > 0 {
 		limitClause = fmt.Sprintf("LIMIT %d", buildingLimit)
 	}
-	unlinkedClause := "AND bl.object_id IS NULL"
+	// NOT EXISTS, not a join: a building has one building_link row per OSM way.
+	unlinkedClause := fmt.Sprintf(`AND NOT EXISTS (
+				SELECT 1 FROM %s.building_link bl
+				WHERE bl.object_id = ab.object_id AND bl.country_code = ab.country_code)`, c2tSchema)
 	if includeLinked {
 		unlinkedClause = ""
 	}
@@ -340,8 +346,6 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 		WITH all_buildings AS (
 			SELECT ab.building_feature_id, ST_Force2D(ab.building_footprint_geom) AS geom
 			FROM %s.%s_building ab
-			LEFT JOIN %s.building_link bl
-				ON bl.object_id = ab.object_id AND bl.country_code = ab.country_code
 			WHERE ab.building_footprint_geom IS NOT NULL
 			  AND ab.object_id IS NOT NULL
 			  %s
@@ -365,7 +369,7 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 		SELECT array_agg(building_feature_id ORDER BY building_feature_id)
 		FROM assigned
 		GROUP BY cell
-	`, c2tSchema, lodSchema, c2tSchema, unlinkedClause, limitClause)
+	`, c2tSchema, lodSchema, unlinkedClause, limitClause)
 
 	rows, err := pool.Query(context.Background(), q, gridSizeM)
 	if err != nil {

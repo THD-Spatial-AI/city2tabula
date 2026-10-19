@@ -7,9 +7,12 @@
 -- pylovo_table — which PyLovo table the OSM match came from ('res' or 'oth');
 --               NULL for unmatched 3D-only buildings (defaults to 'res' treatment).
 -- match_type:
---   1 = complete match (both 3D and OSM present)
+--   1 = complete match (both 3D and OSM present); the 3D building's best OSM way
 --   2 = 3D only (no OSM match found above threshold)
 --   3 = OSM only (no 3D match; populated from res/oth directly, not via this pipeline)
+--   4 = a further OSM way of a 3D building that already has its match_type 1 row
+-- One 3D building may have several rows (one per OSM way), and one OSM way may link
+-- several 3D buildings. internal/process/link_table.go brings older tables to this shape.
 -- match_confidence — IoU score: intersection area / area of the smaller footprint.
 
 DROP TABLE IF EXISTS {city2tabula_schema}.building_link CASCADE;
@@ -18,14 +21,17 @@ CREATE TABLE {city2tabula_schema}.building_link (
     object_id         VARCHAR(100)  NOT NULL,
     osm_id            TEXT,
     pylovo_table      VARCHAR(3)    CHECK (pylovo_table IN ('res', 'oth')),
-    match_type        SMALLINT      NOT NULL CHECK (match_type IN (1, 2, 3)),
+    match_type        SMALLINT      NOT NULL,
     match_confidence  DOUBLE PRECISION,
     country_code      CHAR(2)       NOT NULL,
     geom              GEOMETRY(MultiPolygon),
     srid              INTEGER       NOT NULL,
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    UNIQUE (object_id, country_code)
+    CONSTRAINT building_link_match_type_check CHECK (match_type IN (1, 2, 3, 4))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS building_link_object_osm_country_key
+    ON {city2tabula_schema}.building_link (object_id, osm_id, country_code) NULLS NOT DISTINCT;
 
 CREATE INDEX IF NOT EXISTS idx_building_link_geom
     ON {city2tabula_schema}.building_link USING GIST (geom);

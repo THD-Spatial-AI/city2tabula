@@ -12,9 +12,9 @@ This step is optional. Feature extraction (`-extract-features`) runs independent
 
 ## How it works
 
-Each 3D building footprint is matched to a PyLovo building by **Intersection over Union (IoU)**: the area of overlap divided by the area of the smaller footprint. A match is accepted when IoU ≥ 0.5.
+Each 3D building footprint is matched to PyLovo buildings by **Intersection over Union (IoU)**: the area of overlap divided by the area of the smaller footprint. A match is accepted when IoU ≥ 0.5.
 
-Residential buildings (`res`) are checked first. A commercial/public match (`oth`) is only considered when no `res` building meets the threshold.
+OSM may map one 3D building as several ways, so every way that meets the threshold is linked. The best way is `match_type` 1: residential (`res`) before commercial/public (`oth`), then the higher IoU to two decimals, then the larger overlap, then `osm_id`. Every further way is `match_type` 4 and points at the same `object_id`. One OSM way can also cover several 3D buildings and is then linked to each.
 
 ![IoU diagram](../../assets/diagrams/pipeline/pylovo-link/pylovo-link-dark.svg#only-dark)
 ![IoU diagram](../../assets/diagrams/pipeline/pylovo-link/pylovo-link-light.svg#only-light)
@@ -30,7 +30,7 @@ flowchart TD
     E["res_subset / oth_subset<br>Pre-filtered + pre-transformed<br>to native 3D CRS"]
     F["IoU join<br>ST_Intersection area /<br>smaller footprint area"]
     G{{"IoU ≥ 0.5?"}}
-    H["match_type = 1<br>Complete match<br>object_id + osm_id"]
+    H["match_type = 1 for the best way<br>match_type = 4 for each further way<br>object_id + osm_id"]
     I["match_type = 2<br>3D only<br>no OSM match found"]
     J[("city2tabula.building_link")]
 
@@ -169,7 +169,7 @@ DROP ROLE c2t_fdw_reader;
 
 ## Output: `city2tabula.building_link`
 
-One row per 3D building that has a footprint geometry and a valid `object_id`. Re-running `-link-pylovo` adds rows for new buildings only; `-link-pylovo -relink` overwrites the existing rows (see [Running the link step](#running-the-link-step)).
+One row per pair of 3D building and matched OSM way, and one `match_type` 2 row for a 3D building with no match. Only buildings with a footprint geometry and a valid `object_id` are linked. Re-running `-link-pylovo` adds rows for new buildings only; `-link-pylovo -relink` replaces the rows of every building (see [Running the link step](#running-the-link-step)). A table created by an earlier release, unique per 3D building, is updated to this shape on the next link run.
 
 | Column | Type | Description |
 |---|---|---|
@@ -189,6 +189,7 @@ One row per 3D building that has a footprint geometry and a valid `object_id`. R
 | `1` | Complete: 3D building matched to an OSM building. All attributes available. |
 | `2` | 3D only: no OSM building found within IoU threshold. OSM attributes must be inferred. |
 | `3` | OSM only: an OSM building with no 3D counterpart. Populated separately, not by this pipeline. |
+| `4` | Further OSM way of a 3D building whose best way is its `match_type` 1 row. |
 
 ---
 

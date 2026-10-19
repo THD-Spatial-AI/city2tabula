@@ -16,9 +16,12 @@ import (
 // for that, fetched separately only when something (e.g. a frontend)
 // actually wants to render it.
 type Building struct {
-	ObjectID          string    `json:"object_id"`
-	DatasetID         string    `json:"dataset_id"`
-	OSMID             string    `json:"osm_id"`
+	ObjectID  string `json:"object_id"`
+	DatasetID string `json:"dataset_id"`
+	OSMID     string `json:"osm_id"`
+	// OSMIDs is every OSM way linked to this building, OSMID first and the
+	// further ways by overlap, highest first. Empty for a bbox query.
+	OSMIDs            []string  `json:"osm_ids"`
 	MatchType         int16     `json:"match_type"`
 	MinHeight         *float64  `json:"min_height,omitempty"`
 	MaxHeight         *float64  `json:"max_height,omitempty"`
@@ -84,24 +87,37 @@ type Surface struct {
 }
 
 // BuildingsByOSMIDs returns 3D attributes for every building in cfg's
-// country whose building_link row matches one of osmIDs. Buildings with no
-// match_type=1 link (no OSM counterpart found) are silently absent from the
-// result — callers should treat a missing osm_id as "no 3D data for this
-// building", the same outcome as a country/region with no coverage at all.
+// country linked to one of osmIDs, each building once however many of its OSM
+// ways were asked for, so a caller summing the result counts no envelope twice.
+// OSMID is the building's best way and OSMIDs every way linked to it. An osm_id
+// with no link above the threshold matches nothing, the same outcome as a
+// country/region with no coverage at all.
 func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, osmIDs []string) ([]Building, error) {
 	if len(osmIDs) == 0 {
 		return nil, nil
 	}
 
 	q := fmt.Sprintf(`
+		WITH hit AS (
+			SELECT DISTINCT object_id FROM %[2]s.building_link
+			WHERE country_code = $1 AND osm_id = ANY($2) AND match_type IN (1, 4)
+		),
+		ways AS (
+			SELECT object_id,
+			       max(osm_id) FILTER (WHERE match_type = 1) AS primary_osm_id,
+			       array_agg(osm_id ORDER BY match_type, match_confidence DESC, osm_id) AS osm_ids
+			FROM %[2]s.building_link
+			WHERE country_code = $1 AND match_type IN (1, 4)
+			  AND object_id IN (SELECT object_id FROM hit)
+			GROUP BY object_id
+		)
 		SELECT
-			b.object_id, b.dataset_id, bl.osm_id, bl.match_type,
+			b.object_id, b.dataset_id, w.primary_osm_id, 1::smallint,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
-			b.tabula_variant_code, %s
-		FROM %s.building_link bl
-		JOIN %s b ON b.object_id = bl.object_id AND b.country_code = bl.country_code
-		WHERE bl.country_code = $1 AND bl.osm_id = ANY($2)`,
+			b.tabula_variant_code, %[1]s, w.osm_ids
+		FROM ways w
+		JOIN %[3]s b ON b.object_id = w.object_id AND b.country_code = $1`,
 		neighbourColumns, cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns),
 	)
 
@@ -123,15 +139,15 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 // BuildingsByBBox returns 3D attributes for every building in cfg's
 // country whose footprint intersects bbox, independent of whether a PyLovo
 // building_link row exists for it yet. osm_id/match_type are left at their
-// zero value on every returned Building — callers that need the PyLovo
-// match should use BuildingsByOSMIDs instead.
+// zero value and osm_ids empty on every returned Building. Callers that need
+// the PyLovo match should use BuildingsByOSMIDs instead.
 func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, bbox Bbox) ([]Building, error) {
 	q := fmt.Sprintf(`
 		SELECT
 			b.object_id, b.dataset_id, '', 0,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
-			b.tabula_variant_code, %s
+			b.tabula_variant_code, %s, ARRAY[]::text[]
 		FROM %s b
 		WHERE b.country_code = $1
 		  AND b.building_footprint_geom IS NOT NULL
@@ -186,8 +202,12 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.PartyWallAreaSqm, &b.FloorAreaSqm,
 			&b.TabulaVariantCode,
 			&b.HasAttachedNeighbour, &b.AttachedNeighbourClass, &b.AttachedNeighbourIDs,
+			&b.OSMIDs,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan building row: %w", err)
+		}
+		if b.OSMIDs == nil {
+			b.OSMIDs = []string{}
 		}
 		buildings = append(buildings, b)
 	}
