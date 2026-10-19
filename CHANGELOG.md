@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.11.2 (2026-10-19)
 
 Fixes:
 - Every OSM way that covers a 3D building is linked, not only the best
