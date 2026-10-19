@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.11.3 (2026-10-19)
 
 Features:
 - GET /api/v1/buildings returns each building's function_code, the
