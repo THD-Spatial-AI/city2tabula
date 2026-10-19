@@ -3,6 +3,17 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/buildings returns each building's function_code, the
+  CityGML function code of its source Building (in Germany the ALKIS
+  Gebäudefunktion, for example 31001_1000), in both the osm_ids and the
+  bbox mode. It is read from the stored source data when the response
+  is built, so existing databases return it without re-extraction, and
+  it is null where the dataset carries none (the NL, AT and CZ demo
+  data) or where the database holds no source tables.
+
 ## v0.11.2 (2026-10-19)
 
 Fixes:

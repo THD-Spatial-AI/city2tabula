@@ -458,6 +458,14 @@ components:
         match_type:
           type: integer
           description: 0 when unlinked (bbox mode); PyLovo match type otherwise
+        function_code:
+          type: string
+          nullable: true
+          description: |
+            Building-function code from the source dataset's CityGML `function`
+            (in Germany the ALKIS Gebäudefunktion, for example `31001_1000`).
+            Null when the dataset carries none. Always present.
+          example: "31001_1000"
         min_height:
           type: number
           nullable: true

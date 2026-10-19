@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,8 +22,11 @@ type Building struct {
 	OSMID     string `json:"osm_id"`
 	// OSMIDs is every OSM way linked to this building, OSMID first and the
 	// further ways by overlap, highest first. Empty for a bbox query.
-	OSMIDs            []string  `json:"osm_ids"`
-	MatchType         int16     `json:"match_type"`
+	OSMIDs    []string `json:"osm_ids"`
+	MatchType int16    `json:"match_type"`
+	// FunctionCode is the source Building's CityGML function code, for example
+	// the German ALKIS code 31001_1000. Null where the dataset carries none.
+	FunctionCode      *string   `json:"function_code"`
 	MinHeight         *float64  `json:"min_height,omitempty"`
 	MaxHeight         *float64  `json:"max_height,omitempty"`
 	RoomHeight        *float64  `json:"room_height,omitempty"`
@@ -96,6 +100,10 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 	if len(osmIDs) == 0 {
 		return nil, nil
 	}
+	functionCode, err := functionCodeColumn(ctx, pool, cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	q := fmt.Sprintf(`
 		WITH hit AS (
@@ -115,10 +123,10 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 			b.object_id, b.dataset_id, w.primary_osm_id, 1::smallint,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
-			b.tabula_variant_code, %[1]s, w.osm_ids
+			b.tabula_variant_code, %[1]s, w.osm_ids, %[4]s
 		FROM ways w
 		JOIN %[3]s b ON b.object_id = w.object_id AND b.country_code = $1`,
-		neighbourColumns, cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns),
+		neighbourColumns, cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns), functionCode,
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, osmIDs)
@@ -142,17 +150,21 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 // zero value and osm_ids empty on every returned Building. Callers that need
 // the PyLovo match should use BuildingsByOSMIDs instead.
 func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, bbox Bbox) ([]Building, error) {
+	functionCode, err := functionCodeColumn(ctx, pool, cfg)
+	if err != nil {
+		return nil, err
+	}
 	q := fmt.Sprintf(`
 		SELECT
 			b.object_id, b.dataset_id, '', 0,
 			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
 			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
-			b.tabula_variant_code, %s, ARRAY[]::text[]
+			b.tabula_variant_code, %s, ARRAY[]::text[], %s
 		FROM %s b
 		WHERE b.country_code = $1
 		  AND b.building_footprint_geom IS NOT NULL
 		  AND ST_Intersects(b.building_footprint_geom, ST_Transform(ST_MakeEnvelope($2,$3,$4,$5,4326), $6::int))`,
-		neighbourColumns, allLODs(cfg, "building", buildingColumns),
+		neighbourColumns, functionCode, allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, bbox.Xmin, bbox.Ymin, bbox.Xmax, bbox.Ymax, cfg.CityDB.SRID)
@@ -192,6 +204,38 @@ func allLODs(cfg *config.Config, table, columns string) string {
 		cfg.DB.Schemas.City2Tabula, cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3, table, columns)
 }
 
+// functionCodeColumn returns the SQL expression, over a building row aliased b,
+// that reads the source Building's CityGML function code from the LOD2 and LOD3
+// source tables. An LOD whose source tables lack the columns read, such as a
+// database restored with the City2TABULA schemas alone, contributes NULL instead
+// of failing the query.
+func functionCodeColumn(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config) (string, error) {
+	var parts []string
+	for _, lod := range []string{cfg.DB.Schemas.Lod2, cfg.DB.Schemas.Lod3} {
+		var present bool
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) = 4 FROM information_schema.columns
+			WHERE table_schema = $1
+			  AND (table_name, column_name) IN (('property', 'val_string'), ('property', 'parent_id'),
+			                                    ('feature', 'objectid'), ('feature', 'objectclass_id'))`, lod,
+		).Scan(&present); err != nil {
+			return "", fmt.Errorf("failed to check the source tables of %s for function codes: %w", lod, err)
+		}
+		if !present {
+			continue
+		}
+		schema := pgx.Identifier{lod}.Sanitize()
+		parts = append(parts, fmt.Sprintf(`(SELECT p.val_string FROM %[1]s.feature f
+			JOIN %[1]s.property p ON p.feature_id = f.id AND p.name = 'function' AND p.parent_id IS NULL
+			WHERE f.objectid = b.object_id AND f.objectclass_id = 901
+			ORDER BY p.id LIMIT 1)`, schema))
+	}
+	if len(parts) == 0 {
+		return "NULL::text", nil
+	}
+	return "COALESCE(" + strings.Join(parts, ", ") + ")", nil
+}
+
 func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 	var buildings []Building
 	for rows.Next() {
@@ -202,7 +246,7 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 			&b.FootprintAreaSqm, &b.RoofAreaSqm, &b.WallAreaSqm, &b.PartyWallAreaSqm, &b.FloorAreaSqm,
 			&b.TabulaVariantCode,
 			&b.HasAttachedNeighbour, &b.AttachedNeighbourClass, &b.AttachedNeighbourIDs,
-			&b.OSMIDs,
+			&b.OSMIDs, &b.FunctionCode,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan building row: %w", err)
 		}
