@@ -184,7 +184,9 @@ paths:
         `osm_ids` takes precedence if both are supplied:
 
         - **By `osm_ids`**: only buildings already matched to a PyLovo building
-          via `building_link` (`osm_id`/`match_type` populated).
+          via `building_link` (`osm_id`/`match_type` populated). Each building
+          is returned once, even when several requested ids are ways of it;
+          find a requested id in a result's `osm_ids`.
         - **By bbox**: every building whose footprint intersects the bbox,
           independent of whether a PyLovo link exists yet (`osm_id` empty,
           `match_type` 0 on every result).
@@ -443,7 +445,16 @@ components:
           description: Source dataset; its credit is in the response's `attributions`
         osm_id:
           type: string
-          description: Empty when this result came from the bbox query mode
+          description: The building's best-matching OSM way. Empty when this result came from the bbox query mode
+        osm_ids:
+          type: array
+          items:
+            type: string
+          description: |
+            Every OSM way linked to this building: `osm_id` first, then the
+            further ways by overlap, highest first. Always present; `[]` in
+            bbox mode.
+          example: ["223728275", "1265475272", "1414567368"]
         match_type:
           type: integer
           description: 0 when unlinked (bbox mode); PyLovo match type otherwise

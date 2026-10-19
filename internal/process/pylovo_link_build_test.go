@@ -93,12 +93,13 @@ type buildingLinkRow struct {
 	confidence  *float64
 }
 
+// readBuildingLink reads a building's primary link row: its best way, or its no-match row.
 func readBuildingLink(t *testing.T, ctx context.Context, objectID string) buildingLinkRow {
 	t.Helper()
 	var row buildingLinkRow
 	if err := testPool.QueryRow(ctx, `
 		SELECT match_type, osm_id, pylovo_table, match_confidence
-		FROM city2tabula.building_link WHERE object_id = $1`, objectID,
+		FROM city2tabula.building_link WHERE object_id = $1 AND match_type <> 4`, objectID,
 	).Scan(&row.matchType, &row.osmID, &row.pylovoTable, &row.confidence); err != nil {
 		t.Fatalf("failed to read building_link for %s: %v", objectID, err)
 	}

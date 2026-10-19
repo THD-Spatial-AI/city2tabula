@@ -9,7 +9,11 @@
 --   3. IoU join against the subset only — avoids scanning the full PyLovo table.
 --
 -- Match confidence = intersection area / area of the smaller footprint (IoU proxy).
--- Threshold: >= 0.5 → match_type 1 (complete), < 0.5 → no OSM match → match_type 2.
+-- Every OSM way with confidence >= 0.5 is linked, because OSM may map one 3D building
+-- as several ways. The best way is match_type 1: res before oth, then the higher
+-- confidence to two decimals (exact copies differ only by reprojection noise), then
+-- the larger overlap, then osm_id. Each further way is match_type 4, pointing at the
+-- same object_id. A building with no way >= 0.5 gets one match_type 2 row (3D only).
 --
 -- Existing rows for buildings in {building_ids} are deleted and re-inserted.
 -- -link-pylovo batches only buildings without a row; -link-pylovo -relink batches
@@ -66,49 +70,31 @@ oth_subset AS (
       AND ST_Intersects(o.geom, (SELECT geom_3035 FROM batch_bbox))
 ),
 
-res_candidates AS (
-    -- Best matching res row per 3D building: highest IoU above threshold.
-    SELECT DISTINCT ON (b.object_id)
-        b.object_id,
-        b.country_code,
-        b.geom_native,
-        b.area_3d,
-        r.osm_id,
-        'res' AS pylovo_table,
-        ST_Area(ST_Intersection(b.geom_native, r.geom_native))
-          / NULLIF(LEAST(b.area_3d, ST_Area(r.geom_native)), 0) AS confidence
+candidates AS (
+    -- Every way overlapping a 3D building, with its confidence and overlap area.
+    SELECT b.object_id, b.country_code, b.geom_native, w.osm_id, w.pylovo_table,
+           c.overlap / NULLIF(LEAST(b.area_3d, ST_Area(w.geom_native)), 0) AS confidence,
+           c.overlap
     FROM buildings b
-    JOIN res_subset r ON ST_Intersects(b.geom_native, r.geom_native)
-    ORDER BY b.object_id, confidence DESC
-),
-
-oth_candidates AS (
-    -- Best matching oth row per 3D building: only considered when no res match.
-    SELECT DISTINCT ON (b.object_id)
-        b.object_id,
-        b.country_code,
-        b.geom_native,
-        b.area_3d,
-        o.osm_id,
-        'oth' AS pylovo_table,
-        ST_Area(ST_Intersection(b.geom_native, o.geom_native))
-          / NULLIF(LEAST(b.area_3d, ST_Area(o.geom_native)), 0) AS confidence
-    FROM buildings b
-    JOIN oth_subset o ON ST_Intersects(b.geom_native, o.geom_native)
-    WHERE b.object_id NOT IN (
-        SELECT object_id FROM res_candidates WHERE confidence >= 0.5
-    )
-    ORDER BY b.object_id, confidence DESC
+    JOIN (
+        SELECT osm_id, 'res' AS pylovo_table, geom_native FROM res_subset
+        UNION ALL
+        SELECT osm_id, 'oth', geom_native FROM oth_subset
+    ) w ON ST_Intersects(b.geom_native, w.geom_native)
+    CROSS JOIN LATERAL (
+        SELECT ST_Area(ST_Intersection(b.geom_native, w.geom_native)) AS overlap
+    ) c
 ),
 
 matched AS (
-    -- Prefer res over oth; apply confidence threshold.
-    SELECT object_id, country_code, geom_native, osm_id, pylovo_table, confidence
-    FROM res_candidates
-    WHERE confidence >= 0.5
-    UNION ALL
-    SELECT object_id, country_code, geom_native, osm_id, pylovo_table, confidence
-    FROM oth_candidates
+    -- Ways above the threshold, ranked per 3D building; rank 1 is the best way.
+    SELECT object_id, country_code, geom_native, osm_id, pylovo_table, confidence,
+           ROW_NUMBER() OVER (
+               PARTITION BY object_id
+               ORDER BY pylovo_table = 'res' DESC, round(confidence::numeric, 2) DESC,
+                        overlap DESC, osm_id
+           ) AS way_rank
+    FROM candidates
     WHERE confidence >= 0.5
 ),
 
@@ -125,7 +111,7 @@ SELECT
     object_id,
     osm_id,
     pylovo_table,
-    1 AS match_type,
+    CASE WHEN way_rank = 1 THEN 1 ELSE 4 END AS match_type,
     confidence AS match_confidence,
     country_code,
     ST_Force2D(geom_native) AS geom,
@@ -141,11 +127,4 @@ SELECT
     country_code,
     ST_Force2D(geom_native) AS geom,
     {srid}::INTEGER AS srid
-FROM unmatched
-ON CONFLICT (object_id, country_code) DO UPDATE
-    SET osm_id           = EXCLUDED.osm_id,
-        pylovo_table     = EXCLUDED.pylovo_table,
-        match_type       = EXCLUDED.match_type,
-        match_confidence = EXCLUDED.match_confidence,
-        geom             = EXCLUDED.geom,
-        created_at       = NOW();
+FROM unmatched;
