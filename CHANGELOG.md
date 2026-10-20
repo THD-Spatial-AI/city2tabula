@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.11.4 (2026-10-20)
 
 Features:
 - GET /api/v1/buildings takes object_ids, a third mode next to osm_ids
