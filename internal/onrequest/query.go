@@ -344,19 +344,29 @@ type SurfaceGeometry struct {
 	GeoJSON           json.RawMessage `json:"geojson,omitempty"`
 }
 
+// geoJSON renders expr as GeoJSON in its storage CRS, which names that CRS in a
+// crs member, or reprojected to EPSG:4326, which RFC 7946 assumes and so has none.
+func geoJSON(expr string, wgs84 bool) string {
+	if wgs84 {
+		return "ST_AsGeoJSON(ST_Transform(" + expr + ", 4326))"
+	}
+	return "ST_AsGeoJSON(" + expr + ")"
+}
+
 // BuildingGeometryByObjectIDs returns footprint geometry for the given
 // building object IDs in cfg's country. With includeSurfaces, each building
-// also carries its individual envelope surface polygons.
-func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string, includeSurfaces bool) ([]BuildingGeometry, error) {
+// also carries its individual envelope surface polygons. With wgs84, every
+// geometry is reprojected to EPSG:4326; otherwise it stays in the storage CRS.
+func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string, includeSurfaces, wgs84 bool) ([]BuildingGeometry, error) {
 	if len(objectIDs) == 0 {
 		return nil, nil
 	}
 
 	q := fmt.Sprintf(`
-		SELECT object_id, dataset_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
+		SELECT object_id, dataset_id, COALESCE(%s, '')
 		FROM %s b
 		WHERE country_code = $1 AND object_id = ANY($2)`,
-		allLODs(cfg, "building", buildingColumns),
+		geoJSON("ST_Force2D(building_footprint_geom)", wgs84), allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, objectIDs)
@@ -384,7 +394,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 	}
 
 	if includeSurfaces {
-		if err := attachSurfaceGeometry(ctx, pool, cfg, geometries); err != nil {
+		if err := attachSurfaceGeometry(ctx, pool, cfg, geometries, wgs84); err != nil {
 			return nil, err
 		}
 	}
@@ -394,7 +404,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 // attachSurfaceGeometry fetches every surface polygon for geometries' object IDs
 // in one batched query and sets each BuildingGeometry's Surfaces field in place,
 // avoiding one query per building.
-func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, geometries []BuildingGeometry) error {
+func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, geometries []BuildingGeometry, wgs84 bool) error {
 	if len(geometries) == 0 {
 		return nil
 	}
@@ -411,11 +421,11 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 	// surface feature shares across all of its faces.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, COALESCE(surface_type, ''),
-		       is_party_wall, neighbour_object_id, COALESCE(ST_AsGeoJSON(geom), '')
+		       is_party_wall, neighbour_object_id, COALESCE(%s, '')
 		FROM %s s
 		WHERE building_object_id = ANY($1)
 		ORDER BY building_object_id, id`,
-		allLODs(cfg, "surface", surfaceColumns),
+		geoJSON("geom", wgs84), allLODs(cfg, "surface", surfaceColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)

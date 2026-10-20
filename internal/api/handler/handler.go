@@ -253,6 +253,15 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 	objectIDs := strings.Split(objectIDsParam, ",")
 	includeSurfaces := r.URL.Query().Get("include") == "surfaces"
+	wgs84 := false
+	switch srid := r.URL.Query().Get("srid"); srid {
+	case "":
+	case "4326":
+		wgs84 = true
+	default:
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("srid %q is not supported; use 4326 or omit it for the storage CRS", srid))
+		return
+	}
 
 	// Validated before the pool lookup: the request is malformed whatever the
 	// country turns out to be, and an unconfigured one answers 200 with an empty
@@ -276,7 +285,7 @@ func (h *Handler) Geometry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	geometry, err := onrequest.BuildingGeometryByObjectIDs(
-		r.Context(), pool, cfg, objectIDs, includeSurfaces,
+		r.Context(), pool, cfg, objectIDs, includeSurfaces, wgs84,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

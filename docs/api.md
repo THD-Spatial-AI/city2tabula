@@ -186,6 +186,12 @@ sequenceDiagram
 curl "http://localhost:5000/api/v1/geometry?country=germany&object_ids=DEHB01AL3AU0004T"
 ```
 
+Add `srid=4326` for WGS84 longitude and latitude instead of the dataset's storage CRS:
+
+```bash
+curl "http://localhost:5000/api/v1/geometry?country=germany&object_ids=DEHB01AL3AU0004T&srid=4326"
+```
+
 ```mermaid
 sequenceDiagram
     participant C as Caller

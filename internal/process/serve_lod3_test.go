@@ -73,7 +73,7 @@ func TestServer_ReadsLOD3Buildings(t *testing.T) {
 		t.Fatalf("BuildingsByBBox: want 1 LOD3 building with 1 surface, got %+v", buildings)
 	}
 
-	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"lod3-served"}, true)
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"lod3-served"}, true, false)
 	if err != nil {
 		t.Fatalf("BuildingGeometryByObjectIDs: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestServer_ServesOlderReleaseSchema(t *testing.T) {
 		}
 	})
 
-	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"older-schema"}, true)
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"older-schema"}, true, false)
 	if err != nil {
 		t.Fatalf("BuildingGeometryByObjectIDs: %v", err)
 	}

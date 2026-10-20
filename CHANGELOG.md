@@ -3,6 +3,14 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/geometry takes srid=4326, which returns the footprint and
+  any surfaces reprojected to WGS84 longitude and latitude, with no crs
+  member; surfaces keep their height. Without it the geometry stays in
+  the dataset's storage CRS. Any other srid value is a 400.
+
 ## v0.11.3 (2026-10-19)
 
 Features:

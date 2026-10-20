@@ -239,6 +239,16 @@ paths:
             type: string
           description: Comma-separated City2TABULA building object ids
           example: "DEHB01AL3AU0004T,DEHB01ALf0000SC4"
+        - name: srid
+          in: query
+          schema:
+            type: string
+            enum: ["4326"]
+          description: |
+            `4326` returns every geometry reprojected to WGS84 longitude and
+            latitude, with no `crs` member (RFC 7946); surfaces keep their
+            height. Omitted, geometry stays in the dataset's storage CRS, named
+            in each geometry's `crs` member.
       responses:
         "200":
           description: Footprint geometry per building and the credit of every dataset it comes from (both empty if none matched)
@@ -247,7 +257,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GeometryResponse"
         "400":
-          description: Missing country or object_ids
+          description: Missing country or object_ids, an srid other than 4326, or include=surfaces for more buildings than allowed
           content:
             application/json:
               schema:
