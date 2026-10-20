@@ -97,7 +97,7 @@ func TestPipeline_PartyWalls(t *testing.T) {
 	}
 
 	// The geometry endpoint carries the flag, so a viewer can highlight the pieces.
-	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"MID"}, true)
+	geometry, err := onrequest.BuildingGeometryByObjectIDs(ctx, testPool, cfg, []string{"MID"}, true, false)
 	if err != nil {
 		t.Fatalf("BuildingGeometryByObjectIDs: %v", err)
 	}

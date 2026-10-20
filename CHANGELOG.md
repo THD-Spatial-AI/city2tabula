@@ -3,6 +3,20 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/buildings takes object_ids, a third mode next to osm_ids
+  and the bbox: it returns the named 3D buildings, linked to PyLovo or
+  not, each once and with the same fields as the other modes. A linked
+  building carries its ways and match_type 1, one without an OSM match
+  match_type 2, one not yet linked match_type 0. When several modes are
+  given, osm_ids wins, then object_ids, then the bbox.
+- GET /api/v1/geometry takes srid=4326, which returns the footprint and
+  any surfaces reprojected to WGS84 longitude and latitude, with no crs
+  member; surfaces keep their height. Without it the geometry stays in
+  the dataset's storage CRS. Any other srid value is a 400.
+
 ## v0.11.3 (2026-10-19)
 
 Features:

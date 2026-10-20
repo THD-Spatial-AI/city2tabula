@@ -144,6 +144,57 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 	return buildings, nil
 }
 
+// BuildingsByObjectIDs returns 3D attributes for the buildings in cfg's country
+// with the given object_ids, linked to PyLovo or not, each once. A linked
+// building carries its ways as BuildingsByOSMIDs returns them, with match_type 1;
+// a building without an OSM match has empty ways and match_type 2; one with no
+// building_link row yet has empty ways and match_type 0. Unknown ids match nothing.
+func BuildingsByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string) ([]Building, error) {
+	if len(objectIDs) == 0 {
+		return nil, nil
+	}
+	functionCode, err := functionCodeColumn(ctx, pool, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	q := fmt.Sprintf(`
+		WITH ways AS (
+			SELECT object_id,
+			       max(osm_id) FILTER (WHERE match_type = 1) AS primary_osm_id,
+			       array_agg(osm_id ORDER BY match_type, match_confidence DESC, osm_id)
+			           FILTER (WHERE match_type IN (1, 4)) AS osm_ids,
+			       min(match_type) FILTER (WHERE match_type IN (1, 2)) AS match_type
+			FROM %[2]s.building_link
+			WHERE country_code = $1 AND object_id = ANY($2)
+			GROUP BY object_id
+		)
+		SELECT
+			b.object_id, b.dataset_id, COALESCE(w.primary_osm_id, ''), COALESCE(w.match_type, 0)::smallint,
+			b.min_height, b.max_height, b.room_height, b.number_of_storeys,
+			b.footprint_area, b.area_total_roof, b.area_total_wall, b.area_party_wall, b.area_total_floor,
+			b.tabula_variant_code, %[1]s, COALESCE(w.osm_ids, ARRAY[]::text[]), %[4]s
+		FROM %[3]s b
+		LEFT JOIN ways w ON w.object_id = b.object_id
+		WHERE b.country_code = $1 AND b.object_id = ANY($2)`,
+		neighbourColumns, cfg.DB.Schemas.City2Tabula, allLODs(cfg, "building", buildingColumns), functionCode,
+	)
+
+	rows, err := pool.Query(ctx, q, cfg.CountryCode, objectIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query buildings by object_id for %s: %w", cfg.Country, err)
+	}
+	defer rows.Close()
+	buildings, err := scanBuildingRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := attachSurfaces(ctx, pool, cfg, buildings); err != nil {
+		return nil, err
+	}
+	return buildings, nil
+}
+
 // BuildingsByBBox returns 3D attributes for every building in cfg's
 // country whose footprint intersects bbox, independent of whether a PyLovo
 // building_link row exists for it yet. osm_id/match_type are left at their
@@ -344,19 +395,29 @@ type SurfaceGeometry struct {
 	GeoJSON           json.RawMessage `json:"geojson,omitempty"`
 }
 
+// geoJSON renders expr as GeoJSON in its storage CRS, which names that CRS in a
+// crs member, or reprojected to EPSG:4326, which RFC 7946 assumes and so has none.
+func geoJSON(expr string, wgs84 bool) string {
+	if wgs84 {
+		return "ST_AsGeoJSON(ST_Transform(" + expr + ", 4326))"
+	}
+	return "ST_AsGeoJSON(" + expr + ")"
+}
+
 // BuildingGeometryByObjectIDs returns footprint geometry for the given
 // building object IDs in cfg's country. With includeSurfaces, each building
-// also carries its individual envelope surface polygons.
-func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string, includeSurfaces bool) ([]BuildingGeometry, error) {
+// also carries its individual envelope surface polygons. With wgs84, every
+// geometry is reprojected to EPSG:4326; otherwise it stays in the storage CRS.
+func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, objectIDs []string, includeSurfaces, wgs84 bool) ([]BuildingGeometry, error) {
 	if len(objectIDs) == 0 {
 		return nil, nil
 	}
 
 	q := fmt.Sprintf(`
-		SELECT object_id, dataset_id, COALESCE(ST_AsGeoJSON(ST_Force2D(building_footprint_geom)), '')
+		SELECT object_id, dataset_id, COALESCE(%s, '')
 		FROM %s b
 		WHERE country_code = $1 AND object_id = ANY($2)`,
-		allLODs(cfg, "building", buildingColumns),
+		geoJSON("ST_Force2D(building_footprint_geom)", wgs84), allLODs(cfg, "building", buildingColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, cfg.CountryCode, objectIDs)
@@ -384,7 +445,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 	}
 
 	if includeSurfaces {
-		if err := attachSurfaceGeometry(ctx, pool, cfg, geometries); err != nil {
+		if err := attachSurfaceGeometry(ctx, pool, cfg, geometries, wgs84); err != nil {
 			return nil, err
 		}
 	}
@@ -394,7 +455,7 @@ func BuildingGeometryByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *c
 // attachSurfaceGeometry fetches every surface polygon for geometries' object IDs
 // in one batched query and sets each BuildingGeometry's Surfaces field in place,
 // avoiding one query per building.
-func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, geometries []BuildingGeometry) error {
+func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, geometries []BuildingGeometry, wgs84 bool) error {
 	if len(geometries) == 0 {
 		return nil
 	}
@@ -411,11 +472,11 @@ func attachSurfaceGeometry(ctx context.Context, pool *pgxpool.Pool, cfg *config.
 	// surface feature shares across all of its faces.
 	q := fmt.Sprintf(`
 		SELECT building_object_id, id::text, COALESCE(surface_type, ''),
-		       is_party_wall, neighbour_object_id, COALESCE(ST_AsGeoJSON(geom), '')
+		       is_party_wall, neighbour_object_id, COALESCE(%s, '')
 		FROM %s s
 		WHERE building_object_id = ANY($1)
 		ORDER BY building_object_id, id`,
-		allLODs(cfg, "surface", surfaceColumns),
+		geoJSON("geom", wgs84), allLODs(cfg, "surface", surfaceColumns),
 	)
 
 	rows, err := pool.Query(ctx, q, objectIDs)

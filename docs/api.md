@@ -149,6 +149,12 @@ By PyLovo OSM id, once a link exists:
 curl "http://localhost:5000/api/v1/buildings?country=germany&osm_ids=123456,789012"
 ```
 
+By City2TABULA object id, linked or not:
+
+```bash
+curl "http://localhost:5000/api/v1/buildings?country=germany&object_ids=DEBY_LOD2_7595822,DEBY_LOD2_7672149"
+```
+
 The response is `{"buildings": [...], "attributions": [...]}`. Each building's `surfaces` array carries per-face area, azimuth, tilt, horizontal extent, slope extent and height, and its `dataset_id` names the source dataset. The `Surface` schema in [`openapi.yaml`](openapi/openapi.yaml) defines how each surface value is measured, with references. `attributions` holds the credit of every dataset in `buildings`, plus TABULA's when any building has a `tabula_variant_code`.
 
 !!! warning "Show the credits"
@@ -178,12 +184,18 @@ sequenceDiagram
     S-->>C: 200 {buildings: [{object_id, dataset_id, osm_id, ..., surfaces}], attributions: [...]}
 ```
 
-`osm_ids` takes precedence if both are present in the query string.
+When several modes are present in the query string, `osm_ids` wins, then `object_ids`, then the bbox.
 
 ## Reading geometry
 
 ```bash
 curl "http://localhost:5000/api/v1/geometry?country=germany&object_ids=DEHB01AL3AU0004T"
+```
+
+Add `srid=4326` for WGS84 longitude and latitude instead of the dataset's storage CRS:
+
+```bash
+curl "http://localhost:5000/api/v1/geometry?country=germany&object_ids=DEHB01AL3AU0004T&srid=4326"
 ```
 
 ```mermaid
