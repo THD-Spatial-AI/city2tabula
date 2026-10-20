@@ -170,10 +170,11 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Buildings handles GET /api/v1/buildings?country=..&osm_ids=a,b,c (3D
-// attributes for already PyLovo-linked buildings, keyed by osm_id) or
-// GET /api/v1/buildings?country=..&xmin=..&ymin=..&xmax=..&ymax=.. (every
-// building in a bbox, independent of PyLovo linkage). osm_ids takes
-// precedence if both are present.
+// attributes for already PyLovo-linked buildings, keyed by osm_id),
+// GET /api/v1/buildings?country=..&object_ids=a,b,c (the named 3D buildings,
+// linked or not) or GET /api/v1/buildings?country=..&xmin=..&ymin=..&xmax=..&ymax=..
+// (every building in a bbox, independent of PyLovo linkage). When several are
+// given, osm_ids wins, then object_ids, then the bbox.
 func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {
@@ -194,10 +195,12 @@ func (h *Handler) Buildings(w http.ResponseWriter, r *http.Request) {
 	var buildings []onrequest.Building
 	if osmIDsParam := r.URL.Query().Get("osm_ids"); osmIDsParam != "" {
 		buildings, err = onrequest.BuildingsByOSMIDs(r.Context(), pool, cfg, strings.Split(osmIDsParam, ","))
+	} else if objectIDsParam := r.URL.Query().Get("object_ids"); objectIDsParam != "" {
+		buildings, err = onrequest.BuildingsByObjectIDs(r.Context(), pool, cfg, strings.Split(objectIDsParam, ","))
 	} else if bbox, bboxErr := parseBboxParams(r); bboxErr == nil {
 		buildings, err = onrequest.BuildingsByBBox(r.Context(), pool, cfg, bbox)
 	} else {
-		writeError(w, http.StatusBadRequest, "osm_ids or xmin/ymin/xmax/ymax query params are required")
+		writeError(w, http.StatusBadRequest, "osm_ids, object_ids or xmin/ymin/xmax/ymax query params are required")
 		return
 	}
 	if err != nil {

@@ -180,13 +180,18 @@ paths:
       operationId: getBuildings
       description: |
         Returns thematic (non-geometric) 3D attributes, with each building's
-        envelope surfaces embedded. Two mutually exclusive query modes
-        `osm_ids` takes precedence if both are supplied:
+        envelope surfaces embedded. Three query modes; when several are
+        supplied, `osm_ids` wins, then `object_ids`, then the bbox:
 
         - **By `osm_ids`**: only buildings already matched to a PyLovo building
           via `building_link` (`osm_id`/`match_type` populated). Each building
           is returned once, even when several requested ids are ways of it;
           find a requested id in a result's `osm_ids`.
+        - **By `object_ids`**: the named 3D buildings, linked or not, each
+          once. A linked building carries `osm_id`, `osm_ids` and `match_type`
+          1; one without an OSM match has empty ways and `match_type` 2; one
+          not yet linked has empty ways and `match_type` 0. Unknown ids return
+          nothing.
         - **By bbox**: every building whose footprint intersects the bbox,
           independent of whether a PyLovo link exists yet (`osm_id` empty,
           `match_type` 0 on every result).
@@ -198,6 +203,12 @@ paths:
             type: string
           description: Comma-separated PyLovo OSM building ids
           example: "123456,789012"
+        - name: object_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated City2TABULA building object ids
+          example: "DEBY_LOD2_7595822,DEBY_LOD2_7672149"
         - $ref: "#/components/parameters/Xmin"
         - $ref: "#/components/parameters/Ymin"
         - $ref: "#/components/parameters/Xmax"
@@ -210,7 +221,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BuildingsResponse"
         "400":
-          description: Missing country, or neither osm_ids nor a full bbox given
+          description: Missing country, or none of osm_ids, object_ids or a full bbox given
           content:
             application/json:
               schema:
