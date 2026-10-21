@@ -487,6 +487,26 @@ components:
             (in Germany the ALKIS Gebäudefunktion, for example `31001_1000`).
             Null when the dataset carries none. Always present.
           example: "31001_1000"
+        use_type:
+          type: string
+          nullable: true
+          enum: [residential, office, retail, hospitality, education, health, public, commercial, industry, agriculture, ancillary, other, null]
+          description: |
+            `function_code` mapped to a country-independent use category.
+            `commercial` and `public` cover business and public buildings whose
+            code gives no finer use; `ancillary` covers unheated outbuildings
+            such as garages, carports and sheds. Null when `function_code` is
+            null, has no mapping for the country, or states that the use is
+            unknown. Mapped for Germany only. Always present.
+          example: "residential"
+        residential:
+          type: boolean
+          nullable: true
+          description: |
+            True when the building contains dwellings, including mixed-use
+            buildings whose `use_type` is not `residential`. Null exactly when
+            `use_type` is null. Always present.
+          example: true
         min_height:
           type: number
           nullable: true

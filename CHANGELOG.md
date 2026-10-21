@@ -3,6 +3,19 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/buildings returns use_type and residential next to
+  function_code in all three modes. use_type maps the code to one of
+  residential, office, retail, hospitality, education, health, public,
+  commercial, industry, agriculture, ancillary or other; residential is
+  true when the building contains dwellings, including mixed-use
+  buildings. Germany is mapped from the AdV code list
+  BuildingFunctionTypeAdV.xml; both fields are null where the code is
+  missing, unmapped or states that the use is unknown, and in every
+  other country. Existing databases return them without re-extraction.
+
 ## v0.11.4 (2026-10-20)
 
 Features:
