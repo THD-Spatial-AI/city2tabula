@@ -78,7 +78,9 @@ CREATE FUNCTION {city2tabula_schema}.surface_dimensions(
     WITH axes AS (
         SELECT -ny / h AS ux, nx / h AS uy,
                -nz * nx / h AS vx, -nz * ny / h AS vy, h AS vz
-        FROM (SELECT sqrt(nx * nx + ny * ny) AS h) s
+        -- NULLIF because PostgreSQL 18 computes the axes of a flat face (h = 0)
+        -- before the WHERE below discards it, and raises division by zero.
+        FROM (SELECT NULLIF(sqrt(nx * nx + ny * ny), 0) AS h) s
         WHERE ABS(nz) <= 0.985
     ),
     projected AS (
