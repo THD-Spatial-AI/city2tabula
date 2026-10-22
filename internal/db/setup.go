@@ -129,6 +129,9 @@ func ImportAllData(config *config.Config, conn *pgxpool.Pool, bbox, bboxMode str
 	if _, err := importer.SyncAttribution(context.Background(), conn, config); err != nil {
 		return fmt.Errorf("failed to sync dataset attribution: %w", err)
 	}
+	if err := importer.ImportBuildingUse(context.Background(), conn, config); err != nil {
+		return fmt.Errorf("failed to import building use: %w", err)
+	}
 	if err := importer.ImportCityDBData(conn, config, bbox, bboxMode); err != nil {
 		return fmt.Errorf("failed to import CityDB data: %w", err)
 	}

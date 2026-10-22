@@ -13,8 +13,20 @@ Features:
   true when the building contains dwellings, including mixed-use
   buildings. Germany is mapped from the AdV code list
   BuildingFunctionTypeAdV.xml; both fields are null where the code is
-  missing, unmapped or states that the use is unknown, and in every
-  other country. Existing databases return them without re-extraction.
+  missing, unmapped or states that the use is unknown. Existing
+  databases return them without re-extraction.
+- use_type and residential for the Netherlands, from BAG. Building
+  attributes the 3D data lacks are staged under
+  data/attributes/<country>/<dataset>/ as attribution.json plus
+  building_use.csv (object_id, use_code, floor_area: one row per use of
+  a building). -create-db and -import-data replace each dataset's rows
+  in city2tabula.building_use and sync its credit. Where a building's
+  function code gives no use, GET /api/v1/buildings takes the use
+  covering the most floor area among its rows, residential when any row
+  is a dwelling, and credits the dataset. A BAG building without units
+  (a shed, garage or barn) has one row with use code "geen
+  verblijfsobject" and is ancillary; a building without rows stays
+  null. The server needs data/attributes mounted next to data/lod2.
 
 Fixes:
 - -link-pylovo, and the link stage of an on-request run, no longer

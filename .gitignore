@@ -42,6 +42,7 @@ go.work.sum
 # Datasets (avoid committing large or licensed data)
 data/lod2/
 data/lod3/
+data/attributes/
 environment/data/
 
 # Local / scratch directories

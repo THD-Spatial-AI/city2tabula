@@ -3,7 +3,9 @@ package onrequest
 import (
 	"embed"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -103,4 +105,51 @@ func useTypeFor(country string, code *string) (*string, *bool) {
 	}
 	useType, residential := c.useType, c.residential
 	return &useType, &residential
+}
+
+// unitUse is one entry of the building_use JSON that buildingUseColumn returns.
+type unitUse struct {
+	DatasetID string  `json:"dataset_id"`
+	Code      string  `json:"code"`
+	Area      float64 `json:"area"`
+}
+
+// useTypeFromUnits returns the use type covering the most floor area among a
+// building's units, whether any unit is a dwelling, and the datasets the mapped
+// units came from. Equal areas go to the use type first by name, so the result
+// does not depend on row order. Codes without a mapping in country are ignored,
+// and all three results are nil when no unit has a mapped code.
+func useTypeFromUnits(country string, units []byte) (*string, *bool, []string, error) {
+	if len(units) == 0 {
+		return nil, nil, nil, nil
+	}
+	var entries []unitUse
+	if err := json.Unmarshal(units, &entries); err != nil {
+		return nil, nil, nil, fmt.Errorf("decode building_use units: %w", err)
+	}
+
+	areas := map[string]float64{}
+	residential := false
+	var datasets []string
+	for _, u := range entries {
+		c := useTypeLists[country][u.Code]
+		if c == nil {
+			continue
+		}
+		areas[c.useType] += u.Area
+		residential = residential || c.residential
+		datasets = append(datasets, u.DatasetID)
+	}
+	if len(areas) == 0 {
+		return nil, nil, nil, nil
+	}
+
+	best := ""
+	for _, t := range slices.Sorted(maps.Keys(areas)) {
+		if best == "" || areas[t] > areas[best] {
+			best = t
+		}
+	}
+	slices.Sort(datasets)
+	return &best, &residential, slices.Compact(datasets), nil
 }

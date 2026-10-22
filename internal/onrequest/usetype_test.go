@@ -1,6 +1,7 @@
 package onrequest
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -68,6 +69,60 @@ func TestParseUseTypeList_RejectsBadRows(t *testing.T) {
 			_, err := parseUseTypeList(header + tc.rows)
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("parseUseTypeList error = %v, want one containing %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestUseTypeFromUnits(t *testing.T) {
+	tests := []struct {
+		name            string
+		units           string
+		wantUse         string
+		wantResidential bool
+		wantDatasets    []string
+		wantNull        bool
+	}{
+		{"single use", `[{"dataset_id":"nl-bag-use","code":"woonfunctie","area":80}]`,
+			"residential", true, []string{"nl-bag-use"}, false},
+		{"largest floor area wins, dwellings still count", `[
+			{"dataset_id":"nl-bag-use","code":"winkelfunctie","area":300},
+			{"dataset_id":"nl-bag-use","code":"woonfunctie","area":120}]`,
+			"retail", true, []string{"nl-bag-use"}, false},
+		{"codes of one use type add up", `[
+			{"dataset_id":"nl-bag-use","code":"sportfunctie","area":100},
+			{"dataset_id":"nl-bag-use","code":"bijeenkomstfunctie","area":100},
+			{"dataset_id":"nl-bag-use","code":"kantoorfunctie","area":150}]`,
+			"public", false, []string{"nl-bag-use"}, false},
+		{"equal areas pick the first use type by name", `[
+			{"dataset_id":"nl-bag-use","code":"winkelfunctie","area":50},
+			{"dataset_id":"nl-bag-use","code":"kantoorfunctie","area":50}]`,
+			"office", false, []string{"nl-bag-use"}, false},
+		{"unmapped codes are ignored", `[
+			{"dataset_id":"nl-bag-use","code":"onbekend","area":900},
+			{"dataset_id":"nl-bag-use","code":"onderwijsfunctie","area":10}]`,
+			"education", false, []string{"nl-bag-use"}, false},
+		{"building without units", `[{"dataset_id":"nl-bag-use","code":"geen verblijfsobject","area":0}]`,
+			"ancillary", false, []string{"nl-bag-use"}, false},
+		{"only unmapped codes", `[{"dataset_id":"nl-bag-use","code":"onbekend","area":10}]`, "", false, nil, true},
+		{"no units", ``, "", false, nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			use, residential, datasets, err := useTypeFromUnits("netherlands", []byte(tc.units))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.wantNull {
+				if use != nil || residential != nil || datasets != nil {
+					t.Errorf("useTypeFromUnits = %v, %v, %v, want all null", use, residential, datasets)
+				}
+				return
+			}
+			if use == nil || *use != tc.wantUse || residential == nil || *residential != tc.wantResidential ||
+				!slices.Equal(datasets, tc.wantDatasets) {
+				t.Errorf("useTypeFromUnits = %v, %v, %v, want %s, %v, %v",
+					use, residential, datasets, tc.wantUse, tc.wantResidential, tc.wantDatasets)
 			}
 		})
 	}
