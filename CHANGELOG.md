@@ -3,6 +3,16 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- -link-pylovo, and the link stage of an on-request run, no longer
+  stalls on a database holding regions far apart. Batching built a
+  grid over the box around all buildings and tested every building
+  against every cell: for Deggendorf and Koeln in one database that
+  took 29 minutes before linking began. Each building's cell is now
+  computed from its coordinates; the batches are unchanged.
+
 ## v0.11.4 (2026-10-20)
 
 Features:
