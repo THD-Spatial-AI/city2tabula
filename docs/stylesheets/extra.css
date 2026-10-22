@@ -1,0 +1,32 @@
+/* Spatial AI brand colours: the header in brand ink, which the -dark mark is
+   drawn for, and City2TABULA violet for links and accents. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #16191c;
+  --md-primary-fg-color--light: #2b2f33;
+  --md-primary-fg-color--dark: #0e1012;
+  --md-accent-fg-color: #6d4ae0;
+  --md-typeset-a-color: #6d4ae0;
+  --md-default-bg-color: #f7f5f1;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #16191c;
+  --md-primary-fg-color--light: #2b2f33;
+  --md-primary-fg-color--dark: #0e1012;
+  --md-accent-fg-color: #a08bff;
+  --md-typeset-a-color: #a08bff;
+  --md-default-bg-color: #16191c;
+}
+
+/* The header logo is the lockup, which carries the project name in brand
+   colours, so the plain-text site name is hidden where the logo shows. Below
+   76.25em Material moves the logo into the drawer and the text name stays. */
+.md-header__button.md-logo img {
+  height: 2rem;
+}
+
+@media screen and (min-width: 76.25em) {
+  .md-header__title .md-header__topic:first-child {
+    visibility: hidden;
+  }
+}

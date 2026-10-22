@@ -1,4 +1,5 @@
-![city2tabula logo](docs/assets/logo/svg/city2tabula_logo_complete.svg)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo/city2tabula-lockup-violet-dark-outline.svg"><img alt="City2TABULA" src="docs/assets/logo/city2tabula-lockup-violet-outline.svg" width="360"></picture>
+
 [![go](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml/badge.svg)](https://github.com/thd-spatial-ai/city2tabula/actions/workflows/go.yml)
 &nbsp;
 [![codecov](https://codecov.io/gh/thd-spatial-ai/city2tabula/branch/main/graph/badge.svg)](https://codecov.io/gh/thd-spatial-ai/city2tabula)
