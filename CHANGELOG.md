@@ -5,7 +5,24 @@ v0.8.0 are described in their tag messages.
 
 ## Unreleased
 
+Features:
+- GET /api/v1/buildings returns use_type and residential next to
+  function_code in all three modes. use_type maps the code to one of
+  residential, office, retail, hospitality, education, health, public,
+  commercial, industry, agriculture, ancillary or other; residential is
+  true when the building contains dwellings, including mixed-use
+  buildings. Germany is mapped from the AdV code list
+  BuildingFunctionTypeAdV.xml; both fields are null where the code is
+  missing, unmapped or states that the use is unknown, and in every
+  other country. Existing databases return them without re-extraction.
+
 Fixes:
+- -link-pylovo, and the link stage of an on-request run, no longer
+  stalls on a database holding regions far apart. Batching built a
+  grid over the box around all buildings and tested every building
+  against every cell: for Deggendorf and Koeln in one database that
+  took 29 minutes before linking began. Each building's cell is now
+  computed from its coordinates; the batches are unchanged.
 - Feature extraction works on PostgreSQL 18. There every batch holding
   a flat roof or ground surface failed with division by zero in
   surface_dimensions, so no building was extracted. PostgreSQL 16 and
