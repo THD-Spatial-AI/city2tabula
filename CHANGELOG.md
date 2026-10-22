@@ -3,6 +3,15 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- Feature extraction works on PostgreSQL 18. There every batch holding
+  a flat roof or ground surface failed with division by zero in
+  surface_dimensions, so no building was extracted. PostgreSQL 16 and
+  17 were not affected. A database created by an earlier release gets
+  the fixed function on its next -reset-city2tabula.
+
 ## v0.11.4 (2026-10-20)
 
 Features:
