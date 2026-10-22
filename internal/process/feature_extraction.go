@@ -337,38 +337,21 @@ func GetGridBatches(pool *pgxpool.Pool, c2tSchema, lodSchema string, gridSizeM, 
 		unlinkedClause = ""
 	}
 
-	// ST_SquareGrid requires PostGIS >= 3.1.
-	// Each building goes to the one cell holding a point inside its footprint, so
-	// a footprint crossing a cell edge is not linked twice by parallel workers.
-	// DISTINCT ON settles a point lying exactly on an edge. Cells with no
-	// buildings are excluded.
+	// Each building goes to the one cell, aligned at the CRS origin, holding a point
+	// inside its footprint, so parallel workers never link it twice. Cells come from
+	// coordinates, not an ST_SquareGrid join, whose cost grows with the extent's area.
 	q := fmt.Sprintf(`
 		WITH all_buildings AS (
-			SELECT ab.building_feature_id, ST_Force2D(ab.building_footprint_geom) AS geom
+			SELECT ab.building_feature_id, ST_PointOnSurface(ST_Force2D(ab.building_footprint_geom)) AS p
 			FROM %s.%s_building ab
 			WHERE ab.building_footprint_geom IS NOT NULL
 			  AND ab.object_id IS NOT NULL
 			  %s
 			%s
-		),
-		extent AS (
-			SELECT ST_Envelope(ST_Collect(geom)) AS bbox
-			FROM all_buildings
-		),
-		grid AS (
-			SELECT (ST_SquareGrid($1::double precision, bbox)).geom AS cell
-			FROM extent
-			WHERE bbox IS NOT NULL
-		),
-		assigned AS (
-			SELECT DISTINCT ON (b.building_feature_id) b.building_feature_id, g.cell
-			FROM all_buildings b
-			JOIN grid g ON ST_Intersects(ST_PointOnSurface(b.geom), g.cell)
-			ORDER BY b.building_feature_id, ST_XMin(g.cell), ST_YMin(g.cell)
 		)
 		SELECT array_agg(building_feature_id ORDER BY building_feature_id)
-		FROM assigned
-		GROUP BY cell
+		FROM all_buildings
+		GROUP BY floor(ST_X(p) / $1::double precision), floor(ST_Y(p) / $1::double precision)
 	`, c2tSchema, lodSchema, unlinkedClause, limitClause)
 
 	rows, err := pool.Query(context.Background(), q, gridSizeM)
