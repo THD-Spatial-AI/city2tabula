@@ -1,0 +1,57 @@
+name: Integration
+
+# paths-ignore applies per workflow, not per job, so the integration job has a
+# workflow of its own; go.yml's unit job still runs on every change.
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "mkdocs.yml"
+      - "CITATION.cff"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "mkdocs.yml"
+      - "CITATION.cff"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/docs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install psql client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Integration Tests
+        run: go test -tags integration -v -timeout 10m -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./internal/process/ ./internal/db/ ./internal/importer/ ./internal/api/... ./internal/onrequest/... ./internal/environment/...
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+            token: ${{ secrets.CODECOV_TOKEN }}
+            flags: integration
