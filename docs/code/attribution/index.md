@@ -4,7 +4,7 @@ audience: developer
 
 # Dataset attribution file
 
-Every source dataset carries one `attribution.json` at the root of its folder. It credits the provider and states the licence, so the credit can be shown with any output derived from the dataset. The TABULA typology data carries one too, at `data/tabula/attribution.json`.
+Every source dataset carries one `attribution.json` at the root of its folder: each 3D dataset under `data/lod2/` or `data/lod3/`, and each attribute dataset under `data/attributes/`. It credits the provider and states the licence, so the credit can be shown with any output derived from the dataset. The TABULA typology data carries one too, at `data/tabula/attribution.json`.
 
 ```json
 {
@@ -28,7 +28,7 @@ The format is published as a JSON Schema, [`attribution.schema.json`](attributio
 | Field | Required | Rule |
 |---|---|---|
 | `schema_version` | yes | `1` |
-| `dataset_id` | yes | Lowercase letters and digits in hyphen-separated words, unique across datasets. 3D datasets use `<country code>-<region>-<lod>`, e.g. `cz-brno-lod2`. |
+| `dataset_id` | yes | Lowercase letters and digits in hyphen-separated words, unique across datasets. 3D datasets use `<country code>-<region>-<lod>`, e.g. `cz-brno-lod2`; attribute datasets `<country code>-<source>-<attribute>`, e.g. `nl-bag-use`. |
 | `provider` | yes | Organisation that publishes the dataset |
 | `dataset` | yes | Dataset name as the provider publishes it |
 | `licence` | yes | SPDX licence id, e.g. `CC-BY-4.0` or `DL-DE-BY-2.0`, or `LicenseRef-<id>` for a licence not on the SPDX list |
@@ -42,9 +42,10 @@ Unknown fields are rejected, so a misspelt key fails rather than leaving its fie
 
 ## How City2TABULA uses the file
 
-1. `-create-db` and `-import-data` read every dataset folder's file and the TABULA file, validate them all, and upsert one row per dataset into `city2tabula.dataset_attribution`. A missing or invalid file stops the run before anything is imported.
+1. `-create-db` and `-import-data` read every 3D and attribute dataset folder's file and the TABULA file, validate them all, and upsert one row per dataset into `city2tabula.dataset_attribution`. A missing or invalid file stops the run before anything is imported.
 2. Each dataset's `gml/` and `cityjson/` folders are imported with `citydb import --lineage=<dataset_id>`, so every feature records its dataset in the 3DCityDB `feature.lineage` column. Only those two folders are passed to citydb-tool, which reads every `.json` file in a folder it is given and imports archives as data. The folder layout is in [Setup](../../installation/setup.md#step-2-download-data).
 3. `-extract-features` copies each building's lineage into `dataset_id` on `lod2_building` and `lod3_building`, a `NOT NULL` foreign key to `dataset_attribution`. A building with no lineage, or with a lineage that has no row, stops extraction with an error naming one such building or dataset.
+4. Each attribute dataset's `building_use.csv` replaces that dataset's rows in `city2tabula.building_use` (format in `data/README.md`). A building whose use type comes from those rows lists the dataset among the credits returned with it.
 
 To correct a credit, edit the file and run `c2t -sync-attribution`. It re-reads every file and updates only the rows whose content changed, without re-importing data.
 

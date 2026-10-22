@@ -1,0 +1,19 @@
+# Source: BAG gebruiksdoel, the use of a verblijfsobject in the Basisregistratie
+# Adressen en Gebouwen (Kadaster). A building's codes come from its units in
+# data/attributes/netherlands/; the building takes the use covering most floor area.
+# label is an English gloss; use_type and residential are City2TABULA's classification.
+# "geen verblijfsobject" is not a BAG value: the staged extract gives it, with floor area 0,
+# to a building that has no units, which in BAG are outbuildings such as sheds and garages.
+code,use_type,residential,label
+woonfunctie,residential,true,dwelling
+bijeenkomstfunctie,public,false,"assembly: meeting, worship, culture, catering, childcare"
+celfunctie,public,false,detention
+gezondheidszorgfunctie,health,false,health care
+industriefunctie,industry,false,industry and storage
+kantoorfunctie,office,false,office
+logiesfunctie,hospitality,false,accommodation
+onderwijsfunctie,education,false,education
+sportfunctie,public,false,sport
+winkelfunctie,retail,false,retail
+overige gebruiksfunctie,other,false,other use
+geen verblijfsobject,ancillary,false,building without units

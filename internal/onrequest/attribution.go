@@ -30,7 +30,8 @@ const creditColumns = `dataset_id, provider, dataset, licence, licence_url, cred
 	COALESCE(credit_url, ''), COALESCE(terms_url, ''), changes`
 
 // BuildingDatasetIDs returns the distinct datasets behind buildings, plus the
-// TABULA dataset when any building carries a TABULA type.
+// TABULA dataset when any building carries a TABULA type and the attribute
+// datasets any building's use type came from.
 func BuildingDatasetIDs(buildings []Building) []string {
 	var ids []string
 	for _, b := range buildings {
@@ -38,6 +39,7 @@ func BuildingDatasetIDs(buildings []Building) []string {
 		if b.TabulaVariantCode != nil {
 			ids = append(ids, attribution.TabulaDatasetID)
 		}
+		ids = append(ids, b.useDatasetIDs...)
 	}
 	return distinct(ids)
 }

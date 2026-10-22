@@ -13,14 +13,18 @@ const (
 	Lod2DataDir   = DataDir + "lod2" + string(os.PathSeparator)
 	Lod3DataDir   = DataDir + "lod3" + string(os.PathSeparator)
 	TabulaDataDir = DataDir + "tabula" + string(os.PathSeparator)
+	// AttributesDataDir holds per-country building attributes that are not part
+	// of the 3D model, such as building use from a national register.
+	AttributesDataDir = DataDir + "attributes" + string(os.PathSeparator)
 )
 
 // Data paths
 type DataPaths struct {
-	Base   string
-	Lod2   string
-	Lod3   string
-	Tabula string
+	Base       string
+	Lod2       string
+	Lod3       string
+	Tabula     string
+	Attributes string
 }
 
 // countryDataDir returns the country's folder under root, refusing a name that
@@ -37,9 +41,10 @@ func countryDataDir(root, country string) (string, error) {
 // loadDataPaths loads data directory paths
 func loadDataPaths() *DataPaths {
 	return &DataPaths{
-		Base:   DataDir,
-		Lod2:   Lod2DataDir + normalizeCountryName(GetEnv("COUNTRY", "")),
-		Lod3:   Lod3DataDir + normalizeCountryName(GetEnv("COUNTRY", "")),
-		Tabula: TabulaDataDir,
+		Base:       DataDir,
+		Lod2:       Lod2DataDir + normalizeCountryName(GetEnv("COUNTRY", "")),
+		Lod3:       Lod3DataDir + normalizeCountryName(GetEnv("COUNTRY", "")),
+		Tabula:     TabulaDataDir,
+		Attributes: AttributesDataDir + normalizeCountryName(GetEnv("COUNTRY", "")),
 	}
 }

@@ -405,7 +405,7 @@ components:
             $ref: "#/components/schemas/Building"
         attributions:
           type: array
-          description: One entry per dataset in `buildings`, plus TABULA when any building has a `tabula_variant_code`
+          description: One entry per dataset in `buildings`, plus TABULA when any building has a `tabula_variant_code`, plus each register a `use_type` came from
           items:
             $ref: "#/components/schemas/DatasetCredit"
 
@@ -492,12 +492,14 @@ components:
           nullable: true
           enum: [residential, office, retail, hospitality, education, health, public, commercial, industry, agriculture, ancillary, other, null]
           description: |
-            `function_code` mapped to a country-independent use category.
-            `commercial` and `public` cover business and public buildings whose
-            code gives no finer use; `ancillary` covers unheated outbuildings
-            such as garages, carports and sheds. Null when `function_code` is
-            null, has no mapping for the country, or states that the use is
-            unknown. Mapped for Germany only. Always present.
+            The building's use as a country-independent category: from
+            `function_code` where it maps (Germany), otherwise from the uses of
+            the building's units in a national register (the Netherlands: BAG),
+            taking the use that covers the most floor area; a register credit
+            is then listed in `attributions`. `commercial` and `public` cover
+            business and public buildings whose code gives no finer use;
+            `ancillary` covers unheated outbuildings such as garages, carports
+            and sheds. Null when neither source gives a use. Always present.
           example: "residential"
         residential:
           type: boolean

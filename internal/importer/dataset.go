@@ -60,14 +60,23 @@ func DiscoverDatasets(cfg *config.Config) ([]Dataset, error) {
 		datasets = append(datasets, found...)
 	}
 
+	if err := checkUniqueDatasetIDs(datasets); err != nil {
+		return nil, err
+	}
+	return datasets, nil
+}
+
+// checkUniqueDatasetIDs returns an error naming both folders when two datasets
+// share a dataset_id.
+func checkUniqueDatasetIDs(datasets []Dataset) error {
 	seen := map[string]string{}
 	for _, d := range datasets {
 		if other, ok := seen[d.Attribution.DatasetID]; ok {
-			return nil, fmt.Errorf("dataset_id %q is used by both %s and %s", d.Attribution.DatasetID, other, d.Dir)
+			return fmt.Errorf("dataset_id %q is used by both %s and %s", d.Attribution.DatasetID, other, d.Dir)
 		}
 		seen[d.Attribution.DatasetID] = d.Dir
 	}
-	return datasets, nil
+	return nil
 }
 
 // discoverLOD returns the dataset folders directly under dir. Hidden entries
@@ -138,8 +147,8 @@ func datasetInputs(dir string) ([]importInput, error) {
 	return inputs, nil
 }
 
-// SyncAttribution reads the attribution file of every 3D dataset folder and of
-// the TABULA data, and upserts one dataset_attribution row per dataset. It
+// SyncAttribution reads the attribution file of every 3D and attribute dataset
+// folder and of the TABULA data, and upserts one dataset_attribution row per dataset. It
 // imports nothing, so correcting a credit needs no re-import. Every file is
 // validated before any row is written. Returns how many rows were inserted or
 // changed.
@@ -157,6 +166,14 @@ func SyncAttribution(ctx context.Context, conn *pgxpool.Pool, cfg *config.Config
 			filepath.Join(cfg.Data.Tabula, attribution.FileName), tabula.DatasetID, attribution.TabulaDatasetID)
 	}
 	datasets = append(datasets, Dataset{Dir: cfg.Data.Tabula, Attribution: tabula})
+	attributes, err := DiscoverAttributeDatasets(cfg)
+	if err != nil {
+		return 0, err
+	}
+	datasets = append(datasets, attributes...)
+	if err := checkUniqueDatasetIDs(datasets); err != nil {
+		return 0, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

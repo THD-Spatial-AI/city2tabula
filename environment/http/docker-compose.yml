@@ -75,6 +75,7 @@ services:
     volumes:
       - ./../../data/lod2:/app/data/lod2
       - ./../../data/lod3:/app/data/lod3
+      - ./../../data/attributes:/app/data/attributes
     depends_on:
       city2tabula-db:
         condition: service_healthy
