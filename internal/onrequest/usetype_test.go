@@ -1,6 +1,9 @@
 package onrequest
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestUseTypeFor(t *testing.T) {
 	code := func(s string) *string { return &s }
@@ -47,5 +50,25 @@ func TestUseTypeListsLoad(t *testing.T) {
 	}
 	if n := len(lists["germany"]); n < 300 {
 		t.Errorf("germany list has %d codes, want the full AdV list", n)
+	}
+}
+
+func TestParseUseTypeList_RejectsBadRows(t *testing.T) {
+	const header = "code,use_type,residential,label\n"
+	tests := []struct {
+		name, rows, wantErr string
+	}{
+		{"duplicate code", "31001_1000,residential,true,a\n31001_1000,office,false,b\n", "listed twice"},
+		{"use_type outside the vocabulary", "31001_1000,housing,true,a\n", "not in the vocabulary"},
+		{"residential not a boolean", "31001_1000,residential,yes,a\n", "residential"},
+		{"missing column", "31001_1000,residential,true\n", "wrong number of fields"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseUseTypeList(header + tc.rows)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("parseUseTypeList error = %v, want one containing %q", err, tc.wantErr)
+			}
+		})
 	}
 }
