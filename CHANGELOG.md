@@ -23,6 +23,11 @@ Fixes:
   against every cell: for Deggendorf and Koeln in one database that
   took 29 minutes before linking began. Each building's cell is now
   computed from its coordinates; the batches are unchanged.
+- Feature extraction works on PostgreSQL 18. There every batch holding
+  a flat roof or ground surface failed with division by zero in
+  surface_dimensions, so no building was extracted. PostgreSQL 16 and
+  17 were not affected. A database created by an earlier release gets
+  the fixed function on its next -reset-city2tabula.
 
 ## v0.11.4 (2026-10-20)
 
