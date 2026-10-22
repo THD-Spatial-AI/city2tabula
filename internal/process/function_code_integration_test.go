@@ -33,22 +33,28 @@ func show(s *string) string {
 	return *s
 }
 
-// functionCodeOf finds objectID in buildings and returns its FunctionCode.
-func functionCodeOf(t *testing.T, buildings []onrequest.Building, objectID string) *string {
+// buildingOf finds objectID in buildings.
+func buildingOf(t *testing.T, buildings []onrequest.Building, objectID string) onrequest.Building {
 	t.Helper()
 	for _, b := range buildings {
 		if b.ObjectID == objectID {
-			return b.FunctionCode
+			return b
 		}
 	}
 	t.Fatalf("%s not in the response (%d buildings)", objectID, len(buildings))
-	return nil
+	return onrequest.Building{}
+}
+
+// functionCodeOf finds objectID in buildings and returns its FunctionCode.
+func functionCodeOf(t *testing.T, buildings []onrequest.Building, objectID string) *string {
+	t.Helper()
+	return buildingOf(t, buildings, objectID).FunctionCode
 }
 
 // TestServe_FunctionCodeFromSourceData pins that both building queries return the
 // source Building's CityGML function code (the seed is real Bavarian data, which carries
-// one per Building), null for a building without one, and null rather than an error
-// when the source property table is missing.
+// one per Building) with its use type, null for a building without one, and null rather
+// than an error when the source property table is missing.
 func TestServe_FunctionCodeFromSourceData(t *testing.T) {
 	cfg, _ := setupCorrectionAuditFixture(t)
 	ctx := context.Background()
@@ -80,6 +86,9 @@ func TestServe_FunctionCodeFromSourceData(t *testing.T) {
 	if got := functionCodeOf(t, byOSM, coded); got == nil || *got != want {
 		t.Errorf("BuildingsByOSMIDs function_code of %s = %s, want %s", coded, show(got), want)
 	}
+	if b := buildingOf(t, byOSM, coded); b.UseType == nil || b.Residential == nil {
+		t.Errorf("use_type of %s (code %s) = %s, residential = %v, want both mapped", coded, want, show(b.UseType), b.Residential)
+	}
 
 	byBBox, err := onrequest.BuildingsByBBox(ctx, testPool, cfg, bboxAround(t, ctx, coded))
 	if err != nil {
@@ -95,6 +104,9 @@ func TestServe_FunctionCodeFromSourceData(t *testing.T) {
 	}
 	if got := functionCodeOf(t, byBBox, uncoded); got != nil {
 		t.Errorf("function_code of %s = %q, want null for a building without one", uncoded, *got)
+	}
+	if b := buildingOf(t, byBBox, uncoded); b.UseType != nil || b.Residential != nil {
+		t.Errorf("use_type of %s = %s, residential = %v, want both null without a code", uncoded, show(b.UseType), b.Residential)
 	}
 
 	mustExec(t, ctx, `DROP TABLE lod2.property CASCADE`)

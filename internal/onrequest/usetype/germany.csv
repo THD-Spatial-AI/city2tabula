@@ -1,0 +1,307 @@
+# Source: AdV code list BuildingFunctionTypeAdV.xml, revision 09.04.2024,
+# https://repository.gdi-de.org/schemas/adv/citygml/Codelisten/BuildingFunctionTypeAdV.xml
+# code and label are the source's; use_type and residential are City2TABULA's classification.
+# 31001_2465 left the source list on 16.03.2020 and is kept because Bavarian LoD2 still carries it.
+code,use_type,residential,label
+31001_1000,residential,true,Wohngebäude
+31001_1010,residential,true,Wohnhaus
+31001_1020,residential,true,Wohnheim
+31001_1021,residential,true,Kinderheim
+31001_1022,residential,true,Seniorenheim
+31001_1023,residential,true,Schwesternwohnheim
+31001_1024,residential,true,"Studenten-, Schülerwohnheim"
+31001_1025,residential,true,Schullandheim
+31001_1100,residential,true,Gemischt genutztes Gebäude mit Wohnen
+31001_1110,residential,true,Wohngebäude mit Gemeinbedarf
+31001_1120,residential,true,Wohngebäude mit Handel und Dienstleistungen
+31001_1121,residential,true,Wohn- und Verwaltungsgebäude
+31001_1122,residential,true,Wohn- und Bürogebäude
+31001_1123,residential,true,Wohn- und Geschäftsgebäude
+31001_1130,residential,true,Wohngebäude mit Gewerbe und Industrie
+31001_1131,residential,true,Wohn- und Betriebsgebäude
+31001_1210,residential,true,Land- und forstwirtschaftliches Wohngebäude
+31001_1220,residential,true,Land- und forstwirtschaftliches Wohn- und Betriebsgebäude
+31001_1221,residential,true,Bauernhaus
+31001_1222,residential,true,Wohn- und Wirtschaftsgebäude
+31001_1223,residential,true,Forsthaus
+31001_1310,other,false,Gebäude zur Freizeitgestaltung
+31001_1311,residential,true,Ferienhaus
+31001_1312,residential,true,Wochenendhaus
+31001_1313,ancillary,false,Gartenhaus
+31001_2000,commercial,false,Gebäude für Wirtschaft oder Gewerbe
+31001_2010,commercial,false,Gebäude für Handel und Dienstleistungen
+31001_2020,office,false,Bürogebäude
+31001_2030,office,false,Kreditinstitut
+31001_2040,office,false,Versicherung
+31001_2050,retail,false,Geschäftsgebäude
+31001_2051,retail,false,Kaufhaus
+31001_2052,retail,false,Einkaufszentrum
+31001_2053,retail,false,Markthalle
+31001_2054,retail,false,Laden
+31001_2055,retail,false,Kiosk
+31001_2056,retail,false,Apotheke
+31001_2060,commercial,false,Messehalle
+31001_2070,hospitality,false,Gebäude für Beherbergung
+31001_2071,hospitality,false,"Hotel, Motel, Pension"
+31001_2072,hospitality,false,Jugendherberge
+31001_2073,hospitality,false,Hütte (mit Übernachtungsmöglichkeit)
+31001_2074,hospitality,false,Campingplatzgebäude
+31001_2080,hospitality,false,Gebäude für Bewirtung
+31001_2081,hospitality,false,"Gaststätte, Restaurant"
+31001_2082,hospitality,false,Hütte (ohne Übernachtungsmöglichkeit)
+31001_2083,hospitality,false,Kantine
+31001_2090,commercial,false,Freizeit- und Vergnügungsstätte
+31001_2091,commercial,false,Festsaal
+31001_2092,commercial,false,Kino
+31001_2093,commercial,false,"Kegel-, Bowlinghalle"
+31001_2094,commercial,false,Spielkasino
+31001_2095,commercial,false,Spielhalle
+31001_2100,industry,false,Gebäude für Gewerbe und Industrie
+31001_2110,industry,false,Produktionsgebäude
+31001_2111,industry,false,Fabrik
+31001_2112,industry,false,Betriebsgebäude
+31001_2113,industry,false,Brauerei
+31001_2114,industry,false,Brennerei
+31001_2120,industry,false,Werkstatt
+31001_2121,industry,false,Sägewerk
+31001_2130,commercial,false,Tankstelle
+31001_2131,commercial,false,"Waschstraße, Waschanlage, Waschhalle"
+31001_2140,industry,false,Gebäude für Vorratshaltung
+31001_2141,industry,false,Kühlhaus
+31001_2142,industry,false,Speichergebäude
+31001_2143,industry,false,"Lagerhalle, Lagerschuppen, Lagerhaus"
+31001_2150,industry,false,Speditionsgebäude
+31001_2160,education,false,Gebäude für Forschungszwecke
+31001_2170,industry,false,Gebäude für Grundstoffgewinnung
+31001_2171,industry,false,Bergwerk
+31001_2172,industry,false,Saline
+31001_2180,industry,false,Gebäude für betriebliche Sozialeinrichtung
+31001_2200,industry,false,Sonstiges Gebäude für Gewerbe und Industrie
+31001_2210,industry,false,Mühle
+31001_2211,industry,false,Windmühle
+31001_2212,industry,false,Wassermühle
+31001_2213,industry,false,Schöpfwerk
+31001_2220,industry,false,Wetterstation
+31001_2310,commercial,true,Gebäude für Handel und Dienstleistung mit Wohnen
+31001_2320,commercial,true,Gebäude für Gewerbe und Industrie mit Wohnen
+31001_2400,other,false,Betriebsgebäude zu Verkehrsanlagen (allgemein)
+31001_2410,other,false,Betriebsgebäude für Straßenverkehr
+31001_2411,other,false,Straßenmeisterei
+31001_2412,ancillary,false,Wartehalle
+31001_2420,other,false,Betriebsgebäude für Schienenverkehr
+31001_2421,other,false,Bahnwärterhaus
+31001_2422,other,false,"Lokschuppen, Wagenhalle"
+31001_2423,other,false,"Stellwerk, Blockstelle"
+31001_2424,other,false,Betriebsgebäude des Güterbahnhofs
+31001_2430,other,false,Betriebsgebäude für Flugverkehr
+31001_2431,other,false,Flugzeughalle
+31001_2440,other,false,Betriebsgebäude für Schiffsverkehr
+31001_2441,other,false,Werft (Halle)
+31001_2442,other,false,Dock (Halle)
+31001_2443,other,false,Betriebsgebäude zur Schleuse
+31001_2444,other,false,Bootshaus
+31001_2450,other,false,Betriebsgebäude zur Seilbahn
+31001_2451,other,false,Spannwerk zur Drahtseilbahn
+31001_2460,ancillary,false,Gebäude zum Parken
+31001_2461,ancillary,false,Parkhaus
+31001_2462,ancillary,false,Parkdeck
+31001_2463,ancillary,false,Garage
+31001_2464,ancillary,false,Fahrzeughalle
+31001_2465,ancillary,false,Tiefgarage
+31001_2500,industry,false,Gebäude zur Versorgung
+31001_2501,industry,false,Gebäude zur Energieversorgung
+31001_2510,industry,false,Gebäude zur Wasserversorgung
+31001_2511,industry,false,Wasserwerk
+31001_2512,industry,false,Pumpstation
+31001_2513,industry,false,Wasserbehälter
+31001_2520,industry,false,Gebäude zur Elektrizitätsversorgung
+31001_2521,industry,false,Elektrizitätswerk
+31001_2522,industry,false,Umspannwerk
+31001_2523,ancillary,false,Umformer
+31001_2527,industry,false,Reaktorgebäude
+31001_2528,industry,false,Turbinenhaus
+31001_2529,industry,false,Kesselhaus
+31001_2540,industry,false,Gebäude für Fernmeldewesen
+31001_2560,industry,false,Gebäude an unterirdischen Leitungen
+31001_2570,industry,false,Gebäude zur Gasversorgung
+31001_2571,industry,false,Gaswerk
+31001_2580,industry,false,Heizwerk
+31001_2590,industry,false,Gebäude zur Versorgungsanlage
+31001_2591,industry,false,Pumpwerk (nicht für Wasserversorgung)
+31001_2600,industry,false,Gebäude zur Entsorgung
+31001_2610,industry,false,Gebäude zur Abwasserbeseitigung
+31001_2611,industry,false,Gebäude der Kläranlage
+31001_2612,ancillary,false,Toilette
+31001_2620,industry,false,Gebäude zur Abfallbehandlung
+31001_2621,industry,false,Müllbunker
+31001_2622,industry,false,Gebäude zur Müllverbrennung
+31001_2623,industry,false,Gebäude der Abfalldeponie
+31001_2700,agriculture,false,Gebäude für Land- und Forstwirtschaft
+31001_2720,agriculture,false,Land- und forstwirtschaftliches Betriebsgebäude
+31001_2721,agriculture,false,Scheune
+31001_2723,agriculture,false,Schuppen
+31001_2724,agriculture,false,Stall
+31001_2726,agriculture,false,Scheune und Stall
+31001_2727,agriculture,false,Stall für Tiergroßhaltung
+31001_2728,agriculture,false,Reithalle
+31001_2729,agriculture,false,Wirtschaftsgebäude
+31001_2732,agriculture,false,Almhütte
+31001_2735,agriculture,false,"Jagdhaus, Jagdhütte"
+31001_2740,agriculture,false,"Treibhaus, Gewächshaus"
+31001_2741,agriculture,false,Treibhaus
+31001_2742,agriculture,false,"Gewächshaus, verschiebbar"
+31001_3000,public,false,Gebäude für öffentliche Zwecke
+31001_3010,office,false,Verwaltungsgebäude
+31001_3011,office,false,Parlament
+31001_3012,office,false,Rathaus
+31001_3013,office,false,Post
+31001_3014,office,false,Zollamt
+31001_3015,office,false,Gericht
+31001_3016,office,false,"Botschaft, Konsulat"
+31001_3017,office,false,Kreisverwaltung
+31001_3018,office,false,Bezirksregierung
+31001_3019,office,false,Finanzamt
+31001_3020,education,false,Gebäude für Bildung und Forschung
+31001_3021,education,false,Allgemein bildende Schule
+31001_3022,education,false,Berufsbildende Schule
+31001_3023,education,false,"Hochschulgebäude (Fachhochschule, Universität)"
+31001_3024,education,false,Forschungsinstitut
+31001_3030,public,false,Gebäude für kulturelle Zwecke
+31001_3031,public,false,Schloss
+31001_3032,public,false,"Theater, Oper"
+31001_3033,public,false,Konzertgebäude
+31001_3034,public,false,Museum
+31001_3035,public,false,"Rundfunk, Fernsehen"
+31001_3036,public,false,Veranstaltungsgebäude
+31001_3037,public,false,"Bibliothek, Bücherei"
+31001_3038,public,false,"Burg, Festung"
+31001_3040,public,false,Gebäude für religiöse Zwecke
+31001_3041,public,false,Kirche
+31001_3042,public,false,Synagoge
+31001_3043,public,false,Kapelle
+31001_3044,public,false,Gemeindehaus
+31001_3045,public,false,Gotteshaus
+31001_3046,public,false,Moschee
+31001_3047,public,false,Tempel
+31001_3048,public,false,Kloster
+31001_3050,health,false,Gebäude für Gesundheitswesen
+31001_3051,health,false,Krankenhaus
+31001_3052,health,false,"Heilanstalt, Pflegeanstalt, Pflegestation"
+31001_3053,health,false,"Ärztehaus, Poliklinik"
+31001_3054,health,false,Rettungswache
+31001_3060,public,false,Gebäude für soziale Zwecke
+31001_3061,public,false,Jugendfreizeitheim
+31001_3062,public,false,"Freizeit-, Vereinsheim, Dorfgemeinschafts-, Bürgerhaus"
+31001_3063,public,false,Seniorenfreizeitstätte
+31001_3064,public,false,Obdachlosenheim
+31001_3065,education,false,"Kinderkrippe, Kindergarten, Kindertagesstätte"
+31001_3066,public,false,Asylbewerberheim
+31001_3070,public,false,Gebäude für Sicherheit und Ordnung
+31001_3071,public,false,Polizei
+31001_3072,public,false,Feuerwehr
+31001_3073,public,false,Kaserne
+31001_3074,public,false,Schutzbunker
+31001_3075,public,false,Justizvollzugsanstalt
+31001_3080,public,false,Friedhofsgebäude
+31001_3081,public,false,Trauerhalle
+31001_3082,public,false,Krematorium
+31001_3090,public,false,Empfangsgebäude
+31001_3091,public,false,Bahnhofsgebäude
+31001_3092,public,false,Flughafengebäude
+31001_3094,public,false,Gebäude zum U-Bahnhof
+31001_3095,public,false,Gebäude zum S-Bahnhof
+31001_3097,public,false,Gebäude zum Busbahnhof
+31001_3098,public,false,Empfangsgebäude Schifffahrt
+31001_3100,public,true,Gebäude für öffentliche Zwecke mit Wohnen
+31001_3200,public,false,Gebäude für Erholungszwecke
+31001_3210,public,false,Gebäude für Sportzwecke
+31001_3211,public,false,"Sport-, Turnhalle"
+31001_3212,public,false,Gebäude zum Sportplatz
+31001_3220,public,false,Badegebäude
+31001_3221,public,false,Hallenbad
+31001_3222,public,false,Gebäude im Freibad
+31001_3230,public,false,Gebäude im Stadion
+31001_3240,health,false,Gebäude für Kurbetrieb
+31001_3241,health,false,Badegebäude für medizinische Zwecke
+31001_3242,health,false,Sanatorium
+31001_3260,public,false,Gebäude im Zoo
+31001_3261,public,false,Empfangsgebäude des Zoos
+31001_3262,public,false,"Aquarium, Terrarium, Voliere"
+31001_3263,public,false,Tierschauhaus
+31001_3264,public,false,Stall im Zoo
+31001_3270,public,false,Gebäude im botanischen Garten
+31001_3271,public,false,Empfangsgebäude des botanischen Gartens
+31001_3272,public,false,Gewächshaus (Botanik)
+31001_3273,public,false,Pflanzenschauhaus
+31001_3280,public,false,Gebäude für andere Erholungseinrichtung
+31001_3281,public,false,Schutzhütte
+31001_3290,public,false,Touristisches Informationszentrum
+31001_9998,,,Nach Quellenlage nicht zu spezifizieren
+51001_1001,other,false,Wasserturm
+51001_1002,other,false,Kirchturm
+51001_1003,other,false,Aussichtsturm
+51001_1004,other,false,Kontrollturm
+51001_1005,other,false,Kühlturm
+51001_1006,other,false,Leuchtturm
+51001_1007,other,false,Feuerwachturm
+51001_1008,other,false,"Sende-,Funkturm"
+51001_1009,other,false,"Stadt-,Torturm"
+51001_1010,other,false,Förderturm
+51001_1011,other,false,Bohrturm
+51001_1012,other,false,"Schloss-, Burgturm"
+51001_9998,,,Nach Quellenlage nicht zu spezifizieren
+51001_9999,other,false,Sonstiges
+51002_1215,other,false,Biogasanlage
+51002_1220,other,false,Windrad
+51002_1230,other,false,Solarzellen
+51002_1250,other,false,Mast
+51002_1251,other,false,Freileitungsmast
+51002_1260,other,false,Funkmast
+51002_1280,other,false,Radioteleskop
+51002_1290,other,false,Schornstein
+51002_1330,other,false,Kran
+51002_1331,other,false,Drehkran
+51002_1332,other,false,Portalkran
+51002_1333,other,false,Laufkran
+51002_1350,other,false,Hochofen
+51002_1400,other,false,Umformer
+51002_9999,other,false,Sonstiges
+51003_1201,other,false,Silo
+51003_1205,other,false,Tank
+51003_1206,other,false,Gasometer
+51003_9999,other,false,Sonstiges
+51006_1430,other,false,Zuschauertribüne
+51006_1431,other,false,"Zuschauertribüne, überdacht"
+51006_1432,other,false,"Zuschauertribüne, nicht überdacht"
+51006_1440,other,false,Stadion
+51006_1441,other,false,"Stadion, überdacht"
+51006_1442,other,false,"Stadion, nicht überdacht"
+51006_1470,other,false,Sprungschanze (Anlauf)
+51006_1490,other,false,Gradierwerk
+51006_9999,other,false,Sonstiges
+51007_1110,other,false,Aquädukt
+51007_1210,other,false,Wachturm
+51007_1400,other,false,Befestigung (Burgruine)
+51007_1500,other,false,Historische Mauer
+51007_1510,other,false,Stadtmauer
+51007_1520,other,false,Sonstige historische Mauer
+51007_9999,other,false,Sonstiges
+51009_1610,ancillary,false,Überdachung
+51009_1611,ancillary,false,Carport
+51009_1700,other,false,Mauer
+51009_1750,other,false,Denkmal
+51009_9999,other,false,Sonstiges
+52003_1010,other,false,Schiffshebewerk
+52003_1020,other,false,Kammerschleuse
+53001_1800,other,false,Brücke
+53001_1806,other,false,Drehbrücke
+53001_1807,other,false,Hebebrücke
+53001_1808,other,false,Zugbrücke
+53001_1830,other,false,"Hochbahn, Hochstraße"
+53001_1890,other,false,Schleusenkammer
+53009_2030,other,false,Staumauer
+53009_2050,other,false,Wehr
+53009_2060,other,false,Sicherheitstor
+53009_2070,other,false,Siel
+53009_2080,other,false,Sperrwerk
+53009_2090,other,false,Schöpfwerk

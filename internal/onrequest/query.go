@@ -26,7 +26,12 @@ type Building struct {
 	MatchType int16    `json:"match_type"`
 	// FunctionCode is the source Building's CityGML function code, for example
 	// the German ALKIS code 31001_1000. Null where the dataset carries none.
-	FunctionCode      *string   `json:"function_code"`
+	FunctionCode *string `json:"function_code"`
+	// UseType is FunctionCode mapped to the neutral use vocabulary, and
+	// Residential whether that code's building contains dwellings. Both are null
+	// where the code is missing, unmapped, or states no use.
+	UseType           *string   `json:"use_type"`
+	Residential       *bool     `json:"residential"`
 	MinHeight         *float64  `json:"min_height,omitempty"`
 	MaxHeight         *float64  `json:"max_height,omitempty"`
 	RoomHeight        *float64  `json:"room_height,omitempty"`
@@ -134,7 +139,7 @@ func BuildingsByOSMIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.Conf
 		return nil, fmt.Errorf("failed to query buildings for %s: %w", cfg.Country, err)
 	}
 	defer rows.Close()
-	buildings, err := scanBuildingRows(rows)
+	buildings, err := scanBuildingRows(rows, cfg.Country)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +190,7 @@ func BuildingsByObjectIDs(ctx context.Context, pool *pgxpool.Pool, cfg *config.C
 		return nil, fmt.Errorf("failed to query buildings by object_id for %s: %w", cfg.Country, err)
 	}
 	defer rows.Close()
-	buildings, err := scanBuildingRows(rows)
+	buildings, err := scanBuildingRows(rows, cfg.Country)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +228,7 @@ func BuildingsByBBox(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config
 		return nil, fmt.Errorf("failed to query buildings in bbox for %s: %w", cfg.Country, err)
 	}
 	defer rows.Close()
-	buildings, err := scanBuildingRows(rows)
+	buildings, err := scanBuildingRows(rows, cfg.Country)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +292,7 @@ func functionCodeColumn(ctx context.Context, pool *pgxpool.Pool, cfg *config.Con
 	return "COALESCE(" + strings.Join(parts, ", ") + ")", nil
 }
 
-func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
+func scanBuildingRows(rows pgx.Rows, country string) ([]Building, error) {
 	var buildings []Building
 	for rows.Next() {
 		var b Building
@@ -304,6 +309,7 @@ func scanBuildingRows(rows pgx.Rows) ([]Building, error) {
 		if b.OSMIDs == nil {
 			b.OSMIDs = []string{}
 		}
+		b.UseType, b.Residential = useTypeFor(country, b.FunctionCode)
 		buildings = append(buildings, b)
 	}
 	if err := rows.Err(); err != nil {
