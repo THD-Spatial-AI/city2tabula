@@ -262,3 +262,112 @@ func TestRunForRegion_RealCitydbTool_ImportsAndLinksBuildings(t *testing.T) {
 		t.Errorf("expected no match for a nonexistent osm_id, got %d", len(buildings))
 	}
 }
+
+// tileBbox returns the WGS84 envelope of an EPSG:25832 rectangle, so test boxes
+// can be placed exactly on deggendorfTile, which covers x 786-788 km, y 5416-5418 km.
+func tileBbox(t *testing.T, pool *pgxpool.Pool, xmin, ymin, xmax, ymax float64) onrequest.Bbox {
+	t.Helper()
+	var b onrequest.Bbox
+	if err := pool.QueryRow(context.Background(), `
+		SELECT ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e)
+		FROM (SELECT ST_Transform(ST_MakeEnvelope($1, $2, $3, $4, 25832), 4326) AS e) x`,
+		xmin, ymin, xmax, ymax,
+	).Scan(&b.Xmin, &b.Ymin, &b.Xmax, &b.Ymax); err != nil {
+		t.Fatalf("transform bbox: %v", err)
+	}
+	return b
+}
+
+// buildingCounts returns the LOD2 Building features and extracted buildings, and
+// how many object ids either holds more than once.
+func buildingCounts(t *testing.T, pool *pgxpool.Pool) (features, buildings, repeated int) {
+	t.Helper()
+	if err := pool.QueryRow(context.Background(), `
+		SELECT (SELECT count(*) FROM lod2.feature WHERE objectclass_id = 901),
+		       (SELECT count(*) FROM city2tabula.lod2_building),
+		       (SELECT count(*) FROM (SELECT objectid FROM lod2.feature WHERE objectclass_id = 901
+		                              GROUP BY objectid HAVING count(*) > 1) f)
+		     + (SELECT count(*) FROM (SELECT object_id FROM city2tabula.lod2_building
+		                              GROUP BY object_id HAVING count(*) > 1) b)`,
+	).Scan(&features, &buildings, &repeated); err != nil {
+		t.Fatalf("count buildings: %v", err)
+	}
+	return features, buildings, repeated
+}
+
+// TestRunForRegion_RealCitydbTool_OverlapsImportOnce pins that runs over
+// overlapping bboxes, and a run after a dataset folder gains a file holding
+// buildings already imported, store each building once. The second file is a
+// copy of the first tile, the extreme case of two tiles sharing buildings.
+func TestRunForRegion_RealCitydbTool_OverlapsImportOnce(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	projectRoot := filepath.Join(wd, "..", "..")
+	t.Chdir(projectRoot)
+	toolPath := skipUnlessRealResourcesAvailable(t)
+
+	host, port := testutil.StartPostGISAddr(t)
+	cfg := e2eConfig(t, host, port, "onrequest_overlap_test_de", toolPath)
+
+	lod2Dir := t.TempDir()
+	gmlDir := filepath.Join(lod2Dir, "deggendorf", "gml")
+	if err := os.MkdirAll(gmlDir, 0o755); err != nil {
+		t.Fatalf("create dataset folder: %v", err)
+	}
+	copyFile(t, deggendorfTile, filepath.Join(gmlDir, filepath.Base(deggendorfTile)))
+	if err := os.WriteFile(filepath.Join(lod2Dir, "deggendorf", "attribution.json"), []byte(deggendorfAttribution), 0o644); err != nil {
+		t.Fatalf("write attribution.json: %v", err)
+	}
+	cfg.Data = &config.DataPaths{
+		Lod2:   lod2Dir,
+		Lod3:   t.TempDir(),
+		Tabula: filepath.Join(projectRoot, "data", "tabula") + string(filepath.Separator),
+	}
+
+	pool, err := db.ConnectPool(cfg)
+	if err != nil {
+		t.Fatalf("ConnectPool: %v", err)
+	}
+	t.Cleanup(func() { db.ClosePool(pool) })
+	if err := db.CreateCityDB(cfg); err != nil {
+		t.Fatalf("CreateCityDB: %v", err)
+	}
+	if err := db.RunCity2TabulaDBSetup(cfg, pool); err != nil {
+		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
+	}
+	seedEmptyPylovoTables(t, pool)
+
+	run := func(name string, bbox onrequest.Bbox) (features, buildings int) {
+		t.Helper()
+		if err := onrequest.RunForRegion(cfg, bbox, "intersects", func(onrequest.Stage) {}); err != nil {
+			t.Fatalf("%s: RunForRegion: %v", name, err)
+		}
+		features, buildings, repeated := buildingCounts(t, pool)
+		if repeated != 0 {
+			t.Errorf("%s: %d object ids stored more than once (%d features, %d buildings)", name, repeated, features, buildings)
+		}
+		return features, buildings
+	}
+
+	west := tileBbox(t, pool, 786000, 5416000, 787200, 5418000)
+	east := tileBbox(t, pool, 786800, 5416000, 788000, 5418000)
+	whole := tileBbox(t, pool, 786000, 5416000, 788000, 5418000)
+
+	westFeatures, _ := run("west bbox", west)
+	if westFeatures == 0 {
+		t.Fatal("west bbox imported no buildings; the box misses the tile")
+	}
+	features, buildings := run("overlapping east bbox", east)
+	if features <= westFeatures {
+		t.Errorf("east bbox added no buildings: %d features after, %d before", features, westFeatures)
+	}
+
+	copyFile(t, deggendorfTile, filepath.Join(gmlDir, "copy_of_"+filepath.Base(deggendorfTile)))
+	againFeatures, againBuildings := run("whole tile after adding a copy", whole)
+	if againFeatures != features || againBuildings != buildings {
+		t.Errorf("re-import after adding a copy changed the counts: features %d -> %d, buildings %d -> %d",
+			features, againFeatures, buildings, againBuildings)
+	}
+}
