@@ -36,27 +36,30 @@ theme:
   language: en
   palette:
       - media: "(prefers-color-scheme)"
+        primary: custom
+        accent: custom
         toggle:
           icon: material/link
           name: Switch to light mode
       - media: "(prefers-color-scheme: light)"
         scheme: default
-        primary: black
-        accent: indigo
+        primary: custom
+        accent: custom
         toggle:
           icon: material/toggle-switch
           name: Switch to dark mode
       - media: "(prefers-color-scheme: dark)"
         scheme: slate
-        primary: black
-        accent: black
+        primary: custom
+        accent: custom
         toggle:
           icon: material/toggle-switch-off
           name: Switch to system preference
   font:
     text: Roboto
     code: Roboto Mono
-  logo: assets/logo/svg/city2tabula_logo_icon.svg
+  logo: assets/logo/city2tabula-lockup-violet-dark-outline.svg
+  favicon: assets/logo/favicon.ico
 # Plugins
 plugins:
   - search:
