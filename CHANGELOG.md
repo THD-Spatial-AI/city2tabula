@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.12.0 (2026-10-23)
 
 Features:
 - GET /api/v1/buildings returns use_type and residential next to
