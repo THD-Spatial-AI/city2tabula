@@ -281,6 +281,52 @@ paths:
                 $ref: "#/components/schemas/Error"
 
 
+  /api/v1/surfaces:
+    get:
+      summary: Roof and wall surfaces in a bbox, paged
+      operationId: getSurfaces
+      description: |
+        Every building whose footprint intersects the bbox (all four bbox
+        parameters are required), with its roof and wall surfaces as 3D
+        polygons in WGS84, for rendering. Buildings come in object_id order,
+        one page at a time: request the first page without `cursor`, then pass
+        each response's `next_cursor` unchanged until it is null. A page holds
+        whole buildings and stays near 4 MB.
+
+        ```
+        curl "http://localhost:5050/api/v1/surfaces?country=germany&xmin=12.95&ymin=48.83&xmax=12.97&ymax=48.84"
+        ```
+      parameters:
+        - $ref: "#/components/parameters/Country"
+        - $ref: "#/components/parameters/Xmin"
+        - $ref: "#/components/parameters/Ymin"
+        - $ref: "#/components/parameters/Xmax"
+        - $ref: "#/components/parameters/Ymax"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: The previous page's `next_cursor`. Omit it for the first page.
+      responses:
+        "200":
+          description: One page of buildings with their surfaces, and the credit of every dataset they come from. An unconfigured country gives empty lists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurfacesResponse"
+        "400":
+          description: Missing country, a missing or non-numeric bbox value, or a cursor this API did not return. Not retryable unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database query failed, or a returned dataset has no stored credit. Not retryable until the database is fixed (run `c2t -sync-attribution` for a missing credit).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   parameters:
     Country:
@@ -423,6 +469,53 @@ components:
           items:
             $ref: "#/components/schemas/DatasetCredit"
 
+    SurfacesResponse:
+      type: object
+      required: [buildings, attributions, next_cursor]
+      properties:
+        buildings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildingSurfaces"
+        attributions:
+          type: array
+          description: One entry per dataset in `buildings`
+          items:
+            $ref: "#/components/schemas/DatasetCredit"
+        next_cursor:
+          type: string
+          nullable: true
+          description: Pass as `cursor` for the next page; null on the last page. Opaque.
+    BuildingSurfaces:
+      type: object
+      required: [object_id, osm_ids, surfaces]
+      properties:
+        object_id:
+          type: string
+          example: DEBY_LOD2_7672144
+        osm_ids:
+          type: array
+          items: {type: string}
+          description: OSM ways linked to the building, best first; `[]` when none.
+          example: ["223728275"]
+        surfaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/RenderSurface"
+    RenderSurface:
+      type: object
+      required: [id, type, geometry]
+      properties:
+        id:
+          type: string
+          description: Surface id, the same as `SurfaceGeometry.id` from `/geometry?include=surfaces`.
+        type:
+          type: string
+          enum: [RoofSurface, WallSurface]
+          description: CityGML surface class. Walls shared with an attached neighbour are included.
+        geometry:
+          type: object
+          description: GeoJSON Polygon in EPSG:4326, coordinates [longitude, latitude, height in metres] to 7 decimals, no `crs` member.
     DatasetCredit:
       type: object
       description: A source dataset's attribution. Show `credit` with any output derived from the dataset.
