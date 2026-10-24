@@ -287,11 +287,12 @@ paths:
       operationId: getSurfaces
       description: |
         Every building whose footprint intersects the bbox (all four bbox
-        parameters are required), with its roof and wall surfaces as 3D
-        polygons in WGS84, for rendering. Buildings come in object_id order,
-        one page at a time: request the first page without `cursor`, then pass
-        each response's `next_cursor` unchanged until it is null. A page holds
-        whole buildings and stays near 4 MB.
+        parameters are required), with its roof and wall surfaces as 3D polygons
+        in WGS84, for rendering. The surfaces are those of
+        `/geometry?include=surfaces` without ground surfaces. Buildings come in
+        object_id order, one page at a time: request the first page without
+        `cursor`, then pass each response's `next_cursor` unchanged until it is
+        null. A page holds whole buildings and stays near 4 MB.
 
         ```
         curl "http://localhost:5050/api/v1/surfaces?country=germany&xmin=12.95&ymin=48.83&xmax=12.97&ymax=48.84"
@@ -515,7 +516,12 @@ components:
           description: CityGML surface class. Walls shared with an attached neighbour are included.
         geometry:
           type: object
-          description: GeoJSON Polygon in EPSG:4326, coordinates [longitude, latitude, height in metres] to 7 decimals, no `crs` member.
+          description: |
+            GeoJSON Polygon in EPSG:4326, coordinates [longitude, latitude,
+            height in metres] to 7 decimals, no `crs` member. Coordinates are
+            absolute, with no origin subtracted. A renderer working in 32-bit
+            floats subtracts its own origin first: a float32 latitude near 49
+            degrees resolves only to about 0.4 m.
     DatasetCredit:
       type: object
       description: A source dataset's attribution. Show `credit` with any output derived from the dataset.
