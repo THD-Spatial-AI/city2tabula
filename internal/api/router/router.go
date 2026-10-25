@@ -13,7 +13,8 @@ import (
 // GET /api/v1/runs/{id} (run status),
 // GET /api/v1/coverage (pre-trigger check),
 // GET /api/v1/buildings (thematic 3D attributes, no geometry),
-// GET /api/v1/geometry (footprint geometry, fetched separately).
+// GET /api/v1/geometry (footprint geometry, fetched separately),
+// GET /api/v1/surfaces (roof and wall surfaces in a bbox, paged, for rendering).
 // Every request is logged and carries an X-Request-ID (handler.LogRequests).
 func New(h *handler.Handler) http.Handler {
 	mux := http.NewServeMux()
@@ -23,5 +24,6 @@ func New(h *handler.Handler) http.Handler {
 	mux.HandleFunc("GET /api/v1/coverage", h.Coverage)
 	mux.HandleFunc("GET /api/v1/buildings", h.Buildings)
 	mux.HandleFunc("GET /api/v1/geometry", h.Geometry)
+	mux.HandleFunc("GET /api/v1/surfaces", h.Surfaces)
 	return handler.LogRequests(mux)
 }

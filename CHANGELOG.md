@@ -3,6 +3,17 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- GET /api/v1/surfaces returns the roof and wall surfaces of every
+  building in a WGS84 bbox, for rendering: per building its object_id,
+  its OSM ways and each surface's id (the same as /geometry's), type
+  and GeoJSON Polygon in EPSG:4326 with height, to 7 decimals. Pages
+  hold whole buildings up to about 4 MB, in object_id order; pass
+  next_cursor back until it is null. /geometry still serves surfaces
+  for one building at a time.
+
 ## v0.12.0 (2026-10-23)
 
 Features:
