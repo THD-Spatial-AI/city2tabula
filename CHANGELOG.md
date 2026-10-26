@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.14.0 (2026-10-26)
 
 Features:
 - -import-data and -create-db record a whole-folder import by its
