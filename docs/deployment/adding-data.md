@@ -26,6 +26,25 @@ A folder counts as changed when the path, size or modification time of any file 
 !!! warning "One invalid attribution file stops the country's import"
     Before anything is imported, every dataset folder of the country is checked: it needs a valid `attribution.json` ([Dataset attribution file](../code/attribution/index.md)) and a `gml/` or `cityjson/` folder, and no model file may lie directly in `data/lod2/<country>/`. One failing folder stops the whole import for that country, with an error naming the folder; nothing is imported until it is fixed. A scheduled job should report the error.
 
+## Checking files before publishing
+
+`-check-data` checks a staged dataset folder for the country without importing it or connecting to a database. It needs only `COUNTRY`.
+
+```bash
+COUNTRY=germany c2t -check-data data/lod2/germany/.bavaria-upload
+```
+
+| Check | Fails when |
+|---|---|
+| `attribution.json` | It is missing or breaks a rule of the [attribution file](../code/attribution/index.md) |
+| Model folders | There is neither a `gml/` nor a `cityjson/` folder, or a model file lies outside them (hidden folders are not read) |
+| `dataset_id` | A published folder of the country uses it with a different `attribution.json`. The same file means the staged files extend that dataset |
+| Model files | A file, gzipped or not and in any subfolder, is not CityGML or CityJSON, or its declared CRS is not the SRID the import uses: `CITYDB_SRID`, or the country's default ([Configuration](../configuration/index.md)) |
+
+The CRS is read from a CityGML file's `srsName` values in its first MiB and from a CityJSON file's `metadata.referenceSystem`. EPSG names are accepted in the `urn:ogc:def:crs:EPSG::<code>`, `https://www.opengis.net/def/crs/EPSG/0/<code>` and `EPSG:<code>` forms, as are the AdV names `urn:adv:crs:ETRS89_UTM32*` and `urn:adv:crs:ETRS89_UTM33*` and the compound EPSG:7415 (Amersfoort / RD New + NAP). Any other name, such as `unknown`, fails.
+
+The command lists every problem, each naming its file or folder, and exits with status 1; a folder that passes prints `ready to publish` and exits with status 0.
+
 ## Staging files
 
 A file that is still being written must not be in a model folder when an import runs. Write files outside the model folders, then rename them into place on the same filesystem, where a rename is atomic. No marker file is needed.

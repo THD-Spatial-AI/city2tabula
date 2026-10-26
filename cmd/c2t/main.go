@@ -42,6 +42,11 @@ func main() {
 	utils.InitLogger()
 	config := config.LoadConfig()
 
+	// Before Validate: a check needs only COUNTRY, not database settings.
+	if f.CheckData != "" {
+		os.Exit(checkData(&config, f.CheckData))
+	}
+
 	if err := config.Validate(); err != nil {
 		utils.Error.Fatal("Invalid configuration:", err)
 	}
@@ -121,4 +126,19 @@ func main() {
 		}
 		utils.Info.Println(flagMessages.LinkPylovo.Success)
 	}
+}
+
+// checkData prints every problem importer.CheckDataset finds in dir and returns
+// the process exit code: 0 when the folder is ready to publish, 1 otherwise.
+func checkData(cfg *config.Config, dir string) int {
+	problems := importer.CheckDataset(cfg, dir)
+	for _, p := range problems {
+		fmt.Fprintln(os.Stderr, p)
+	}
+	if len(problems) > 0 {
+		fmt.Fprintf(os.Stderr, "%s: %d problem(s); not ready to publish under %s\n", dir, len(problems), cfg.Country)
+		return 1
+	}
+	fmt.Printf("%s: ready to publish under %s\n", dir, cfg.Country)
+	return 0
 }
