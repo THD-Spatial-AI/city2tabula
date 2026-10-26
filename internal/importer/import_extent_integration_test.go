@@ -117,3 +117,36 @@ func TestImportCityDBData_ImportLimitIsNotRecorded(t *testing.T) {
 		t.Fatalf("citydb import called %d times, want 2 (a limited import is partial)", got)
 	}
 }
+
+// TestImportCityDBData_SkipsUnchangedWholeFolder pins that a whole-folder import
+// (no bbox), as a scheduled run makes, is recorded: repeating it, or a bbox
+// import afterwards, skips citydb-tool until the folder's files change.
+func TestImportCityDBData_SkipsUnchangedWholeFolder(t *testing.T) {
+	ctx := context.Background()
+	cfg, logPath, gml := extentConfig(t, ctx, "extent_whole_lod2")
+
+	steps := []struct {
+		name, bbox, mode string
+		addFile          string
+		wantCalls        int
+	}{
+		{name: "first whole-folder import", wantCalls: 1},
+		{name: "same files again", wantCalls: 1},
+		{name: "bbox import after a whole-folder one", bbox: "16.349,48.210,16.351,48.212,4326", mode: "intersects", wantCalls: 1},
+		{name: "a file added", addFile: "tile-2.gml", wantCalls: 2},
+		{name: "same files again after the change", wantCalls: 2},
+	}
+	for _, s := range steps {
+		if s.addFile != "" {
+			if err := os.WriteFile(filepath.Join(gml, s.addFile), []byte("<tile/>"), 0o644); err != nil {
+				t.Fatalf("%s: %v", s.name, err)
+			}
+		}
+		if err := importer.ImportCityDBData(testPool, cfg, s.bbox, s.mode); err != nil {
+			t.Fatalf("%s: ImportCityDBData: %v", s.name, err)
+		}
+		if got := importCalls(t, logPath); got != s.wantCalls {
+			t.Fatalf("%s: citydb import called %d times in total, want %d", s.name, got, s.wantCalls)
+		}
+	}
+}
