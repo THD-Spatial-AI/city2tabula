@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v$V ($DATE)
 
 Features:
 - A bbox import (POST /api/v1/runs, -import-data -bbox) passes
