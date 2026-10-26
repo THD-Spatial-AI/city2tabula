@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -63,22 +64,30 @@ func parseImportBbox(s string, defaultSRID string) (importBbox, error) {
 // in the dataset's model folders, so adding, replacing or removing a file
 // changes it.
 func inputFingerprint(d Dataset) (string, error) {
-	h := sha256.New()
+	var files []string
 	for _, in := range d.Inputs {
 		err := filepath.WalkDir(in.path, func(path string, e fs.DirEntry, err error) error {
-			if err != nil || e.IsDir() {
-				return err
+			if err == nil && !e.IsDir() {
+				files = append(files, path)
 			}
-			info, err := e.Info()
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(h, "%s\x00%d\x00%d\n", path, info.Size(), info.ModTime().UnixNano())
-			return nil
+			return err
 		})
 		if err != nil {
 			return "", fmt.Errorf("fingerprint %s: %w", in.path, err)
 		}
+	}
+	return fingerprintFiles(files)
+}
+
+// fingerprintFiles hashes the path, size and modification time of files.
+func fingerprintFiles(files []string) (string, error) {
+	h := sha256.New()
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", fmt.Errorf("fingerprint %s: %w", path, err)
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00%d\n", path, info.Size(), info.ModTime().UnixNano())
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
@@ -126,15 +135,18 @@ func extentImported(conn *pgxpool.Pool, d Dataset, fingerprint string, b importB
 	return covered, nil
 }
 
-// recordExtent stores b as imported for d, and drops rows recorded against
-// source files that have since changed.
+// recordExtent stores b as imported for d from the files fingerprint stands for,
+// and drops the rows of the same bbox and mode recorded from other files. Rows of
+// other bboxes stay: each is checked against its own files' fingerprint.
 func recordExtent(conn *pgxpool.Pool, d Dataset, fingerprint string, b importBbox, mode string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
 	defer cancel()
 	table := pgx.Identifier{d.Schema, extentTable}.Sanitize()
 	err := pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `DELETE FROM `+table+` WHERE dataset_id = $1 AND input_fingerprint <> $2`,
-			d.Attribution.DatasetID, fingerprint); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM `+table+`
+			WHERE dataset_id = $1 AND input_fingerprint <> $2 AND bbox_mode = $3
+			  AND ST_Equals(geom, ST_Transform(ST_MakeEnvelope($4, $5, $6, $7, $8::int), 4326))`,
+			d.Attribution.DatasetID, fingerprint, mode, b.xmin, b.ymin, b.xmax, b.ymax, b.srid); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO `+table+` (dataset_id, input_fingerprint, bbox_mode, geom)
@@ -159,31 +171,63 @@ var wholeFolder = importBbox{xmin: -180, ymin: -90, xmax: 180, ymax: 90, srid: 4
 // import when conn is nil, as in tests that never reach a real database.
 func importDatasetOnce(conn *pgxpool.Pool, cityDBExecPath string, d Dataset, cfg *config.Config, bbox, bboxMode string) error {
 	if cfg.CityDB.ImportLimit > 0 || conn == nil {
-		return importCityDBFiles(cityDBExecPath, d, cfg, bbox, bboxMode)
-	}
-	b, mode := wholeFolder, "intersects"
-	if bbox != "" {
-		parsed, err := parseImportBbox(bbox, cfg.CityDB.SRID)
-		if err != nil {
-			return err
-		}
-		b, mode = parsed, bboxMode
+		return importCityDBFiles(cityDBExecPath, d, cfg, bbox, bboxMode, nil)
 	}
 	fingerprint, err := inputFingerprint(d)
 	if err != nil {
 		return err
 	}
-
-	covered, err := extentImported(conn, d, fingerprint, b, mode)
+	if bbox == "" {
+		return importWholeFolderOnce(conn, cityDBExecPath, d, cfg, fingerprint)
+	}
+	b, err := parseImportBbox(bbox, cfg.CityDB.SRID)
 	if err != nil {
 		return err
 	}
+	return importBboxOnce(conn, cityDBExecPath, d, cfg, b, bbox, bboxMode, fingerprint)
+}
+
+// importWholeFolderOnce imports the whole of d unless the same files were
+// imported whole before.
+func importWholeFolderOnce(conn *pgxpool.Pool, cityDBExecPath string, d Dataset, cfg *config.Config, fingerprint string) error {
+	covered, err := extentImported(conn, d, fingerprint, wholeFolder, "intersects")
+	if err != nil || covered {
+		if covered {
+			utils.Info.Printf("%s already imported whole from unchanged files, skipping citydb-tool", d.Attribution.DatasetID)
+		}
+		return err
+	}
+	if err := importCityDBFiles(cityDBExecPath, d, cfg, "", "", nil); err != nil {
+		return err
+	}
+	return recordExtent(conn, d, fingerprint, wholeFolder, "intersects")
+}
+
+// importBboxOnce imports the files of d whose declared extent intersects b, and
+// records b against those files alone, so files added elsewhere leave the record
+// valid. A whole-folder import of the current files also covers b.
+func importBboxOnce(conn *pgxpool.Pool, cityDBExecPath string, d Dataset, cfg *config.Config, b importBbox, bbox, mode, folderFingerprint string) error {
+	covered, err := extentImported(conn, d, folderFingerprint, b, mode)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
+	defer cancel()
+	var selection map[string][]string
+	var fingerprint string
+	if !covered {
+		if selection, fingerprint, err = selectFiles(ctx, conn, d, b); err != nil {
+			return err
+		}
+		if covered, err = extentImported(conn, d, fingerprint, b, mode); err != nil {
+			return err
+		}
+	}
 	if covered {
-		utils.Info.Printf("%s already imported from unchanged files for bbox %q, skipping citydb-tool", d.Attribution.DatasetID, bbox)
+		utils.Info.Printf("%s already imported from unchanged files for bbox %s, skipping citydb-tool", d.Attribution.DatasetID, bbox)
 		return nil
 	}
-
-	if err := importCityDBFiles(cityDBExecPath, d, cfg, bbox, bboxMode); err != nil {
+	if err := importCityDBFiles(cityDBExecPath, d, cfg, bbox, mode, selection); err != nil {
 		return err
 	}
 	return recordExtent(conn, d, fingerprint, b, mode)

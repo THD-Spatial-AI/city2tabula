@@ -23,6 +23,18 @@ COUNTRY=germany c2t -import-data   # afterwards, as often as needed: imports wha
 
 A folder counts as changed when the path, size or modification time of any file in its `gml/` or `cityjson/` folder changes. A run for a bbox (`POST /api/v1/runs`, or `-import-data -bbox`) after a whole-folder import of unchanged files does not run citydb-tool either.
 
+## Importing one region
+
+A run for a bbox imports only the files whose declared extent intersects it: a CityGML file's `boundedBy` envelope, or a CityJSON file's `metadata.geographicalExtent` in its `referenceSystem`. A file without a readable extent, or with a CRS that is not recognised (see [Checking files before publishing](#checking-files-before-publishing)), is always passed to citydb-tool, whose own bbox filter then applies. The bbox is recorded against the selected files alone, so:
+
+| Since the last run for the same bbox | Result |
+|---|---|
+| No selected file added, replaced or removed | citydb-tool is not run |
+| Files added or changed in another region | citydb-tool is not run |
+| A selected file added, replaced or removed | The selected files are imported again; existing buildings are skipped |
+
+With all 18,297 Bavarian tiles (142 GB) in one dataset folder, a region of about 2 by 1 km selects 4 files, imports in 9 s, and a repeat run takes about 1 s.
+
 !!! warning "One invalid attribution file stops the country's import"
     Before anything is imported, every dataset folder of the country is checked: it needs a valid `attribution.json` ([Dataset attribution file](../code/attribution/index.md)) and a `gml/` or `cityjson/` folder, and no model file may lie directly in `data/lod2/<country>/`. One failing folder stops the whole import for that country, with an error naming the folder; nothing is imported until it is fixed. A scheduled job should report the error.
 

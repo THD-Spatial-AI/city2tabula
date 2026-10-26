@@ -63,9 +63,23 @@ func testCityDBExecPath(cityDBExecPath string) error {
 // importCityDBFiles imports each of a dataset's model folders with its own
 // format into the dataset's schema, tagging every feature with the dataset_id
 // as its lineage.
-func importCityDBFiles(cityDBExecPath string, d Dataset, config *config.Config, bbox, bboxMode string) error {
+func importCityDBFiles(cityDBExecPath string, d Dataset, config *config.Config, bbox, bboxMode string, selection map[string][]string) error {
 	for _, in := range d.Inputs {
-		cmd := getCityDBImportCommand(cityDBExecPath, in.path, d.Schema, in.format, d.Attribution.DatasetID, config, bbox, bboxMode)
+		dataPath := in.path
+		if selection != nil {
+			files := selection[in.path]
+			if len(files) == 0 {
+				utils.Info.Printf("%s %s: no file intersects the bbox, nothing to import", d.Attribution.DatasetID, in.label)
+				continue
+			}
+			argFile, err := writeArgFile(files)
+			if err != nil {
+				return fmt.Errorf("list the files of %s to import: %w", in.path, err)
+			}
+			defer os.Remove(argFile)
+			dataPath = "@" + argFile
+		}
+		cmd := getCityDBImportCommand(cityDBExecPath, dataPath, d.Schema, in.format, d.Attribution.DatasetID, config, bbox, bboxMode)
 		if err := executeCityDBCommand(cmd, fmt.Sprintf("%s %s", d.Attribution.DatasetID, in.label)); err != nil {
 			return err
 		}

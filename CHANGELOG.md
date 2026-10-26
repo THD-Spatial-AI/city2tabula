@@ -3,6 +3,19 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- A bbox import (POST /api/v1/runs, -import-data -bbox) passes
+  citydb-tool only the files whose declared extent intersects the bbox:
+  a CityGML boundedBy envelope, or a CityJSON metadata
+  geographicalExtent. It records the bbox against those files alone,
+  so a region import reads only that region's tiles, and adding tiles
+  elsewhere in the dataset folder leaves earlier regions' records valid.
+  A file without a readable extent or a recognised CRS is always
+  passed. On all 18,297 Bavarian tiles in one folder, a region of about
+  2 by 1 km imports 4 files in 9 s; a repeat run takes about 1 s.
+
 ## v0.14.0 (2026-10-26)
 
 Features:
