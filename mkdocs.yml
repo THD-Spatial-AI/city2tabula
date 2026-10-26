@@ -116,6 +116,7 @@ nav:
   - Home: index.md
   - Setup & Installation: installation/setup.md
   - Deployment Guide: deployment/index.md
+  - Adding Data: deployment/adding-data.md
   - Configuration: configuration/index.md
   - Troubleshooting: troubleshooting/index.md
   - API reference: api.md

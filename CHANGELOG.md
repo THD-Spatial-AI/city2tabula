@@ -3,6 +3,17 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- -import-data and -create-db record a whole-folder import by its
+  files' fingerprint, as bbox imports already were, so a later import
+  skips citydb-tool for every dataset folder whose files are unchanged.
+  A scheduled `c2t -import-data` is then cheap when nothing is new. A
+  bbox run after a whole-folder import of unchanged files is skipped
+  too. docs/deployment/adding-data.md covers the scheduled import, the
+  staging of new files and the attribution check.
+
 ## v0.13.0 (2026-10-25)
 
 Features:

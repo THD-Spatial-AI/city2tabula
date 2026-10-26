@@ -148,34 +148,43 @@ func recordExtent(conn *pgxpool.Pool, d Dataset, fingerprint string, b importBbo
 	return nil
 }
 
-// importDatasetOnce imports d for bbox unless an earlier import already
-// covered it, and records the bbox once the import succeeds. A whole-folder
-// import (empty bbox) or a limited one (partial by design) is neither skipped
-// nor recorded.
+// wholeFolder is the extent a whole-folder import (empty bbox) records: it holds
+// every feature of the folder, so it covers any later bbox in any mode.
+var wholeFolder = importBbox{xmin: -180, ymin: -90, xmax: 180, ymax: 90, srid: 4326}
+
+// importDatasetOnce imports d for bbox unless an earlier import from the same
+// source files already covered it, and records the extent once the import
+// succeeds. An empty bbox imports the whole folder and records wholeFolder. A
+// limited import (partial by design) is neither skipped nor recorded, nor is any
+// import when conn is nil, as in tests that never reach a real database.
 func importDatasetOnce(conn *pgxpool.Pool, cityDBExecPath string, d Dataset, cfg *config.Config, bbox, bboxMode string) error {
-	if bbox == "" || cfg.CityDB.ImportLimit > 0 {
+	if cfg.CityDB.ImportLimit > 0 || conn == nil {
 		return importCityDBFiles(cityDBExecPath, d, cfg, bbox, bboxMode)
 	}
-	b, err := parseImportBbox(bbox, cfg.CityDB.SRID)
-	if err != nil {
-		return err
+	b, mode := wholeFolder, "intersects"
+	if bbox != "" {
+		parsed, err := parseImportBbox(bbox, cfg.CityDB.SRID)
+		if err != nil {
+			return err
+		}
+		b, mode = parsed, bboxMode
 	}
 	fingerprint, err := inputFingerprint(d)
 	if err != nil {
 		return err
 	}
 
-	covered, err := extentImported(conn, d, fingerprint, b, bboxMode)
+	covered, err := extentImported(conn, d, fingerprint, b, mode)
 	if err != nil {
 		return err
 	}
 	if covered {
-		utils.Info.Printf("%s already imported for bbox %s, skipping citydb-tool", d.Attribution.DatasetID, bbox)
+		utils.Info.Printf("%s already imported from unchanged files for bbox %q, skipping citydb-tool", d.Attribution.DatasetID, bbox)
 		return nil
 	}
 
 	if err := importCityDBFiles(cityDBExecPath, d, cfg, bbox, bboxMode); err != nil {
 		return err
 	}
-	return recordExtent(conn, d, fingerprint, b, bboxMode)
+	return recordExtent(conn, d, fingerprint, b, mode)
 }
