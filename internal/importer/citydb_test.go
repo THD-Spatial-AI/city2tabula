@@ -211,7 +211,7 @@ func TestImportCityDBFiles_BothFormatsAttemptedOnSuccess(t *testing.T) {
 		{"citygml", "CityGML", filepath.Join(dataDir, "gml")},
 		{"cityjson", "CityJSON", filepath.Join(dataDir, "cityjson")},
 	}, Attribution: attribution.Attribution{DatasetID: "ds-1"}}
-	if err := importCityDBFiles(exe, d, cfg, "", ""); err != nil {
+	if err := importCityDBFiles(exe, d, cfg, "", "", nil); err != nil {
 		t.Fatalf("importCityDBFiles: %v", err)
 	}
 
@@ -246,7 +246,7 @@ func TestImportCityDBFiles_CityGMLFailureShortCircuitsCityJSON(t *testing.T) {
 		{"citygml", "CityGML", filepath.Join(dataDir, "gml")},
 		{"cityjson", "CityJSON", filepath.Join(dataDir, "cityjson")},
 	}, Attribution: attribution.Attribution{DatasetID: "ds-1"}}
-	if err := importCityDBFiles(exe, d, cfg, "", ""); err == nil {
+	if err := importCityDBFiles(exe, d, cfg, "", "", nil); err == nil {
 		t.Fatal("expected an error when the citygml import fails, got nil")
 	}
 
