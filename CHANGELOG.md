@@ -13,6 +13,12 @@ Features:
   bbox run after a whole-folder import of unchanged files is skipped
   too. docs/deployment/adding-data.md covers the scheduled import, the
   staging of new files and the attribution check.
+- c2t -check-data <dir> checks a staged dataset folder for COUNTRY
+  without importing it or connecting to a database: attribution.json,
+  the gml/ and cityjson/ folders, a dataset_id no published folder uses
+  with another attribution, and each model file's format and declared
+  CRS, which must be the SRID the import uses. It lists every problem
+  and exits with status 1, or prints "ready to publish".
 
 ## v0.13.0 (2026-10-25)
 

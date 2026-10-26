@@ -14,6 +14,7 @@ type Flags struct {
 	ShowVersion     bool
 	ShowV           bool
 	Bbox            string
+	CheckData       string
 	BboxMode        string
 }
 
@@ -30,6 +31,7 @@ func ParseFlags() *Flags {
 	flag.BoolVar(&f.ShowVersion, "version", false, "print version and exit")
 	flag.BoolVar(&f.ShowV, "v", false, "print version and exit (shorthand)")
 	flag.StringVar(&f.Bbox, "bbox", "", "Bounding box spatial filter for -import-data, format xmin,ymin,xmax,ymax[,srid] (passed through to citydb-tool)")
+	flag.StringVar(&f.CheckData, "check-data", "", "Check a staged dataset folder for publishing under COUNTRY (attribution.json, model folders, dataset_id, each model file's format and CRS) without importing it or connecting to a database; exits 1 listing every problem")
 	flag.StringVar(&f.BboxMode, "bbox-mode", "intersects", "Bounding box filter mode for -bbox: intersects, contains, or on_tile")
 	flag.Parse()
 	return f
