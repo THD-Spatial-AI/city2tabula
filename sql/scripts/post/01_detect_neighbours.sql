@@ -3,7 +3,10 @@
 -- boundaries, so a per-batch step would miss pairs.
 --
 -- Two buildings are attached when their footprints lie within 0.1 m of each other
--- and share at least 1 m of boundary, which leaves out corner-only contacts.
+-- and share at least 1 m of boundary, which leaves out corner-only contacts. The
+-- shared boundary is measured both ways, so the result does not depend on which
+-- building has the lower id, and only boundary near boundary counts: a footprint
+-- lying inside or across another shares no wall with it.
 -- 0.1 m separates touching from detached footprints in the NL, DE, AT and CZ
 -- datasets alike; wider gaps are mostly detached houses and sheds.
 --
@@ -22,8 +25,12 @@ WITH pairs AS (
     JOIN {city2tabula_schema}.{lod_schema}_building c
       ON a.building_feature_id < c.building_feature_id
      AND ST_DWithin(a.building_footprint_geom, c.building_footprint_geom, 0.1)
-    WHERE ST_Length(ST_Intersection(ST_Boundary(ST_Force2D(a.building_footprint_geom)),
-                                    ST_Buffer(ST_Force2D(c.building_footprint_geom), 0.1))) >= 1
+    WHERE GREATEST(
+        ST_Length(ST_Intersection(ST_Boundary(ST_Force2D(a.building_footprint_geom)),
+                                  ST_Buffer(ST_Boundary(ST_Force2D(c.building_footprint_geom)), 0.1))),
+        ST_Length(ST_Intersection(ST_Boundary(ST_Force2D(c.building_footprint_geom)),
+                                  ST_Buffer(ST_Boundary(ST_Force2D(a.building_footprint_geom)), 0.1)))
+    ) >= 1
 ),
 neighbours AS (
     SELECT id, ARRAY_AGG(other ORDER BY other)::TEXT[] AS ids

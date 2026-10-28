@@ -126,3 +126,76 @@ func TestPipeline_AttachedNeighbours(t *testing.T) {
 	}
 	t.Errorf("BuildingsByBBox did not serve MID; got %d buildings", len(served))
 }
+
+// TestPipeline_AttachedNeighboursIgnoreImportOrder builds two pairs of a 4 m box
+// lying inside a 10 m box, one pair imported large box first and the other small
+// box first. Neither pair shares a wall, so whatever the import order, no
+// building of either pair is attached.
+func TestPipeline_AttachedNeighboursIgnoreImportOrder(t *testing.T) {
+	ctx := context.Background()
+	resetSchemas(t)
+	cfg := pipelineConfig(pipelineTestCase{country: "austria", srid: fmt.Sprint(partsSRID)})
+	if err := db.RunCity2TabulaDBSetup(cfg, testPool); err != nil {
+		t.Fatalf("RunCity2TabulaDBSetup: %v", err)
+	}
+
+	f := &partsFixture{nextID: 300000}
+	const x, y = -9000.0, 342800.0
+	large := func(id string, dx float64) {
+		f.solid(f.feature(901, id), box{x + dx, y, x + dx + 10, y + 10, 200, 210, "SENW", 200})
+	}
+	small := func(id string, dx float64) {
+		f.solid(f.feature(901, id), box{x + dx + 3, y + 3, x + dx + 7, y + 7, 200, 203, "SENW", 200})
+	}
+	large("LARGE_FIRST", 0)
+	small("SMALL_SECOND", 0)
+	small("SMALL_FIRST", 50)
+	large("LARGE_SECOND", 50)
+	mustExec(t, ctx, buildPartsFixture()+f.sql.String())
+	seedDB(t)
+	mustExec(t, ctx, `
+		INSERT INTO city2tabula.tabula_variant (tabula_variant_code_id, tabula_variant_code, max_volume,
+			footprint_area, number_of_storeys, footprint_complexity, attached_neighbour_class, roof_complexity,
+			area_total_roof, area_total_wall, area_total_floor)
+		VALUES (1, 'V_ALONE', 1000, 100, 4, 0, 0, 0, 100, 400, 400)`)
+
+	if err := process.RunFeatureExtraction(cfg, testPool); err != nil {
+		t.Fatalf("RunFeatureExtraction: %v", err)
+	}
+
+	rows, err := testPool.Query(ctx, `
+		SELECT object_id, attached_neighbour_class, attached_neighbour_id
+		FROM city2tabula.lod2_building WHERE object_id = ANY($1) ORDER BY object_id`,
+		[]string{"LARGE_FIRST", "SMALL_SECOND", "SMALL_FIRST", "LARGE_SECOND"})
+	if err != nil {
+		t.Fatalf("query lod2_building: %v", err)
+	}
+	defer rows.Close()
+	seen := 0
+	for rows.Next() {
+		var id string
+		var class *int
+		var ids []string
+		if err := rows.Scan(&id, &class, &ids); err != nil {
+			t.Fatalf("scan lod2_building: %v", err)
+		}
+		seen++
+		if class == nil || *class != 0 || len(ids) != 0 {
+			t.Errorf("%s: attached_neighbour_class %s, neighbours %v; want 0 and none", id, showInt(class), ids)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate lod2_building: %v", err)
+	}
+	if seen != 4 {
+		t.Errorf("found %d of the 4 fixture buildings", seen)
+	}
+}
+
+// showInt prints a nullable int for a test message.
+func showInt(v *int) string {
+	if v == nil {
+		return "null"
+	}
+	return fmt.Sprint(*v)
+}
