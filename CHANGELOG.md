@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.16.0 (2026-10-28)
 
 Fixes:
 - Attached-neighbour detection no longer depends on import order. It
