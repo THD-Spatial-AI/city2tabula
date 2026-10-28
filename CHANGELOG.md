@@ -3,6 +3,22 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Fixes:
+- Attached-neighbour detection no longer depends on import order. It
+  measured one building's boundary inside the other's buffered
+  footprint, taking the building with the lower feature id first, so
+  where one footprint lies inside or across another, two imports of
+  the same data could disagree: a building could gain or lose its
+  attached neighbour, and with it its TABULA variant. Two buildings are
+  now attached when either one's boundary runs within 0.1 m of the
+  other's boundary for at least 1 m, which counts shared walls only.
+  In the test data this changes 3 of 1,163 and 7 of 7,628 attached
+  pairs, all of them overlapping footprints. Labels are corrected on
+  the next -extract-features run, which re-runs neighbour detection
+  over the whole table.
+
 ## v0.15.0 (2026-10-26)
 
 Features:
