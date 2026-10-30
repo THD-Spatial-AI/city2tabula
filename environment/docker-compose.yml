@@ -1,0 +1,107 @@
+# City2TABULA's HTTP server and its database, plus the interactive CLI under
+# the `cli` profile. Run from environment/ with docker.env:
+#
+#   docker compose --env-file docker.env up -d --build                    # server, built from this checkout
+#   docker compose --env-file docker.env up -d --pull always --no-build   # server, published release
+#   docker compose --env-file docker.env --profile cli up -d              # also the CLI shell
+
+# Pinned, because volume and network names are built from it, and it is the
+# unit `down --remove-orphans` acts on.
+name: city2tabula
+
+services:
+  # Full Go/JDK/citydb toolchain for interactive work: `docker compose exec cli
+  # ./c2t ...`. Under a profile so a deployment never builds it.
+  cli:
+    profiles: [cli]
+    build:
+      context: ..
+      dockerfile: environment/Dockerfile
+    env_file: docker.env
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    volumes:
+      - ../data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: bash
+
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${C2T_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${C2T_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${C2T_DB_NAME:-city2tabula}
+    # No host port: the server reaches it by service name. Add one back if a
+    # host tool (psql, QGIS) needs direct access.
+    volumes:
+      - city2tabula-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # The on-request HTTP server (cmd/server). The image also carries the CLI
+  # binaries, so it can run a pipeline job without a second artefact.
+  api:
+    restart: unless-stopped
+    image: ghcr.io/thd-spatial-ai/city2tabula-server:${C2T_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      # Compiled binaries on a JRE base; `cli` needs the full toolchain image.
+      dockerfile: environment/Dockerfile.runtime
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${C2T_DB_USER:-postgres}
+      DB_PASSWORD: ${C2T_DB_PASSWORD:-postgres}
+      DB_NAME: ${C2T_DB_NAME:-city2tabula}
+      DB_SSL_MODE: disable
+      SERVER_PORT: 5000
+      # Empty PYLOVO_FDW_HOST leaves PyLovo linking a no-op (internal/process/pylovo_fdw.go).
+      # postgres_fdw connects from `db`, so the host must resolve there.
+      PYLOVO_FDW_HOST: ${PYLOVO_FDW_HOST:-}
+      PYLOVO_FDW_PORT: ${PYLOVO_FDW_PORT:-}
+      PYLOVO_FDW_DBNAME: ${PYLOVO_FDW_DBNAME:-}
+      PYLOVO_FDW_USER: ${PYLOVO_FDW_USER:-}
+      PYLOVO_FDW_PASSWORD: ${PYLOVO_FDW_PASSWORD:-}
+    # The dataset directories, not data/ as a whole: the image bakes
+    # data/tabula, and mounting the parent would hide it behind the host's copy.
+    volumes:
+      - ../data/lod2:/app/data/lod2
+      - ../data/lod3:/app/data/lod3
+      - ../data/attributes:/app/data/attributes
+    depends_on:
+      db:
+        condition: service_healthy
+    # HOST_PORT is the variable the EnerPlanET dev stack sets for every service;
+    # C2T_SERVER_HOST_PORT is kept so existing .env files still apply.
+    ports:
+      - "${HOST_PORT:-${C2T_SERVER_HOST_PORT:-5050}}:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:5000/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      default:
+      tentacron-net:
+        # Callers in other repositories address `city2tabula`. The service
+        # name `api` is shared by other repositories on this network and
+        # resolves to any of them, so it is never an address.
+        aliases: [city2tabula]
+
+volumes:
+  city2tabula-db-data:
+
+# The key must equal the name and this block must stay exactly as it is:
+# Compose labels the network with the key, and every repository joining
+# tentacron-net declares it identically. A different key fails with
+# "network tentacron-net was found but has incorrect label"; adding a driver or
+# ipam block makes a joining project try to recreate the network.
+networks:
+  tentacron-net:
+    name: tentacron-net
