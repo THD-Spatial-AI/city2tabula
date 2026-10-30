@@ -3,6 +3,19 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Breaking:
+- The compose file moves from environment/http/ to environment/, with
+  docker.env beside it. Its project is pinned to `city2tabula` and the
+  services are named by role: `api` (the server), `db` and `cli`.
+  Containers are city2tabula-api-1 and city2tabula-db-1; scripts that
+  name city2tabula, city2tabula-db or city2tabula-cli must change. The
+  server keeps the alias `city2tabula` on tentacron-net, and the
+  database volume keeps its name, so existing data carries over.
+- `cli` is under the `cli` profile: `docker compose --profile cli exec
+  cli` replaces `docker exec city2tabula-cli`.
+
 ## v0.16.0 (2026-10-28)
 
 Fixes:
