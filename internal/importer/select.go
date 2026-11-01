@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
@@ -134,7 +135,7 @@ func parseExtent(crs string, values ...string) (fileExtent, bool, error) {
 // selectFiles returns, per model folder of d, the files whose declared extent
 // intersects b, and their fingerprint. A file whose extent or CRS cannot be
 // read is selected, so citydb-tool's own bbox filter decides for it.
-func selectFiles(ctx context.Context, conn *pgxpool.Pool, d Dataset, b importBbox) (map[string][]string, string, error) {
+func selectFiles(conn *pgxpool.Pool, d Dataset, b importBbox) (map[string][]string, string, error) {
 	inEPSG := map[int]importBbox{}
 	selection := map[string][]string{}
 	var all []string
@@ -144,9 +145,13 @@ func selectFiles(ctx context.Context, conn *pgxpool.Pool, d Dataset, b importBbo
 		if err != nil {
 			return nil, "", err
 		}
+		extents, err := fileExtents(conn, d.Schema, in.format, files)
+		if err != nil {
+			return nil, "", err
+		}
 		total += len(files)
-		for _, path := range files {
-			keep, err := intersects(ctx, conn, path, in.format, b, inEPSG)
+		for i, path := range files {
+			keep, err := intersects(conn, path, extents[i], b, inEPSG)
 			if err != nil {
 				return nil, "", err
 			}
@@ -161,14 +166,109 @@ func selectFiles(ctx context.Context, conn *pgxpool.Pool, d Dataset, b importBbo
 	return selection, fingerprint, err
 }
 
-// intersects reports whether path's declared extent intersects b, transforming
-// b once per CRS into inEPSG.
-func intersects(ctx context.Context, conn *pgxpool.Pool, path, format string, b importBbox, inEPSG map[int]importBbox) (bool, error) {
-	e, ok, err := readFileExtent(path, format)
+// declaredExtent is the extent a model file declares; ok is false when it
+// declares none that can be read.
+type declaredExtent struct {
+	fileExtent
+	ok bool
+}
+
+// cachedExtent is a fileExtentTable row: the extent read from a file when it
+// had this size and modification time.
+type cachedExtent struct {
+	size, mtime int64
+	extent      declaredExtent
+}
+
+// fileExtents returns the declared extent of each of files: from fileExtentTable
+// when the file's size and modification time are unchanged, otherwise read from
+// the file and stored there.
+func fileExtents(conn *pgxpool.Pool, schema, format string, files []string) ([]declaredExtent, error) {
+	table := pgx.Identifier{schema, fileExtentTable}.Sanitize()
+	cached, err := cachedExtents(conn, table, files)
 	if err != nil {
-		return false, fmt.Errorf("read extent of %s: %w", path, err)
+		return nil, err
 	}
-	if !ok {
+	extents := make([]declaredExtent, len(files))
+	fresh := map[string]cachedExtent{}
+	for i, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("stat %s: %w", path, err)
+		}
+		c, hit := cached[path]
+		if hit && c.size == info.Size() && c.mtime == info.ModTime().UnixNano() {
+			extents[i] = c.extent
+			continue
+		}
+		e, ok, err := readFileExtent(path, format)
+		if err != nil {
+			return nil, fmt.Errorf("read extent of %s: %w", path, err)
+		}
+		extents[i] = declaredExtent{e, ok}
+		fresh[path] = cachedExtent{info.Size(), info.ModTime().UnixNano(), extents[i]}
+	}
+	return extents, storeExtents(conn, table, files, fresh)
+}
+
+// cachedExtents returns the rows of table for files, by path.
+func cachedExtents(conn *pgxpool.Pool, table string, files []string) (map[string]cachedExtent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
+	defer cancel()
+	rows, err := conn.Query(ctx, `SELECT path, size, mtime_ns, declared, crs, min_x, min_y, max_x, max_y
+		FROM `+table+` WHERE path = ANY($1)`, files)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", table, err)
+	}
+	defer rows.Close()
+	cached := map[string]cachedExtent{}
+	for rows.Next() {
+		var path string
+		var c cachedExtent
+		e := &c.extent
+		if err := rows.Scan(&path, &c.size, &c.mtime, &e.ok, &e.crs, &e.minX, &e.minY, &e.maxX, &e.maxY); err != nil {
+			return nil, fmt.Errorf("read %s: %w", table, err)
+		}
+		cached[path] = c
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read %s: %w", table, err)
+	}
+	return cached, nil
+}
+
+// storeExtents writes fresh to table in the path order of files, so runs that
+// store the same files at once lock their rows in the same order.
+func storeExtents(conn *pgxpool.Pool, table string, files []string, fresh map[string]cachedExtent) error {
+	if len(fresh) == 0 {
+		return nil
+	}
+	batch := &pgx.Batch{}
+	for _, path := range files {
+		c, ok := fresh[path]
+		if !ok {
+			continue
+		}
+		e := c.extent
+		batch.Queue(`INSERT INTO `+table+` (path, size, mtime_ns, declared, crs, min_x, min_y, max_x, max_y)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (path) DO UPDATE SET size = EXCLUDED.size, mtime_ns = EXCLUDED.mtime_ns,
+				declared = EXCLUDED.declared, crs = EXCLUDED.crs, min_x = EXCLUDED.min_x,
+				min_y = EXCLUDED.min_y, max_x = EXCLUDED.max_x, max_y = EXCLUDED.max_y`,
+			path, c.size, c.mtime, e.ok, e.crs, e.minX, e.minY, e.maxX, e.maxY)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
+	defer cancel()
+	if err := conn.SendBatch(ctx, batch).Close(); err != nil {
+		return fmt.Errorf("store %d file extents in %s: %w", len(fresh), table, err)
+	}
+	return nil
+}
+
+// intersects reports whether path's declared extent e intersects b,
+// transforming b once per CRS into inEPSG.
+func intersects(conn *pgxpool.Pool, path string, e declaredExtent, b importBbox, inEPSG map[int]importBbox) (bool, error) {
+	if !e.ok {
 		return true, nil
 	}
 	epsg, err := resolveCRS(e.crs)
@@ -177,6 +277,8 @@ func intersects(ctx context.Context, conn *pgxpool.Pool, path, format string, b 
 	}
 	t, done := inEPSG[epsg]
 	if !done {
+		ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
+		defer cancel()
 		if err := conn.QueryRow(ctx, `
 			SELECT ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e)
 			FROM (SELECT ST_Transform(ST_MakeEnvelope($1, $2, $3, $4, $5::int), $6::int) AS e) s`,

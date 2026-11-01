@@ -35,6 +35,8 @@ A run for a bbox imports only the files whose declared extent intersects it: a C
 
 With all 18,297 Bavarian tiles (142 GB) in one dataset folder, a region of about 2 by 1 km selects 4 files, imports in 9 s, and a repeat run takes about 1 s.
 
+Each file's extent is read once and stored in the database with the file's size and modification time; later runs read only files added or changed since. The first bbox run over 3DBAG, whose CityJSON files declare their extent at the end, unpacks all 8,937 tiles (11 GB) and takes about 3.5 minutes; every later run selects in about 1 s.
+
 !!! warning "One invalid attribution file stops the country's import"
     Before anything is imported, every dataset folder of the country is checked: it needs a valid `attribution.json` ([Dataset attribution file](../code/attribution/index.md)) and a `gml/` or `cityjson/` folder, and no model file may lie directly in `data/lod2/<country>/`. One failing folder stops the whole import for that country, with an error naming the folder; nothing is imported until it is fixed. A scheduled job should report the error.
 
