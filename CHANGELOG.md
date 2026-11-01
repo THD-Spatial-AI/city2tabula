@@ -16,6 +16,13 @@ Breaking:
 - `cli` is under the `cli` profile: `docker compose --profile cli exec
   cli` replaces `docker exec city2tabula-cli`.
 
+Fixes:
+- A bbox import no longer reads every model file's extent on each run.
+  Each file's extent is stored in c2t_file_extent in the dataset's LOD
+  schema, with the file's size and modification time, and read again
+  only when either changes. A repeat run over 3DBAG, whose CityJSON
+  files declare their extent at the end, falls from about 200 s to 1 s.
+
 ## v0.16.0 (2026-10-28)
 
 Fixes:

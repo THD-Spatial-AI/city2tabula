@@ -24,6 +24,11 @@ import (
 // the imported data also drops the record of it.
 const extentTable = "c2t_import_extent"
 
+// fileExtentTable caches the extent each model file declares, keyed by path,
+// size and modification time, so a bbox import reads only new or changed files.
+// It lives in the dataset's LOD schema, like extentTable.
+const fileExtentTable = "c2t_file_extent"
+
 // extentTimeout bounds each extent query. The citydb import between the check
 // and the record can take minutes, so each query gets its own deadline.
 const extentTimeout = 30 * time.Second
@@ -92,21 +97,36 @@ func fingerprintFiles(files []string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// ensureExtentTable creates the extent table in schema if it is missing. The
-// advisory lock serialises runs over disjoint regions, which proceed in
-// parallel and would otherwise race on CREATE TABLE IF NOT EXISTS.
-func ensureExtentTable(ctx context.Context, conn *pgxpool.Pool, schema string) error {
+// ensureExtentTables creates the extent and file extent tables in schema if they
+// are missing. The advisory lock serialises runs over disjoint regions, which
+// proceed in parallel and would otherwise race on CREATE TABLE IF NOT EXISTS.
+func ensureExtentTables(ctx context.Context, conn *pgxpool.Pool, schema string) error {
 	table := pgx.Identifier{schema, extentTable}.Sanitize()
 	return pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, table); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+table+` (
+		if _, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+table+` (
 			dataset_id        text        NOT NULL,
 			input_fingerprint text        NOT NULL,
 			bbox_mode         text        NOT NULL,
 			geom              geometry(Polygon, 4326) NOT NULL,
 			imported_at       timestamptz NOT NULL DEFAULT now()
+		)`); err != nil {
+			return err
+		}
+		// declared is false for a file without a readable extent; its crs and
+		// coordinates are then unused.
+		_, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+pgx.Identifier{schema, fileExtentTable}.Sanitize()+` (
+			path     text             PRIMARY KEY,
+			size     bigint           NOT NULL,
+			mtime_ns bigint           NOT NULL,
+			declared boolean          NOT NULL,
+			crs      text             NOT NULL,
+			min_x    double precision NOT NULL,
+			min_y    double precision NOT NULL,
+			max_x    double precision NOT NULL,
+			max_y    double precision NOT NULL
 		)`)
 		return err
 	})
@@ -118,8 +138,8 @@ func ensureExtentTable(ctx context.Context, conn *pgxpool.Pool, schema string) e
 func extentImported(conn *pgxpool.Pool, d Dataset, fingerprint string, b importBbox, mode string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
 	defer cancel()
-	if err := ensureExtentTable(ctx, conn, d.Schema); err != nil {
-		return false, fmt.Errorf("create %s.%s: %w", d.Schema, extentTable, err)
+	if err := ensureExtentTables(ctx, conn, d.Schema); err != nil {
+		return false, fmt.Errorf("create extent tables in %s: %w", d.Schema, err)
 	}
 	q := `SELECT EXISTS (
 		SELECT 1 FROM ` + pgx.Identifier{d.Schema, extentTable}.Sanitize() + `
@@ -211,12 +231,10 @@ func importBboxOnce(conn *pgxpool.Pool, cityDBExecPath string, d Dataset, cfg *c
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), extentTimeout)
-	defer cancel()
 	var selection map[string][]string
 	var fingerprint string
 	if !covered {
-		if selection, fingerprint, err = selectFiles(ctx, conn, d, b); err != nil {
+		if selection, fingerprint, err = selectFiles(conn, d, b); err != nil {
 			return err
 		}
 		if covered, err = extentImported(conn, d, fingerprint, b, mode); err != nil {
