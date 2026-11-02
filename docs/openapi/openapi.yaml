@@ -145,6 +145,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/v1/datasets:
+    get:
+      summary: List the 3D data on disk, by region
+      operationId: listDatasets
+      description: |
+        One entry per region folder of each dataset, or per model folder for a
+        dataset without regions. Data is listed as soon as it is on disk, before
+        any run imports it.
+      parameters:
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Normalized, lowercase country name. Omit it to list every country.
+          example: germany
+      responses:
+        "200":
+          description: The datasets; an empty list when the country has no data
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datasets]
+                properties:
+                  datasets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DatasetRegion"
+        "400":
+          description: Unsupported country; retrying does not help
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: A data folder is invalid (the message names the file); retrying does not help until it is fixed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/v1/coverage:
     get:
       summary: Count already-linked buildings in a bbox
@@ -525,6 +567,45 @@ components:
             absolute, with no origin subtracted. A renderer working in 32-bit
             floats subtracts its own origin first: a float32 latitude near 49
             degrees resolves only to about 0.4 m.
+    DatasetRegion:
+      type: object
+      description: One region of a dataset. `region`, `name` and `bbox` are absent for a dataset without regions.
+      required: [country, dataset_id, provider, lod, format, files]
+      properties:
+        country:
+          type: string
+          example: germany
+        dataset_id:
+          type: string
+          example: de-nrw-lod2
+        provider:
+          type: string
+        lod:
+          type: integer
+          enum: [2, 3]
+        format:
+          type: string
+          enum: [citygml, cityjson]
+        region:
+          type: string
+          description: Region folder name
+          example: koeln
+        name:
+          type: string
+          description: Display name, from the smallest area to the largest
+          example: Köln, Nordrhein-Westfalen
+        bbox:
+          type: array
+          description: "[min_lon, min_lat, max_lon, max_lat] in EPSG:4326"
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+          example: [6.77, 50.83, 7.16, 51.08]
+        files:
+          type: integer
+          description: Number of model files
+          example: 9
     DatasetCredit:
       type: object
       description: A source dataset's attribution. Show `credit` with any output derived from the dataset.
@@ -599,7 +680,8 @@ components:
             the building's units in a national register (the Netherlands: BAG),
             taking the use that covers the most floor area; a register credit
             is then listed in `attributions`. `commercial` and `public` cover
-            business and public buildings whose code gives no finer use;
+            business and public buildings whose code gives no finer use, except
+            the German top-level code `31001_2000`, which maps to null;
             `ancillary` covers unheated outbuildings such as garages, carports
             and sheds. Null when neither source gives a use. Always present.
           example: "residential"

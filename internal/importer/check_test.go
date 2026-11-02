@@ -95,6 +95,33 @@ func TestCheckDataset(t *testing.T) {
 			writeFile(t, filepath.Join(s, "gml", "tile.gml"), gmlTile(adv), false)
 			writeFile(t, filepath.Join(s, "extra", "tile.gml"), gmlTile(adv), false)
 		}, []string{"extra", "would not be imported"}},
+		{"regions.json names every region folder", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"name": "Köln, Nordrhein-Westfalen", "bbox": [6.77, 50.83, 7.16, 51.08]}`), false)
+		}, nil},
+		{"region folder without a regions.json entry", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "gml", "bonn", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"name": "Köln", "bbox": [6.77, 50.83, 7.16, 51.08]}`), false)
+		}, []string{"bonn has no entry in"}},
+		{"regions.json entry without a folder or a name", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"name": "Köln", "bbox": [6.77, 50.83, 7.16, 51.08]}, "bonn": {"name": " ", "bbox": [7.02, 50.63, 7.21, 50.77]}`), false)
+		}, []string{`region "bonn" has no folder`, `region "bonn" has no name`}},
+		{"model file outside a region folder", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "gml", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"name": "Köln", "bbox": [6.77, 50.83, 7.16, 51.08]}`), false)
+		}, []string{"lies outside a region folder"}},
+		{"regions.json with an unknown field", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"nmae": "Köln", "bbox": [6.77, 50.83, 7.16, 51.08]}`), false)
+		}, []string{`unknown field "nmae"`}},
+		{"regions.json bbox missing or not WGS84", "germany", func(t *testing.T, s, _ string) {
+			writeFile(t, filepath.Join(s, "gml", "koeln", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "gml", "bonn", "tile.gml"), gmlTile(adv), false)
+			writeFile(t, filepath.Join(s, "regions.json"), regionsJSON(`"koeln": {"name": "Köln"}, "bonn": {"name": "Bonn", "bbox": [356000, 5610000, 372000, 5626000]}`), false)
+		}, []string{`region "koeln": bbox has 0 numbers`, `region "bonn": bbox [356000 5.61e+06 372000 5.626e+06] is not`}},
 		{"hidden folders are not read", "germany", func(t *testing.T, s, _ string) {
 			writeFile(t, filepath.Join(s, "gml", "tile.gml"), gmlTile(adv), false)
 			writeFile(t, filepath.Join(s, ".venv", "lib", "schema.json"), "{}", false)
@@ -134,6 +161,11 @@ func TestCheckDataset(t *testing.T) {
 			}
 		})
 	}
+}
+
+// regionsJSON returns a version 1 regions.json holding the given entries.
+func regionsJSON(entries string) string {
+	return `{"schema_version": 1, "regions": {` + entries + `}}`
 }
 
 func TestCheckDataset_UsesConfiguredSRID(t *testing.T) {
