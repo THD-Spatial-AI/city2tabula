@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.18.0 (2026-11-02)
 
 Fixes:
 - The German function code 31001_2000 (Gebäude für Wirtschaft oder
