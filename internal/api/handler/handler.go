@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/api/server"
+	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
+	"github.com/thd-spatial-ai/city2tabula/internal/importer"
 	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
@@ -167,6 +169,46 @@ func (h *Handler) Coverage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, coverageResponse{Count: count, Configured: true})
+}
+
+type datasetsResponse struct {
+	Datasets []importer.DatasetRegion `json:"datasets"`
+}
+
+// Datasets handles GET /api/v1/datasets[?country=..]: the region folders of
+// the 3D data on disk for one country, or for every supported country with a
+// data folder. It reads files only, so data staged for a country without a
+// database yet is listed too.
+func (h *Handler) Datasets(w http.ResponseWriter, r *http.Request) {
+	country := r.URL.Query().Get("country")
+	countries := []string{country}
+	if country == "" {
+		var err error
+		if countries, err = config.DataCountries(); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	list := []importer.DatasetRegion{}
+	for _, c := range countries {
+		cfg, err := h.srv.RegionConfig(c)
+		if err != nil && country != "" {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err != nil {
+			utils.Warn.Printf("Skipping data folder %s: %v", c, err)
+			continue
+		}
+		found, err := importer.ListDatasets(&cfg)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		list = append(list, found...)
+	}
+	writeJSON(w, http.StatusOK, datasetsResponse{Datasets: list})
 }
 
 // Buildings handles GET /api/v1/buildings?country=..&osm_ids=a,b,c (3D

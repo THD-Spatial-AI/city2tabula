@@ -42,19 +42,31 @@ Each file's extent is read once and stored in the database with the file's size 
 
 ## Region folders
 
-A dataset folder can split its model files into one subfolder per region, e.g. `data/lod2/germany/nrw/gml/koeln/`, with a `regions.json` next to `attribution.json` that gives each region folder a display name, read from the smallest area to the largest:
+A dataset folder can split its model files into one subfolder per region, e.g. `data/lod2/germany/nrw/gml/koeln/`, with a `regions.json` next to `attribution.json` that describes each region folder:
 
 ```json
 {
   "schema_version": 1,
   "regions": {
-    "moenchweiler": {"name": "Mönchweiler, Schwarzwald-Baar-Kreis, Baden-Württemberg"},
-    "stuttgart": {"name": "Stuttgart, Baden-Württemberg"}
+    "moenchweiler": {
+      "name": "Mönchweiler, Schwarzwald-Baar-Kreis, Baden-Württemberg",
+      "bbox": [8.38, 48.08, 8.45, 48.12]
+    },
+    "stuttgart": {
+      "name": "Stuttgart, Baden-Württemberg",
+      "bbox": [9.03, 48.69, 9.32, 48.87]
+    }
   }
 }
 ```
 
-The key is the folder name under `gml/` or `cityjson/`. The import reads region folders like any other subfolder and does not read `regions.json`; `-check-data` checks it.
+| Field | Rule |
+|---|---|
+| key | The region's folder name under `gml/` or `cityjson/` |
+| `name` | Display name, from the smallest area to the largest |
+| `bbox` | `[min_lon, min_lat, max_lon, max_lat]` of the region in WGS84 degrees |
+
+The import reads region folders like any other subfolder and does not read `regions.json`. `-check-data` checks it, and `GET /api/v1/datasets` lists the regions with their names and bboxes ([API reference](../api.md#listing-datasets)).
 
 ## Checking files before publishing
 
@@ -68,7 +80,7 @@ COUNTRY=germany c2t -check-data data/lod2/germany/.bavaria-upload
 |---|---|
 | `attribution.json` | It is missing or breaks a rule of the [attribution file](../code/attribution/index.md) |
 | Model folders | There is neither a `gml/` nor a `cityjson/` folder, or a model file lies outside them (hidden folders are not read) |
-| `regions.json` | It is present and is not valid JSON of the format above, has an unknown field, a region without a name or without a folder, or a folder under `gml/` or `cityjson/` has no entry, or a model file lies directly in `gml/` or `cityjson/` |
+| `regions.json` | It is present and is not valid JSON of the format above, has an unknown field, a region without a name, a WGS84 bbox or a folder, or a folder under `gml/` or `cityjson/` has no entry, or a model file lies directly in `gml/` or `cityjson/` |
 | `dataset_id` | A published folder of the country uses it with a different `attribution.json`. The same file means the staged files extend that dataset |
 | Model files | A file, gzipped or not and in any subfolder, is not CityGML or CityJSON, or its declared CRS is not the SRID the import uses: `CITYDB_SRID`, or the country's default ([Configuration](../configuration/index.md)) |
 

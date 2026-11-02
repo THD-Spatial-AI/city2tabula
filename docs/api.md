@@ -20,11 +20,12 @@ Every response carries an `X-Request-ID` header. Send your own id in that header
 
 | Step | Endpoint | Purpose |
 |---|---|---|
-| 1 | `GET /api/v1/coverage` | Cheap check: does this bbox already have extracted data? |
-| 2 | `POST /api/v1/runs` | If not, trigger extraction. Returns a `run_id` immediately. |
-| 3 | `GET /api/v1/runs/{id}` | Poll until `status` is `completed`, `no_data`, or `failed`. |
-| 4 | `GET /api/v1/buildings` | Building + surface attributes, once data exists. |
-| 5 | `GET /api/v1/geometry` | Footprint geometry, only if something needs to render it. |
+| 1 | `GET /api/v1/datasets` | Which regions have 3D data on disk. |
+| 2 | `GET /api/v1/coverage` | Cheap check: does this bbox already have extracted data? |
+| 3 | `POST /api/v1/runs` | If not, trigger extraction. Returns a `run_id` immediately. |
+| 4 | `GET /api/v1/runs/{id}` | Poll until `status` is `completed`, `no_data`, or `failed`. |
+| 5 | `GET /api/v1/buildings` | Building + surface attributes, once data exists. |
+| 6 | `GET /api/v1/geometry` | Footprint geometry, only if something needs to render it. |
 
 `buildings` and `geometry` are separate endpoints because a calculation consumer needs no geometry. Splitting them keeps geometry out of responses that will not use it.
 
@@ -35,6 +36,28 @@ curl http://localhost:5000/api/v1/health
 ```
 
 Returns `{"status": "ok"}` if the process is up. It is not authoritative for any one country, because it does not open a database connection.
+
+## Listing datasets
+
+```bash
+curl "http://localhost:5000/api/v1/datasets?country=germany"
+```
+
+```json
+{"datasets": [
+  {"country": "germany", "dataset_id": "de-nrw-lod2", "provider": "Bezirksregierung Köln, Geobasis NRW",
+   "lod": 2, "format": "citygml", "region": "koeln", "name": "Köln, Nordrhein-Westfalen",
+   "bbox": [6.77, 50.83, 7.16, 51.08], "files": 9}
+]}
+```
+
+Lists the 3D data on disk: one entry per region of each dataset, with its display name and WGS84 bbox (`[min_lon, min_lat, max_lon, max_lat]`). A dataset without regions has one entry per model folder, with no `region`, `name` or `bbox`. Without `country`, every supported country with a data folder is listed. Data appears as soon as it is on disk, before a run imports it; regions come from the dataset's `regions.json` ([Region folders](deployment/adding-data.md#region-folders)).
+
+| Status | Cause | Retry |
+|---|---|---|
+| 200 | Listed; `[]` when the country has no data | |
+| 400 | Unsupported `country` | No |
+| 500 | A data folder is invalid; the message names the file | No, until the file is fixed |
 
 ## Checking coverage
 
