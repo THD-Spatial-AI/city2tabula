@@ -22,6 +22,7 @@ func TestUseTypeFor(t *testing.T) {
 		{"carport outside the building codes", "germany", code("51009_1611"), "ancillary", false, false},
 		{"code removed from the source list", "germany", code("31001_2465"), "ancillary", false, false},
 		{"not specifiable from sources", "germany", code("31001_9998"), "", false, true},
+		{"top-level business group states no use", "germany", code("31001_2000"), "", false, true},
 		{"unknown code", "germany", code("31001_0000"), "", false, true},
 		{"no code", "germany", nil, "", false, true},
 		{"country without a list", "netherlands", code("31001_1010"), "", false, true},

@@ -680,7 +680,8 @@ components:
             the building's units in a national register (the Netherlands: BAG),
             taking the use that covers the most floor area; a register credit
             is then listed in `attributions`. `commercial` and `public` cover
-            business and public buildings whose code gives no finer use;
+            business and public buildings whose code gives no finer use, except
+            the German top-level code `31001_2000`, which maps to null;
             `ancillary` covers unheated outbuildings such as garages, carports
             and sheds. Null when neither source gives a use. Always present.
           example: "residential"

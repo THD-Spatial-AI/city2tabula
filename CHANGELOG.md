@@ -5,6 +5,14 @@ v0.8.0 are described in their tag messages.
 
 ## Unreleased
 
+Fixes:
+- The German function code 31001_2000 (Gebäude für Wirtschaft oder
+  Gewerbe) maps to a null use_type and residential instead of
+  commercial. Bavarian LoD2 carries only top-level codes, and most of
+  its 31001_2000 buildings are outbuildings under 5 m (median 4.2 m over
+  8,541 buildings), so serving them as commercial overstated heated
+  floor area. The detailed 2xxx codes keep their mapping.
+
 Features:
 - `-check-data` checks an optional regions.json next to attribution.json,
   which gives each region folder under gml/ and cityjson/ a display name
