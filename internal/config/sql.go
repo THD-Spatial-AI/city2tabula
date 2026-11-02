@@ -41,21 +41,24 @@ type SQLScripts struct {
 
 // SQLParameters holds all SQL template parameters
 type SQLParameters struct {
-	BuildingIDs        []int64 `param:"building_ids"`
-	LodSchema          string  `param:"lod_schema"`
-	SRID               string  `param:"srid"`
-	City2TabulaSchema  string  `param:"city2tabula_schema"`
-	TabulaSchema       string  `param:"tabula_schema"`
-	LodLevel           int     `param:"lod_level"`
-	PublicSchema       string  `param:"public_schema"`
-	CityDBSchema       string  `param:"citydb_schema"`
-	CityDBPkgSchema    string  `param:"citydb_pkg_schema"`
-	Country            string  `param:"country"`
-	CountryCode        string  `param:"country_code"`
-	TabulaTable        string  `param:"tabula_table"`
-	TabulaVariantTable string  `param:"tabula_variant_table"`
-	StoreyHeight       string  `param:"storey_height"`
-	PylvoSchema        string  `param:"pylovo_schema"`
+	BuildingIDs []int64 `param:"building_ids"`
+	// WholeTable is true when BuildingIDs is nil. A post script then covers the
+	// whole table; otherwise only the buildings in BuildingIDs.
+	WholeTable         bool   `param:"whole_table"`
+	LodSchema          string `param:"lod_schema"`
+	SRID               string `param:"srid"`
+	City2TabulaSchema  string `param:"city2tabula_schema"`
+	TabulaSchema       string `param:"tabula_schema"`
+	LodLevel           int    `param:"lod_level"`
+	PublicSchema       string `param:"public_schema"`
+	CityDBSchema       string `param:"citydb_schema"`
+	CityDBPkgSchema    string `param:"citydb_pkg_schema"`
+	Country            string `param:"country"`
+	CountryCode        string `param:"country_code"`
+	TabulaTable        string `param:"tabula_table"`
+	TabulaVariantTable string `param:"tabula_variant_table"`
+	StoreyHeight       string `param:"storey_height"`
+	PylvoSchema        string `param:"pylovo_schema"`
 }
 
 // GetSQLParameters returns SQL parameters for a specific LOD level
@@ -69,6 +72,7 @@ func (c *Config) GetSQLParameters(lod int, buildingIDs []int64) SQLParameters {
 
 	return SQLParameters{
 		BuildingIDs:        buildingIDs,
+		WholeTable:         buildingIDs == nil,
 		LodSchema:          lodSchema,
 		SRID:               c.CityDB.SRID,
 		City2TabulaSchema:  c.DB.Schemas.City2Tabula,

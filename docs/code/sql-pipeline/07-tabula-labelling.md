@@ -12,7 +12,7 @@ audience: developer
 
 ## Purpose
 
-Assigns each building its best-matching TABULA archetype (variant code) by finding the **nearest neighbour** in a 9-dimensional feature space. It runs once over the whole table after every batch and after [neighbour detection](post-01-neighbour-detection.md), which sets `attached_neighbour_class`. A building's label depends only on its own values and the country's TABULA variants, so extracting other buildings never changes it.
+Assigns each building its best-matching TABULA archetype (variant code) by finding the **nearest neighbour** in a 9-dimensional feature space. It runs once after every batch, over the whole table or an [on-request run's buildings](index.md), and after [neighbour detection](post-01-neighbour-detection.md), which sets `attached_neighbour_class`. A building's label depends only on its own values and the country's TABULA variants, so extracting other buildings never changes it.
 
 TABULA (Typology Approach for Building Stock Energy Assessment) defines a set of reference building archetypes for each country, characterised by attributes like volume, floor area, and storey count. This script maps each extracted building to the archetype it most closely resembles.
 

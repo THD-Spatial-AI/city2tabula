@@ -17,6 +17,16 @@ Breaking:
   cli` replaces `docker exec city2tabula-cli`.
 
 Fixes:
+- An on-request run (`POST /api/v1/runs`) extracts only the buildings
+  that intersect its bbox, and the buildings attached to them, so their
+  neighbour detection is complete. It extracted every unprocessed
+  building in the country's database, so the first run after a
+  whole-country import processed the whole country. Its post scripts
+  (neighbours, party walls, served surfaces, wall totals, labels) cover
+  the buildings it extracted and those within 0.1 m of them, instead of
+  the whole table on every run. `-extract-features` still covers the
+  whole database. The post scripts take a new `{whole_table}`
+  parameter.
 - A bbox import no longer reads every model file's extent on each run.
   Each file's extent is stored in c2t_file_extent in the dataset's LOD
   schema, with the file's size and modification time, and read again

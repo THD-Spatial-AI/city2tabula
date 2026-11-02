@@ -1,6 +1,7 @@
 -- Splits each wall face into geom_party (shared with an attached neighbour) and geom_envelope
 -- (exterior), by the overlap test script 03 applies between solids of one building. Runs once over
--- the whole table, since a pair can span batches. Rules: docs/code/sql-pipeline/post-02-party-walls.md.
+-- the whole table, since a pair can span batches, or over the walls of an on-request run's
+-- {building_ids} only. Rules: docs/code/sql-pipeline/post-02-party-walls.md.
 
 UPDATE {city2tabula_schema}.{lod_schema}_surface_raw
 SET area_party_wall = NULL,
@@ -8,13 +9,15 @@ SET area_party_wall = NULL,
     geom_envelope = NULL,
     is_party_wall = FALSE,
     neighbour_object_id = NULL
-WHERE area_party_wall IS NOT NULL OR is_party_wall;
+WHERE (area_party_wall IS NOT NULL OR is_party_wall)
+  AND ({whole_table} OR building_feature_id IN {building_ids});
 
 WITH pairs AS (
     SELECT b.building_feature_id AS a_id, n.building_feature_id AS b_id, n.object_id AS b_object_id
     FROM {city2tabula_schema}.{lod_schema}_building b
     CROSS JOIN LATERAL unnest(b.attached_neighbour_id) AS nid(object_id)
     JOIN {city2tabula_schema}.{lod_schema}_building n ON n.object_id = nid.object_id
+    WHERE {whole_table} OR b.building_feature_id IN {building_ids}
 ),
 walls AS (
     SELECT id, building_feature_id, normal_x AS nx, normal_y AS ny, normal_z AS nz, geom, geom_exposed
@@ -22,6 +25,7 @@ walls AS (
     WHERE classname = 'WallSurface'
       AND normal_x IS NOT NULL
       AND (geom_exposed IS NULL OR NOT ST_IsEmpty(geom_exposed))
+      AND ({whole_table} OR building_feature_id IN (SELECT a_id FROM pairs UNION SELECT b_id FROM pairs))
 ),
 shared AS (
     SELECT a.id, p.b_object_id,

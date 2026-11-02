@@ -28,6 +28,7 @@ var sqlParams = map[string]string{
 	"{tabula_variant_table}": "tabula_variant",
 	"{room_height}":          "2.5",
 	"{building_ids}":         "(1,8)",
+	"{whole_table}":          "true",
 }
 
 func applyParams(script string) string {
