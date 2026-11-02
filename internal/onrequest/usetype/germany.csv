@@ -2,6 +2,8 @@
 # https://repository.gdi-de.org/schemas/adv/citygml/Codelisten/BuildingFunctionTypeAdV.xml
 # code and label are the source's; use_type and residential are City2TABULA's classification.
 # 31001_2465 left the source list on 16.03.2020 and is kept because Bavarian LoD2 still carries it.
+# 31001_2000 states no use: Bavarian LoD2 carries only top-level codes, and most of its 31001_2000
+# buildings are outbuildings under 5 m, not commercial buildings.
 code,use_type,residential,label
 31001_1000,residential,true,Wohngebäude
 31001_1010,residential,true,Wohnhaus
@@ -28,7 +30,7 @@ code,use_type,residential,label
 31001_1311,residential,true,Ferienhaus
 31001_1312,residential,true,Wochenendhaus
 31001_1313,ancillary,false,Gartenhaus
-31001_2000,commercial,false,Gebäude für Wirtschaft oder Gewerbe
+31001_2000,,,Gebäude für Wirtschaft oder Gewerbe
 31001_2010,commercial,false,Gebäude für Handel und Dienstleistungen
 31001_2020,office,false,Bürogebäude
 31001_2030,office,false,Kreditinstitut
