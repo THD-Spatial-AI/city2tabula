@@ -91,6 +91,7 @@ func CheckDataset(cfg *config.Config, dir string) []error {
 	if err != nil {
 		return append(problems, err)
 	}
+	problems = append(problems, checkRegions(dir, inputs)...)
 	for _, in := range inputs {
 		problems = append(problems, checkModelFolder(in, srid)...)
 	}
@@ -131,7 +132,7 @@ func strayModelFiles(dir string) []error {
 		if strings.HasPrefix(e.Name(), ".") {
 			return nil
 		}
-		if !e.IsDir() && rel != attribution.FileName && isModelFile(path) {
+		if !e.IsDir() && rel != attribution.FileName && rel != regionsFileName && isModelFile(path) {
 			problems = append(problems, fmt.Errorf("%s lies outside gml/ and cityjson/ and would not be imported", path))
 		}
 		return nil

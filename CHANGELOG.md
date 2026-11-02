@@ -3,6 +3,14 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- `-check-data` checks an optional regions.json next to attribution.json,
+  which names the region folders under gml/ and cityjson/ (see
+  docs/deployment/adding-data.md, Region folders). The import does not
+  read it.
+
 ## v0.17.0 (2026-11-02)
 
 Breaking:
