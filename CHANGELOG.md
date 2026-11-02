@@ -3,7 +3,7 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
-## Unreleased
+## v0.17.0 (2026-11-02)
 
 Breaking:
 - The compose file moves from environment/http/ to environment/, with
