@@ -1,6 +1,7 @@
 -- area_total_wall and surface_count_wall from the exterior wall pieces, area_party_wall from the
 -- shared ones. Runs before 05_label_buildings.sql, so matching sees envelope walls the way TABULA
--- counts them. Only rows whose values change are written.
+-- counts them. Only rows whose values change are written, of every building or of an on-request
+-- run's {building_ids}.
 
 WITH totals AS (
     SELECT b.id,
@@ -11,6 +12,7 @@ WITH totals AS (
            COUNT(*) FILTER (WHERE s.surface_type = 'WallSurface' AND NOT s.is_party_wall) AS envelope_count
     FROM {city2tabula_schema}.{lod_schema}_building b
     LEFT JOIN {city2tabula_schema}.{lod_schema}_surface s ON s.building_object_id = b.object_id
+    WHERE {whole_table} OR b.building_feature_id IN {building_ids}
     GROUP BY b.id
 )
 UPDATE {city2tabula_schema}.{lod_schema}_building b

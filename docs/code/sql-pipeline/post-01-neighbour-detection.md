@@ -14,7 +14,7 @@ audience: developer
 
 Marks the buildings that share a wall with another building, and counts those neighbours. The count is one of the dimensions [TABULA labelling](07-tabula-labelling.md) matches on, because TABULA types distinguish detached, end-terrace and mid-terrace houses.
 
-It runs once over the whole table after every batch has finished, not per batch. Neighbours cross batch boundaries, so a batch on its own does not see all of them.
+It runs once after every batch has finished, over the whole table or an [on-request run's buildings](index.md), not per batch. Neighbours cross batch boundaries, so a batch on its own does not see all of them.
 
 ---
 

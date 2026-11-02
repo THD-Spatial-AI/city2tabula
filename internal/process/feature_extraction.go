@@ -12,10 +12,26 @@ import (
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
 
+// Area is a WGS84 rectangle that limits feature extraction to the buildings in it.
+type Area struct {
+	Xmin, Ymin, Xmax, Ymax float64
+}
+
 // RunFeatureExtraction runs the SQL extraction pipeline for every LOD level
 // listed in config.CityDB.LODLevels. Schemas that are not configured are never
 // queried, so tests only need to seed the schemas they care about.
 func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
+	return runFeatureExtraction(cfg, pool, nil)
+}
+
+// RunFeatureExtractionInArea is RunFeatureExtraction over the buildings whose
+// envelope intersects area, and those attached to them, so each building in
+// area has every attached neighbour extracted with it.
+func RunFeatureExtractionInArea(cfg *config.Config, pool *pgxpool.Pool, area Area) error {
+	return runFeatureExtraction(cfg, pool, &area)
+}
+
+func runFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool, area *Area) error {
 	start := time.Now()
 	var lod2BldIDs, lod3BldIDs []int64
 
@@ -25,7 +41,7 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 			return err
 		}
 
-		ids, err := getBuildingIDsFromCityDB(pool, schema)
+		ids, err := buildingIDs(pool, cfg, schema, area)
 		if err != nil {
 			return fmt.Errorf("failed to get LOD%d building IDs: %w", lod, err)
 		}
@@ -83,7 +99,7 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	// same bulk run. Turn them on now that extraction has populated the table, so
 	// manual corrections (e.g. in QGIS) work right away without a separate step.
 	if len(lod2BldIDs) > 0 {
-		if err := runPostScripts(pool, cfg, 2); err != nil {
+		if err := runPostScripts(pool, cfg, 2, lod2BldIDs, area); err != nil {
 			return err
 		}
 		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod2); err != nil {
@@ -91,7 +107,7 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 		}
 	}
 	if len(lod3BldIDs) > 0 {
-		if err := runPostScripts(pool, cfg, 3); err != nil {
+		if err := runPostScripts(pool, cfg, 3, lod3BldIDs, area); err != nil {
 			return err
 		}
 		if err := EnableCorrectionTriggers(pool, cfg, cfg.DB.Schemas.Lod3); err != nil {
@@ -104,12 +120,25 @@ func RunFeatureExtraction(cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// runPostScripts runs sql/scripts/post/ once over one LoD's whole _building table.
-// They read every batch's buildings, so they cannot run as per-batch tasks.
-func runPostScripts(pool *pgxpool.Pool, cfg *config.Config, lod int) error {
+// runPostScripts runs sql/scripts/post/ once after every batch: they read every
+// batch's buildings, so they cannot run as per-batch tasks. Without an area they
+// cover one LoD's whole _building table; with one, the buildings extracted and
+// those within 0.1 m of them, the only ones a new building can change.
+func runPostScripts(pool *pgxpool.Pool, cfg *config.Config, lod int, extracted []int64, area *Area) error {
 	scripts, err := cfg.LoadSQLScripts()
 	if err != nil {
 		return fmt.Errorf("failed to load SQL scripts: %w", err)
+	}
+	var scope []int64
+	if area != nil {
+		schema, err := lodSchema(cfg, lod)
+		if err != nil {
+			return err
+		}
+		if scope, err = getPostScope(pool, cfg.DB.Schemas.City2Tabula, schema, extracted); err != nil {
+			return err
+		}
+		utils.Info.Printf("LOD%d: post-processing %d buildings", lod, len(scope))
 	}
 	for _, path := range scripts.PostScripts {
 		sql, err := os.ReadFile(path)
@@ -117,7 +146,7 @@ func runPostScripts(pool *pgxpool.Pool, cfg *config.Config, lod int) error {
 			return fmt.Errorf("failed to read SQL file %s: %w", path, err)
 		}
 		utils.Info.Printf("LOD%d: running %s", lod, filepath.Base(path))
-		if err := executeSQLScript(string(sql), cfg, pool, lod, nil); err != nil {
+		if err := executeSQLScript(string(sql), cfg, pool, lod, scope); err != nil {
 			return fmt.Errorf("LOD%d post script %s failed: %w", lod, path, err)
 		}
 	}

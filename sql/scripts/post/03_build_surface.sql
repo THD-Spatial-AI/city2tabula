@@ -1,9 +1,20 @@
 -- Builds {lod}_surface from {lod}_surface_raw, one row per served polygon piece: the exterior
--- pieces of each face and, flagged is_party_wall, its shared pieces. Runs once over the whole
--- table after party-wall detection and replaces every row. A piece's id is the md5 of its
--- face's surface_raw id plus .e<n> or .p<n>, so a rebuild serves the same ids again.
+-- pieces of each face and, flagged is_party_wall, its shared pieces. Runs once after party-wall
+-- detection and replaces the rows of every building, or of an on-request run's {building_ids}. A
+-- piece's id is the md5 of its face's surface_raw id plus .e<n> or .p<n>, so a rebuild serves the
+-- same ids again.
 
-TRUNCATE {city2tabula_schema}.{lod_schema}_surface;
+DO $$
+BEGIN
+    IF {whole_table} THEN
+        TRUNCATE {city2tabula_schema}.{lod_schema}_surface;
+    ELSE
+        DELETE FROM {city2tabula_schema}.{lod_schema}_surface
+        WHERE building_object_id IN (
+            SELECT object_id FROM {city2tabula_schema}.{lod_schema}_building
+            WHERE building_feature_id IN {building_ids});
+    END IF;
+END $$;
 
 WITH pieces AS (
     -- A single polygon dumps with an empty path, hence the COALESCE to piece 1.
@@ -11,11 +22,13 @@ WITH pieces AS (
            (sr.geom_envelope IS NULL AND sr.geom_exposed IS NULL) AS whole_face
     FROM {city2tabula_schema}.{lod_schema}_surface_raw sr
     CROSS JOIN LATERAL ST_Dump(COALESCE(sr.geom_envelope, sr.geom_exposed, ST_Multi(sr.geom))) d
+    WHERE {whole_table} OR sr.building_feature_id IN {building_ids}
     UNION ALL
     SELECT sr.id, TRUE, COALESCE(d.path[1], 1), d.geom, FALSE
     FROM {city2tabula_schema}.{lod_schema}_surface_raw sr
     CROSS JOIN LATERAL ST_Dump(sr.geom_party) d
     WHERE sr.geom_party IS NOT NULL
+      AND ({whole_table} OR sr.building_feature_id IN {building_ids})
 )
 INSERT INTO {city2tabula_schema}.{lod_schema}_surface (
     id,

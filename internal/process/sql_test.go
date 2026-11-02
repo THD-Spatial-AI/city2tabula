@@ -74,6 +74,7 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"storey_height":        "",
 				"country_code":         "",
 				"pylovo_schema":        "",
+				"whole_table":          false,
 			},
 		},
 		{
@@ -95,6 +96,7 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"storey_height":        "",
 				"country_code":         "",
 				"pylovo_schema":        "",
+				"whole_table":          false,
 			},
 		},
 		{
@@ -129,6 +131,7 @@ func TestGetSQLParameterMap(t *testing.T) {
 				"storey_height":        "",
 				"country_code":         "",
 				"pylovo_schema":        "",
+				"whole_table":          false,
 			},
 		},
 	}

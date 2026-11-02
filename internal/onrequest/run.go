@@ -132,7 +132,7 @@ func RunForRegion(cfg *config.Config, bbox Bbox, bboxMode string, onStage func(S
 	}
 
 	onStage(Stages[1])
-	if err := process.RunFeatureExtraction(cfg, pool); err != nil {
+	if err := process.RunFeatureExtractionInArea(cfg, pool, process.Area(bbox)); err != nil {
 		return fmt.Errorf("failed to extract features for %s: %w", cfg.Country, err)
 	}
 

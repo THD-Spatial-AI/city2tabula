@@ -31,6 +31,7 @@ WITH buildings AS (
     AND area_total_roof IS NOT NULL
     AND area_total_wall IS NOT NULL
     AND area_total_floor IS NOT NULL
+    AND ({whole_table} OR building_feature_id IN {building_ids})
 ),
 stats AS (
   -- The fixed 0 to 2 code range must match the CASE codes in script 04, the neighbour
