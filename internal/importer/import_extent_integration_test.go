@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/importer"
@@ -238,5 +239,63 @@ func TestImportCityDBData_SelectsFilesInTheBbox(t *testing.T) {
 		if got := lastFiles(t, logPath); got != s.wantFiles {
 			t.Fatalf("%s: last import got files %q, want %q", s.name, got, s.wantFiles)
 		}
+	}
+}
+
+// TestImportCityDBData_ReusesUnchangedFileExtents pins that a bbox import reads
+// a model file's extent once: an unchanged file is not opened again, and a file
+// whose size or modification time changed is read afresh.
+func TestImportCityDBData_ReusesUnchangedFileExtents(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads files whatever their permissions")
+	}
+	ctx := context.Background()
+	cfg, logPath, gml := extentConfig(t, ctx, "extent_cache_lod2")
+	if err := os.Remove(filepath.Join(gml, "tile-1.gml")); err != nil {
+		t.Fatal(err)
+	}
+	a, b := filepath.Join(gml, "a.gml"), filepath.Join(gml, "b.gml")
+	if err := os.WriteFile(a, []byte(tileGML(786000, 5416000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte(tileGML(790000, 5416000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	regionA := bboxIn4326(t, ctx, 786500, 5416500, 787500, 5417500)
+	regionB := bboxIn4326(t, ctx, 790500, 5416500, 791500, 5417500)
+	if err := importer.ImportCityDBData(testPool, cfg, regionA, "intersects"); err != nil {
+		t.Fatalf("region A: ImportCityDBData: %v", err)
+	}
+
+	// Unreadable but unchanged: only a cached extent lets region B be selected.
+	for _, p := range []string{a, b} {
+		if err := os.Chmod(p, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(p, 0o644) })
+	}
+	if err := importer.ImportCityDBData(testPool, cfg, regionB, "intersects"); err != nil {
+		t.Fatalf("region B from cached extents: ImportCityDBData: %v", err)
+	}
+	if got := lastFiles(t, logPath); got != "b.gml" {
+		t.Fatalf("region B: last import got files %q, want %q", got, "b.gml")
+	}
+
+	// b moves into region A: its new modification time makes its extent stale.
+	if err := os.Chmod(b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte(tileGML(786000, 5416000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(b, later, later); err != nil {
+		t.Fatal(err)
+	}
+	if err := importer.ImportCityDBData(testPool, cfg, regionA, "intersects"); err != nil {
+		t.Fatalf("region A after b moved: ImportCityDBData: %v", err)
+	}
+	if got := lastFiles(t, logPath); got != "a.gml b.gml" {
+		t.Fatalf("region A after b moved: last import got files %q, want %q", got, "a.gml b.gml")
 	}
 }

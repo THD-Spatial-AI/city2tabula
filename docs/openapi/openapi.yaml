@@ -96,7 +96,10 @@ paths:
       description: |
         Starts import → extract → link for one country/bbox in the background and
         returns immediately with a run id to poll via `GET /runs/{id}`. Runs are
-        serialized only one runs at a time across all countries.
+        serialized only one runs at a time across all countries. Extraction covers
+        the buildings that intersect the bbox and the buildings attached to them;
+        other buildings in the country's database are extracted by a run that
+        reaches them.
       requestBody:
         required: true
         content:

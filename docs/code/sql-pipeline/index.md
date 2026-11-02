@@ -8,6 +8,9 @@ This section documents the SQL scripts that transform raw 3D building geometry f
 
 The per-batch scripts in `sql/scripts/main/` run in order within a batch of buildings, each reading the output of the previous one. Once every batch has finished, the post scripts in `sql/scripts/post/` run once over the whole table, because they compare buildings across batches.
 
+!!! info "Post scripts in an on-request run"
+    `-extract-features` runs the post scripts over the whole table. An on-request run (`POST /api/v1/runs`) runs them over the buildings it extracted and every building whose footprint lies within 0.1 m of one of them, the only buildings a new building can change. Neighbours are still searched over the whole table, so a building just outside the run is found. The scripts receive these buildings as `{building_ids}`; `{whole_table}` is `true` for a whole-table run.
+
 ---
 
 ## What it does
@@ -21,7 +24,7 @@ Given a batch of building IDs, the pipeline:
 5. Approximates building volume from height × footprint area.
 6. Counts the storeys and sets the total floor area.
 
-After all batches, over the whole table:
+After all batches, over the whole table or an on-request run's buildings:
 
 1. Marks buildings that share a wall with a neighbour.
 2. Finds the part of each wall that lies against a neighbour's wall (party walls).

@@ -14,7 +14,7 @@ audience: developer
 
 A party wall is the part of a wall that lies against a wall of an attached neighbour. With a heated neighbour on the other side there is almost no temperature difference across it, so it hardly transmits heat. TABULA counts only the heat-transmitting envelope in its wall areas, and BuEM models such a wall with `b_transmission = 0`. These scripts find the shared part of every wall, serve it separately, and leave it out of the building's wall area.
 
-They run once over the whole table after [neighbour detection](post-01-neighbour-detection.md), because the two buildings of a pair can sit in different batches.
+They run once, over the whole table or an [on-request run's buildings](index.md), after [neighbour detection](post-01-neighbour-detection.md), because the two buildings of a pair can sit in different batches.
 
 ---
 

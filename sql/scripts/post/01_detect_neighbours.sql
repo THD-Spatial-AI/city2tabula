@@ -15,6 +15,10 @@
 -- attached_neighbour_class follows TABULA's Code_AttachedNeighbours: 0 alone,
 -- 1 one neighbour, 2 two or more. A building without a footprint stays NULL.
 -- Only changed rows are written, so the correction triggers fire only for them.
+--
+-- An on-request run passes the buildings it may change as {building_ids}: each of
+-- them is tested against the whole table, both ways, so a pair with a building
+-- outside the run is found. {whole_table} covers every building, each pair once.
 
 -- pairs joins the table, not a CTE: a CTE referenced twice is materialised and the
 -- join then cannot use the footprint GIST index.
@@ -23,9 +27,11 @@ WITH pairs AS (
            a.object_id AS a_obj, c.object_id AS c_obj
     FROM {city2tabula_schema}.{lod_schema}_building a
     JOIN {city2tabula_schema}.{lod_schema}_building c
-      ON a.building_feature_id < c.building_feature_id
+      ON CASE WHEN {whole_table} THEN a.building_feature_id < c.building_feature_id
+              ELSE a.building_feature_id <> c.building_feature_id END
      AND ST_DWithin(a.building_footprint_geom, c.building_footprint_geom, 0.1)
-    WHERE GREATEST(
+    WHERE ({whole_table} OR a.building_feature_id IN {building_ids})
+      AND GREATEST(
         ST_Length(ST_Intersection(ST_Boundary(ST_Force2D(a.building_footprint_geom)),
                                   ST_Buffer(ST_Boundary(ST_Force2D(c.building_footprint_geom)), 0.1))),
         ST_Length(ST_Intersection(ST_Boundary(ST_Force2D(c.building_footprint_geom)),
@@ -33,7 +39,7 @@ WITH pairs AS (
     ) >= 1
 ),
 neighbours AS (
-    SELECT id, ARRAY_AGG(other ORDER BY other)::TEXT[] AS ids
+    SELECT id, ARRAY_AGG(DISTINCT other ORDER BY other)::TEXT[] AS ids
     FROM (
         SELECT a_id AS id, c_obj AS other FROM pairs
         UNION ALL
@@ -46,6 +52,7 @@ detected AS (
     FROM {city2tabula_schema}.{lod_schema}_building b
     LEFT JOIN neighbours n ON n.id = b.building_feature_id
     WHERE b.building_footprint_geom IS NOT NULL
+      AND ({whole_table} OR b.building_feature_id IN {building_ids})
 )
 UPDATE {city2tabula_schema}.{lod_schema}_building t
 SET has_attached_neighbour   = cardinality(d.ids) > 0,
