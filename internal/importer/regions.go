@@ -26,39 +26,28 @@ type regionsFile struct {
 	Regions       map[string]regionEntry `json:"regions"`
 }
 
-// regionEntry describes one region folder.
+// regionEntry describes one region folder. Bbox is [min_lon, min_lat,
+// max_lon, max_lat] in WGS84 degrees.
 type regionEntry struct {
-	Name string `json:"name"`
+	Name string    `json:"name"`
+	Bbox []float64 `json:"bbox"`
 }
 
 // checkRegions checks a dataset folder's regions.json against its model
-// folders: every region folder has an entry with a name, every entry has a
-// folder, and no model file lies outside a region folder. A dataset folder
-// without regions.json passes.
+// folders: every entry has a name, a WGS84 bbox and a folder, every region
+// folder has an entry, and no model file lies outside a region folder. A
+// dataset folder without regions.json passes.
 func checkRegions(dir string, inputs []importInput) []error {
-	path := filepath.Join(dir, regionsFileName)
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
+	r, ok, err := loadRegions(dir)
+	if err != nil {
+		return []error{err}
+	}
+	if !ok {
 		return nil
 	}
-	if err != nil {
-		return []error{fmt.Errorf("read regions file: %w", err)}
-	}
-	r, err := decodeRegions(data)
-	if err != nil {
-		return []error{fmt.Errorf("%s: %w", path, err)}
-	}
 
-	var problems []error
-	if r.SchemaVersion != regionsSchemaVersion {
-		problems = append(problems, fmt.Errorf("%s: schema_version is %d, want %d", path, r.SchemaVersion, regionsSchemaVersion))
-	}
-	slugs := slices.Sorted(maps.Keys(r.Regions))
-	for _, slug := range slugs {
-		if strings.TrimSpace(r.Regions[slug].Name) == "" {
-			problems = append(problems, fmt.Errorf("%s: region %q has no name", path, slug))
-		}
-	}
+	path := filepath.Join(dir, regionsFileName)
+	problems := r.problems(path)
 	found := map[string]bool{}
 	for _, in := range inputs {
 		entries, err := os.ReadDir(in.path)
@@ -70,12 +59,59 @@ func checkRegions(dir string, inputs []importInput) []error {
 			problems = append(problems, checkRegionEntry(path, in.path, e, r, found)...)
 		}
 	}
-	for _, slug := range slugs {
+	for _, slug := range slices.Sorted(maps.Keys(r.Regions)) {
 		if !found[slug] {
 			problems = append(problems, fmt.Errorf("%s: region %q has no folder in gml/ or cityjson/", path, slug))
 		}
 	}
 	return problems
+}
+
+// loadRegions reads the regions.json in dir; ok is false when there is none.
+func loadRegions(dir string) (r regionsFile, ok bool, err error) {
+	path := filepath.Join(dir, regionsFileName)
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return regionsFile{}, false, nil
+	}
+	if err != nil {
+		return regionsFile{}, false, fmt.Errorf("read regions file: %w", err)
+	}
+	r, err = decodeRegions(data)
+	if err != nil {
+		return regionsFile{}, false, fmt.Errorf("%s: %w", path, err)
+	}
+	return r, true, nil
+}
+
+// problems reports every rule r breaks on its own, each naming path.
+func (r regionsFile) problems(path string) []error {
+	var problems []error
+	if r.SchemaVersion != regionsSchemaVersion {
+		problems = append(problems, fmt.Errorf("%s: schema_version is %d, want %d", path, r.SchemaVersion, regionsSchemaVersion))
+	}
+	for _, slug := range slices.Sorted(maps.Keys(r.Regions)) {
+		e := r.Regions[slug]
+		if strings.TrimSpace(e.Name) == "" {
+			problems = append(problems, fmt.Errorf("%s: region %q has no name", path, slug))
+		}
+		if err := checkBbox(e.Bbox); err != nil {
+			problems = append(problems, fmt.Errorf("%s: region %q: %w", path, slug, err))
+		}
+	}
+	return problems
+}
+
+// checkBbox requires [min_lon, min_lat, max_lon, max_lat] in WGS84 degrees,
+// each minimum below its maximum.
+func checkBbox(b []float64) error {
+	if len(b) != 4 {
+		return fmt.Errorf("bbox has %d numbers, want [min_lon, min_lat, max_lon, max_lat]", len(b))
+	}
+	if b[0] < -180 || b[2] > 180 || b[1] < -90 || b[3] > 90 || b[0] >= b[2] || b[1] >= b[3] {
+		return fmt.Errorf("bbox %v is not [min_lon, min_lat, max_lon, max_lat] in WGS84 degrees", b)
+	}
+	return nil
 }
 
 // checkRegionEntry checks one entry of a model folder when the dataset has a

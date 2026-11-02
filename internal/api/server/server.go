@@ -95,6 +95,12 @@ func New(base config.Config) *Server {
 	return srv
 }
 
+// RegionConfig returns the per-country config derived from the server's base
+// config. It opens no database connection.
+func (s *Server) RegionConfig(country string) (config.Config, error) {
+	return config.RegionConfig(s.base, country)
+}
+
 // PoolFor returns the region config and a cached, lazily-opened DB pool for
 // country. Used by read-only endpoints (coverage, buildings) so repeat requests
 // for the same country reuse one connection pool instead of reconnecting.

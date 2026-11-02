@@ -7,9 +7,13 @@ v0.8.0 are described in their tag messages.
 
 Features:
 - `-check-data` checks an optional regions.json next to attribution.json,
-  which names the region folders under gml/ and cityjson/ (see
-  docs/deployment/adding-data.md, Region folders). The import does not
-  read it.
+  which gives each region folder under gml/ and cityjson/ a display name
+  and a WGS84 bbox (see docs/deployment/adding-data.md, Region folders).
+  The import does not read it.
+- `GET /api/v1/datasets` lists the 3D data on disk per region of each
+  dataset: country, dataset_id, provider, LoD, format, region name, bbox
+  and file count. It reads files only, so staged data is listed before a
+  run imports it.
 
 ## v0.17.0 (2026-11-02)
 
