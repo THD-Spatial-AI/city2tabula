@@ -48,10 +48,11 @@ cd city2tabula
 
 ### 2) Create a branch
 
-Use a short, descriptive name:
+Branch from `dev`, with a short, descriptive name:
 
 ```bash
-git checkout -b type/short-description
+git fetch origin
+git checkout -b type/short-description origin/dev
 ```
 
 Examples:
@@ -74,13 +75,17 @@ At minimum:
 
 ### 5) Commit and push
 
+Commit messages follow Conventional Commits: `<type>: <subject>` or `<type>(<scope>): <subject>`, with the type one of feat, fix, docs, style, refactor, perf, test or chore. The subject starts lowercase, has no closing full stop and keeps the whole line within 100 characters. CI rejects other messages.
+
 ```bash
 git add .
-git commit -m "Concise summary of change"
+git commit -m "fix: reject roof azimuths outside 0 to 360"
 git push -u origin <your-branch-name>
 ```
 
 ### 6) Open a pull request
+
+Open the pull request against `dev`. `main` changes only when a release merges `dev` into it.
 
 In the PR description, include:
 
@@ -90,6 +95,7 @@ In the PR description, include:
 
 ## Pull request checklist
 
+- [ ] The PR targets `dev`
 - [ ] Scope is clear and reasonable
 - [ ] I tested the change (or explained why not)
 - [ ] Docs were updated (if behaviour changed)
