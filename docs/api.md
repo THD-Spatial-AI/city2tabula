@@ -53,10 +53,12 @@ curl "http://localhost:5000/api/v1/datasets?country=germany"
 
 Lists the 3D data on disk: one entry per region of each dataset, with its display name and WGS84 bbox (`[min_lon, min_lat, max_lon, max_lat]`). A dataset without regions has one entry per model folder, with no `region`, `name` or `bbox`. Without `country`, every supported country with a data folder is listed. Data appears as soon as it is on disk, before a run imports it; regions come from the dataset's `regions.json` ([Region folders](deployment/adding-data.md#region-folders)).
 
+With `footprint=true`, each entry also carries `footprint`: a GeoJSON MultiPolygon in EPSG:4326 merging the extents its model files declare, simplified to about 100 m. It is absent when no file declares a readable extent. The first such request for a dataset reads every file's header, which takes minutes for tens of thousands of files; later requests read only files added or changed since. A request that times out on the client keeps running and stores what it reads, so a later request finishes faster.
+
 | Status | Cause | Retry |
 |---|---|---|
 | 200 | Listed; `[]` when the country has no data | |
-| 400 | Unsupported `country` | No |
+| 400 | Unsupported `country`, or `footprint` not `true` or `false` | No |
 | 500 | A data folder is invalid; the message names the file | No, until the file is fixed |
 
 ## Checking coverage

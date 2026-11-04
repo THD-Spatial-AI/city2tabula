@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"encoding/json"
 	"errors"
 	"maps"
 	"os"
@@ -23,6 +24,10 @@ type DatasetRegion struct {
 	Name      string    `json:"name,omitempty"`
 	Bbox      []float64 `json:"bbox,omitempty"`
 	Files     int       `json:"files"`
+	// Footprint is set by AddFootprints.
+	Footprint json.RawMessage `json:"footprint,omitempty"`
+
+	folder string
 }
 
 // ListDatasets returns the region folders of every dataset under cfg's LOD2
@@ -64,7 +69,7 @@ func ListDatasets(cfg *config.Config) ([]DatasetRegion, error) {
 func folderRegions(base DatasetRegion, folder string, r regionsFile, hasRegions bool) ([]DatasetRegion, error) {
 	if !hasRegions {
 		files, err := modelFiles(folder)
-		base.Files = len(files)
+		base.Files, base.folder = len(files), folder
 		return []DatasetRegion{base}, err
 	}
 	var list []DatasetRegion
@@ -78,7 +83,7 @@ func folderRegions(base DatasetRegion, folder string, r regionsFile, hasRegions 
 			return nil, err
 		}
 		e := base
-		e.Region, e.Name, e.Bbox, e.Files = slug, r.Regions[slug].Name, r.Regions[slug].Bbox, len(files)
+		e.Region, e.Name, e.Bbox, e.Files, e.folder = slug, r.Regions[slug].Name, r.Regions[slug].Bbox, len(files), dir
 		list = append(list, e)
 	}
 	return list, nil

@@ -64,6 +64,7 @@ func TestDatasets(t *testing.T) {
 		}},
 		{"?country=austria", http.StatusOK, []importer.DatasetRegion{}},
 		{"?country=atlantis", http.StatusBadRequest, nil},
+		{"?footprint=maybe", http.StatusBadRequest, nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.query, func(t *testing.T) {
