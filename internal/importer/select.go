@@ -180,6 +180,10 @@ type cachedExtent struct {
 	extent      declaredExtent
 }
 
+// extentStoreChunk is how many freshly read extents are stored at once, so a
+// first read of a large dataset keeps its progress if it stops part-way.
+const extentStoreChunk = 500
+
 // fileExtents returns the declared extent of each of files: from fileExtentTable
 // when the file's size and modification time are unchanged, otherwise read from
 // the file and stored there.
@@ -207,6 +211,12 @@ func fileExtents(conn *pgxpool.Pool, schema, format string, files []string) ([]d
 		}
 		extents[i] = declaredExtent{e, ok}
 		fresh[path] = cachedExtent{info.Size(), info.ModTime().UnixNano(), extents[i]}
+		if len(fresh) == extentStoreChunk {
+			if err := storeExtents(conn, table, files, fresh); err != nil {
+				return nil, err
+			}
+			fresh = map[string]cachedExtent{}
+		}
 	}
 	return extents, storeExtents(conn, table, files, fresh)
 }

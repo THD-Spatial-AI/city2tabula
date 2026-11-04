@@ -115,21 +115,26 @@ func ensureExtentTables(ctx context.Context, conn *pgxpool.Pool, schema string) 
 		)`); err != nil {
 			return err
 		}
-		// declared is false for a file without a readable extent; its crs and
-		// coordinates are then unused.
-		_, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+pgx.Identifier{schema, fileExtentTable}.Sanitize()+` (
-			path     text             PRIMARY KEY,
-			size     bigint           NOT NULL,
-			mtime_ns bigint           NOT NULL,
-			declared boolean          NOT NULL,
-			crs      text             NOT NULL,
-			min_x    double precision NOT NULL,
-			min_y    double precision NOT NULL,
-			max_x    double precision NOT NULL,
-			max_y    double precision NOT NULL
-		)`)
-		return err
+		return createFileExtentTable(ctx, tx, schema)
 	})
+}
+
+// createFileExtentTable creates fileExtentTable in schema if it is missing.
+func createFileExtentTable(ctx context.Context, tx pgx.Tx, schema string) error {
+	// declared is false for a file without a readable extent; its crs and
+	// coordinates are then unused.
+	_, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+pgx.Identifier{schema, fileExtentTable}.Sanitize()+` (
+		path     text             PRIMARY KEY,
+		size     bigint           NOT NULL,
+		mtime_ns bigint           NOT NULL,
+		declared boolean          NOT NULL,
+		crs      text             NOT NULL,
+		min_x    double precision NOT NULL,
+		min_y    double precision NOT NULL,
+		max_x    double precision NOT NULL,
+		max_y    double precision NOT NULL
+	)`)
+	return err
 }
 
 // extentImported reports whether an earlier import of d from the same source

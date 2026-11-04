@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thd-spatial-ai/city2tabula/internal/config"
 	"github.com/thd-spatial-ai/city2tabula/internal/db"
+	"github.com/thd-spatial-ai/city2tabula/internal/importer"
 	"github.com/thd-spatial-ai/city2tabula/internal/onrequest"
 	"github.com/thd-spatial-ai/city2tabula/internal/utils"
 )
@@ -79,6 +80,12 @@ type Server struct {
 	poolsMu sync.Mutex
 	pools   map[string]*pgxpool.Pool
 
+	// One footprint computation at a time, so a request arriving during a
+	// long first read waits and then finds the extents cached. A lock per
+	// dataset would let listings of different countries run in parallel.
+	footprintMu sync.Mutex
+	catalogue   *pgxpool.Pool
+
 	runsMu sync.RWMutex
 	runs   map[string]*Run
 }
@@ -99,6 +106,33 @@ func New(base config.Config) *Server {
 // config. It opens no database connection.
 func (s *Server) RegionConfig(country string) (config.Config, error) {
 	return config.RegionConfig(s.base, country)
+}
+
+// AddFootprints sets each entry's footprint from the file extent cache in the
+// catalogue database, creating that database on first use. It belongs to no
+// country, so data on disk is described before any country database exists.
+func (s *Server) AddFootprints(list []importer.DatasetRegion) error {
+	s.footprintMu.Lock()
+	defer s.footprintMu.Unlock()
+
+	if s.catalogue == nil {
+		cfg := s.base
+		dbCfg := *s.base.DB
+		dbCfg.Name = s.base.DB.Name + "_catalogue"
+		cfg.DB = &dbCfg
+		pool, err := db.ConnectPool(&cfg)
+		if err != nil {
+			return fmt.Errorf("open catalogue database %s: %w", dbCfg.Name, err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := importer.PrepareCatalogue(ctx, pool); err != nil {
+			db.ClosePool(pool)
+			return fmt.Errorf("prepare catalogue database %s: %w", dbCfg.Name, err)
+		}
+		s.catalogue = pool
+	}
+	return importer.AddFootprints(s.catalogue, list)
 }
 
 // PoolFor returns the region config and a cached, lazily-opened DB pool for
