@@ -175,11 +175,20 @@ type datasetsResponse struct {
 	Datasets []importer.DatasetRegion `json:"datasets"`
 }
 
-// Datasets handles GET /api/v1/datasets[?country=..]: the region folders of
-// the 3D data on disk for one country, or for every supported country with a
-// data folder. It reads files only, so data staged for a country without a
-// database yet is listed too.
+// Datasets handles GET /api/v1/datasets[?country=..][&footprint=true]: the
+// region folders of the 3D data on disk for one country, or for every supported
+// country with a data folder. It reads files only, so data staged for a country
+// without a database yet is listed too; footprints come from the server's
+// catalogue database.
 func (h *Handler) Datasets(w http.ResponseWriter, r *http.Request) {
+	withFootprint := false
+	if v := r.URL.Query().Get("footprint"); v != "" {
+		var err error
+		if withFootprint, err = strconv.ParseBool(v); err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("footprint %q is not true or false", v))
+			return
+		}
+	}
 	country := r.URL.Query().Get("country")
 	countries := []string{country}
 	if country == "" {
@@ -207,6 +216,12 @@ func (h *Handler) Datasets(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		list = append(list, found...)
+	}
+	if withFootprint {
+		if err := h.srv.AddFootprints(list); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, datasetsResponse{Datasets: list})
 }

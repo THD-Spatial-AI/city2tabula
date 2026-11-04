@@ -3,6 +3,18 @@
 Each release is listed with its breaking changes first. Releases before
 v0.8.0 are described in their tag messages.
 
+## Unreleased
+
+Features:
+- `GET /api/v1/datasets?footprint=true` adds each entry's footprint: a
+  GeoJSON MultiPolygon in EPSG:4326 merging the extents its model files
+  declare, simplified to about 100 m. It works before any import: the
+  server keeps the file extents in its own database, named DB_NAME with
+  the suffix `_catalogue`, created on the first such request. The
+  database role therefore needs CREATEDB, as for country databases.
+- Freshly read file extents are stored every 500 files, so a long first
+  read keeps its progress if it stops part-way.
+
 ## v0.18.0 (2026-11-02)
 
 Fixes:

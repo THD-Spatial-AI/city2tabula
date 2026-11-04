@@ -161,6 +161,13 @@ paths:
             type: string
           description: Normalized, lowercase country name. Omit it to list every country.
           example: germany
+        - name: footprint
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Add each entry's `footprint`. The first such request for a dataset reads every model file's header and can take minutes; later requests reuse the stored extents.
       responses:
         "200":
           description: The datasets; an empty list when the country has no data
@@ -175,7 +182,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/DatasetRegion"
         "400":
-          description: Unsupported country; retrying does not help
+          description: Unsupported country, or `footprint` not true or false; retrying does not help
           content:
             application/json:
               schema:
@@ -606,6 +613,12 @@ components:
           type: integer
           description: Number of model files
           example: 9
+        footprint:
+          type: object
+          description: |
+            GeoJSON MultiPolygon in EPSG:4326: the merged extents the entry's
+            model files declare, simplified to about 100 m. Only with
+            `footprint=true`; absent when no file declares a readable extent.
     DatasetCredit:
       type: object
       description: A source dataset's attribution. Show `credit` with any output derived from the dataset.
